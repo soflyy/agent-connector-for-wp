@@ -1,0 +1,81 @@
+=== Root for Agents ===
+Contributors: soflyy
+Tags: mcp, ai, agents, wp-cli, abilities, development
+Requires at least: 7.0
+Tested up to: 7.0
+Requires PHP: 8.1
+Stable tag: 0.1.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+
+Give agents unrestricted execution capability on WordPress: shell, PHP eval, filesystem, and process execution via the WordPress MCP stack. Dev only.
+
+== Description ==
+
+Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack (the WordPress AI plugin, the MCP Abilities API, and wordpress/mcp-adapter) provides structured tools and abilities, but agents still lack unrestricted operational access.
+
+This plugin registers additional WordPress **Abilities** — it does NOT run its own MCP server. The installed mcp-adapter surfaces them automatically. It adds:
+
+* **Shell execution** (`root-for-agents/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
+* **PHP runtime execution** (`root-for-agents/php-eval`) — evaluate arbitrary PHP inside the loaded WordPress runtime; returns printed output, the returned value, and any error.
+* **Filesystem access** (`root-for-agents/file-read`, `file-write`, `file-delete`, `file-list`) — read/write/delete arbitrary files (binary-safe via base64) and list directories recursively.
+* **Environment inspection** (`root-for-agents/env-inspect`) — versions, paths, active plugins/theme, debug flags, writable-ness, and available CLI tooling.
+* **Process execution** (`root-for-agents/process-exec`) — longer-running command execution (proxies shell-exec in v1).
+
+The goal: give trusted agents in local/development environments the same operational capabilities as a human administrator — effectively SSH-equivalent access — through the existing WordPress MCP stack.
+
+== ⚠️ Danger / Intended Use ==
+
+This plugin is **dangerous by design**. It is:
+
+* developer-focused
+* intentionally unrestricted
+* **NOT** sandboxed
+* **NOT** intended for production
+* **NOT** enterprise security software
+
+It assumes the environment is trusted and that authenticated administrators intentionally trust the agents acting on their behalf. Do not install it anywhere you would not hand out a root shell.
+
+== Requirements ==
+
+* WordPress 7.0+
+* The WordPress AI plugin (provides the Abilities API)
+* wordpress/mcp-adapter
+* PHP 8.1+
+* WP-CLI available on the server (recommended)
+* A local / development / staging environment
+
+== Mandatory Environment Gates ==
+
+The plugin refuses to initialize unless explicitly enabled. Add to `wp-config.php`:
+
+`define( 'ROOT_FOR_AGENTS_ENABLED', true );`
+`define( 'ROOT_FOR_AGENTS_ALLOW_SHELL', true );  // enables shell-exec + process-exec`
+`define( 'ROOT_FOR_AGENTS_ALLOW_EVAL', true );   // enables php-eval`
+
+Additionally, the plugin will not run when `wp_get_environment_type()` is `production` unless you also define:
+
+`define( 'ROOT_FOR_AGENTS_ALLOW_PRODUCTION', true );  // not recommended`
+
+Abilities whose gate is off are simply not registered. The filesystem and environment-inspection abilities require only `ROOT_FOR_AGENTS_ENABLED`.
+
+== Optional Configuration ==
+
+`define( 'ROOT_FOR_AGENTS_TIMEOUT_MS', 60000 );          // default command/eval timeout`
+`define( 'ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES', 2097152 );   // per-stream output cap (2 MiB)`
+`define( 'ROOT_FOR_AGENTS_AUDIT_LOG', '/path/to/audit.log' );  // default: wp-content/root-for-agents-audit.log`
+
+== Security Model ==
+
+Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
+
+* WordPress capability checks (`manage_options`) on every ability
+* the mandatory environment gates above
+* the production guard
+* timeout enforcement and output caps
+* append-only audit logging of every invocation (user, ability, input summary, status, duration)
+
+== Changelog ==
+
+= 0.1.0 =
+* Initial release: shell-exec, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
