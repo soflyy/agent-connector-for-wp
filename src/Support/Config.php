@@ -71,14 +71,14 @@ final class Config {
 		if ( defined( 'ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES' ) && is_int( ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES ) ) {
 			return max( 4096, ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES );
 		}
-
-		/**
-		 * Abilities should only execute for authenticated users.
-		 */
-		public static function has_authenticated_user(): bool {
-			return function_exists( 'is_user_logged_in' ) && is_user_logged_in();
-		}
 		return 2 * 1024 * 1024; // 2 MiB.
+	}
+
+	/**
+	 * Abilities should only execute for authenticated users.
+	 */
+	public static function has_authenticated_user(): bool {
+		return function_exists( 'is_user_logged_in' ) && is_user_logged_in();
 	}
 
 	/**
