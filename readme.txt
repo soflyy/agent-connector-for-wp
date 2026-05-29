@@ -50,14 +50,12 @@ It assumes the environment is trusted and that authenticated administrators inte
 The plugin refuses to initialize unless explicitly enabled. Add to `wp-config.php`:
 
 `define( 'ROOT_FOR_AGENTS_ENABLED', true );`
-`define( 'ROOT_FOR_AGENTS_ALLOW_SHELL', true );  // enables shell-exec + process-exec`
-`define( 'ROOT_FOR_AGENTS_ALLOW_EVAL', true );   // enables php-eval`
 
 Additionally, the plugin will not run when `wp_get_environment_type()` is `production` unless you also define:
 
 `define( 'ROOT_FOR_AGENTS_ALLOW_PRODUCTION', true );  // not recommended`
 
-Abilities whose gate is off are simply not registered. The filesystem and environment-inspection abilities require only `ROOT_FOR_AGENTS_ENABLED`.
+All abilities are registered when `ROOT_FOR_AGENTS_ENABLED` is true.
 
 == Optional Configuration ==
 
@@ -69,7 +67,7 @@ Abilities whose gate is off are simply not registered. The filesystem and enviro
 
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
-* WordPress capability checks (`manage_options`) on every ability
+* authenticated-user checks on every ability
 * the mandatory environment gates above
 * the production guard
 * timeout enforcement and output caps

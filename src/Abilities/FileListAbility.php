@@ -76,7 +76,7 @@ final class FileListAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return current_user_can( Config::CAP );
+				return Config::has_authenticated_user();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),

@@ -16,31 +16,15 @@ defined( 'ABSPATH' ) || exit;
  *
  * The plugin is dangerous by design, so nothing initializes unless the
  * operator has explicitly defined the enabling constants (typically in
- * wp-config.php). Each capability has its own gate on top of the master one.
+ * wp-config.php).
  */
 final class Config {
-
-	public const CAP = 'manage_options';
 
 	/**
 	 * Master switch. The plugin does nothing unless this is true.
 	 */
 	public static function is_enabled(): bool {
 		return defined( 'ROOT_FOR_AGENTS_ENABLED' ) && true === ROOT_FOR_AGENTS_ENABLED;
-	}
-
-	/**
-	 * Whether shell / process execution abilities may register.
-	 */
-	public static function allow_shell(): bool {
-		return defined( 'ROOT_FOR_AGENTS_ALLOW_SHELL' ) && true === ROOT_FOR_AGENTS_ALLOW_SHELL;
-	}
-
-	/**
-	 * Whether the PHP eval ability may register.
-	 */
-	public static function allow_eval(): bool {
-		return defined( 'ROOT_FOR_AGENTS_ALLOW_EVAL' ) && true === ROOT_FOR_AGENTS_ALLOW_EVAL;
 	}
 
 	/**
@@ -87,6 +71,13 @@ final class Config {
 		if ( defined( 'ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES' ) && is_int( ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES ) ) {
 			return max( 4096, ROOT_FOR_AGENTS_MAX_OUTPUT_BYTES );
 		}
+
+		/**
+		 * Abilities should only execute for authenticated users.
+		 */
+		public static function has_authenticated_user(): bool {
+			return function_exists( 'is_user_logged_in' ) && is_user_logged_in();
+		}
 		return 2 * 1024 * 1024; // 2 MiB.
 	}
 
@@ -104,7 +95,7 @@ final class Config {
 	 * Admin notice explaining which gate kept the plugin inert.
 	 */
 	public static function render_gate_notice(): void {
-		if ( ! current_user_can( self::CAP ) ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 

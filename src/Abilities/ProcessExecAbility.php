@@ -24,7 +24,7 @@ final class ProcessExecAbility {
 	public const NAME = 'root-for-agents/process-exec';
 
 	public static function is_allowed(): bool {
-		return Config::allow_shell();
+		return true;
 	}
 
 	/**
@@ -73,7 +73,7 @@ final class ProcessExecAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return current_user_can( Config::CAP ) && Config::allow_shell();
+				return Config::has_authenticated_user();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),
