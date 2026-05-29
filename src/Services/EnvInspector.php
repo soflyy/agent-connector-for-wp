@@ -52,7 +52,7 @@ final class EnvInspector {
 				'php_os'   => PHP_OS,
 				'uname'    => function_exists( 'php_uname' ) ? php_uname() : '',
 				'sapi'     => PHP_SAPI,
-				'user'     => function_exists( 'get_current_user' ) ? get_current_user() : '',
+				'user'     => $this->process_user(),
 			),
 			'permissions'       => array(
 				'abspath_writable'     => is_writable( ABSPATH ),
@@ -88,6 +88,26 @@ final class EnvInspector {
 			'git'      => $this->probe( 'git --version 2>/dev/null' ),
 			'php_cli'  => $this->probe( 'php --version 2>/dev/null' ),
 		);
+	}
+
+	/**
+	 * Returns the name of the effective process user (runtime user, not script-file owner).
+	 */
+	private function process_user(): string {
+		if ( function_exists( 'posix_geteuid' ) && function_exists( 'posix_getpwuid' ) ) {
+			$info = posix_getpwuid( posix_geteuid() );
+			if ( is_array( $info ) && isset( $info['name'] ) ) {
+				return (string) $info['name'];
+			}
+		}
+		// Fallback: ask the shell.
+		if ( function_exists( 'shell_exec' ) ) {
+			$out = @shell_exec( 'id -un 2>/dev/null' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.PHP.DiscouragedPHPFunctions
+			if ( is_string( $out ) && '' !== trim( $out ) ) {
+				return trim( $out );
+			}
+		}
+		return '';
 	}
 
 	private function probe( string $command ): ?string {
