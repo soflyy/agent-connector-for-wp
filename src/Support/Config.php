@@ -20,6 +20,8 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Config {
 
+	public const CAP = 'manage_options';
+
 	/**
 	 * Master switch. The plugin does nothing unless this is true.
 	 */
@@ -75,10 +77,10 @@ final class Config {
 	}
 
 	/**
-	 * Abilities should only execute for authenticated users.
+	 * Abilities should only execute for administrators/super admins.
 	 */
-	public static function has_authenticated_user(): bool {
-		return function_exists( 'is_user_logged_in' ) && is_user_logged_in();
+	public static function has_admin_access(): bool {
+		return current_user_can( self::CAP ) && function_exists( 'is_super_admin' ) && is_super_admin();
 	}
 
 	/**

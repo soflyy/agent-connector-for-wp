@@ -67,7 +67,7 @@ All abilities are registered when `ROOT_FOR_AGENTS_ENABLED` is true.
 
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
-* authenticated-user checks on every ability
+* administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every ability
 * the mandatory environment gates above
 * the production guard
 * timeout enforcement and output caps

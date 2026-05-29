@@ -1,6 +1,6 @@
 # Root for Agents
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated users and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
+> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
 
 Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 

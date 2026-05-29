@@ -69,7 +69,7 @@ final class FileWriteAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return Config::has_authenticated_user();
+				return Config::has_admin_access();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),
