@@ -4,7 +4,7 @@
 
 Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin registers additional WordPress **Abilities** only. It does **not** run its own MCP server — the installed `mcp-adapter` surfaces these abilities automatically.
+This plugin registers additional WordPress **Abilities** only. It does **not** run its own MCP server — the [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) plugin must be installed to surface these abilities.
 
 ## What it adds
 
@@ -85,19 +85,6 @@ define( 'ROOT_FOR_AGENTS_AUDIT_LOG', '/path/to/audit.log' );
 ```json
 { "path": "wp-content/debug.log" }
 ```
-
-## Security model
-
-Intentionally high-trust. **No** sandboxing, ACLs, approval workflows, restricted shells, or command whitelisting. It **does** enforce:
-
-- `manage_options` capability checks on every ability
-- the mandatory environment gates + production guard
-- timeout enforcement and per-stream output caps
-- append-only audit logging of every invocation (user, ability, input summary, status, duration) — default `wp-content/root-for-agents-audit.log`
-
-## Roadmap
-
-Streaming execution, async jobs, terminal sessions, git integration, rollback snapshots, process supervision, container introspection, DB query tools, log streaming, remote REPL, and an agent activity timeline.
 
 ## Philosophy
 
