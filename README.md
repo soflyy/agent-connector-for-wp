@@ -1,6 +1,6 @@
 # Root for Agents
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
+> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
 
 Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
@@ -46,8 +46,6 @@ The plugin is inert until you explicitly opt in. Add to `wp-config.php`:
 
 ```php
 define( 'ROOT_FOR_AGENTS_ENABLED', true );
-define( 'ROOT_FOR_AGENTS_ALLOW_SHELL', true ); // shell-exec + process-exec
-define( 'ROOT_FOR_AGENTS_ALLOW_EVAL', true );  // php-eval
 ```
 
 It also refuses to run when `wp_get_environment_type()` is `production`, unless you additionally (and inadvisably) set:
@@ -56,7 +54,7 @@ It also refuses to run when `wp_get_environment_type()` is `production`, unless 
 define( 'ROOT_FOR_AGENTS_ALLOW_PRODUCTION', true );
 ```
 
-Abilities whose gate is off are not registered at all. `file-*` and `env-inspect` need only `ROOT_FOR_AGENTS_ENABLED`.
+All abilities register when `ROOT_FOR_AGENTS_ENABLED` is true.
 
 ### Optional tunables
 

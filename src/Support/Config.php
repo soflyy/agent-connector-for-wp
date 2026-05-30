@@ -16,7 +16,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * The plugin is dangerous by design, so nothing initializes unless the
  * operator has explicitly defined the enabling constants (typically in
- * wp-config.php). Each capability has its own gate on top of the master one.
+ * wp-config.php).
  */
 final class Config {
 
@@ -27,20 +27,6 @@ final class Config {
 	 */
 	public static function is_enabled(): bool {
 		return defined( 'ROOT_FOR_AGENTS_ENABLED' ) && true === ROOT_FOR_AGENTS_ENABLED;
-	}
-
-	/**
-	 * Whether shell / process execution abilities may register.
-	 */
-	public static function allow_shell(): bool {
-		return defined( 'ROOT_FOR_AGENTS_ALLOW_SHELL' ) && true === ROOT_FOR_AGENTS_ALLOW_SHELL;
-	}
-
-	/**
-	 * Whether the PHP eval ability may register.
-	 */
-	public static function allow_eval(): bool {
-		return defined( 'ROOT_FOR_AGENTS_ALLOW_EVAL' ) && true === ROOT_FOR_AGENTS_ALLOW_EVAL;
 	}
 
 	/**
@@ -91,6 +77,13 @@ final class Config {
 	}
 
 	/**
+	 * Abilities should only execute for administrators/super admins.
+	 */
+	public static function has_admin_access(): bool {
+		return current_user_can( self::CAP ) && function_exists( 'is_super_admin' ) && is_super_admin();
+	}
+
+	/**
 	 * Absolute path to the audit log. Override with ROOT_FOR_AGENTS_AUDIT_LOG.
 	 */
 	public static function audit_log_path(): string {
@@ -104,7 +97,7 @@ final class Config {
 	 * Admin notice explaining which gate kept the plugin inert.
 	 */
 	public static function render_gate_notice(): void {
-		if ( ! current_user_can( self::CAP ) ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
 

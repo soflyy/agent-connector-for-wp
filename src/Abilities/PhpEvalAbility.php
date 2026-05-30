@@ -20,7 +20,7 @@ final class PhpEvalAbility {
 	public const NAME = 'root-for-agents/php-eval';
 
 	public static function is_allowed(): bool {
-		return Config::allow_eval();
+		return true;
 	}
 
 	/**
@@ -68,7 +68,7 @@ final class PhpEvalAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return current_user_can( Config::CAP ) && Config::allow_eval();
+				return Config::has_admin_access();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),

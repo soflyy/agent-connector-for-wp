@@ -15,7 +15,8 @@
  * ---------------------------------------------------------------------------
  *  DANGER: This plugin intentionally grants root-equivalent operational
  *  capability (arbitrary shell, PHP eval, filesystem access) to authenticated
- *  administrators and the agents acting on their behalf. It is NOT sandboxed
+ *  administrators/super admins and the agents acting on their behalf. It is
+ *  NOT sandboxed
  *  and NOT intended for production. Enable only in trusted local/dev/staging
  *  environments. See readme.txt.
  * ---------------------------------------------------------------------------

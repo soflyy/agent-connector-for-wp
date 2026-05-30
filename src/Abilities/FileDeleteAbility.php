@@ -59,7 +59,7 @@ final class FileDeleteAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return current_user_can( Config::CAP );
+				return Config::has_admin_access();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),

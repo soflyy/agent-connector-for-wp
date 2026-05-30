@@ -20,7 +20,7 @@ final class ShellAbility {
 	public const NAME = 'root-for-agents/shell-exec';
 
 	public static function is_allowed(): bool {
-		return Config::allow_shell();
+		return true;
 	}
 
 	/**
@@ -69,7 +69,7 @@ final class ShellAbility {
 				array( self::class, 'summarize' )
 			),
 			'permission_callback' => static function (): bool {
-				return current_user_can( Config::CAP ) && Config::allow_shell();
+				return Config::has_admin_access();
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),
