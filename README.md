@@ -43,8 +43,9 @@ composer install --no-dev
 wp plugin activate root-for-agents
 ```
 
-Release builds ship with `vendor/` committed, so a downloaded `.zip` needs no
-`composer install` step — just activate.
+Dependencies (`vendor/`) are not committed to the repository — `composer install`
+fetches them. If you download a packaged release `.zip` (built by CI, with
+`vendor/` already bundled), skip the `composer install` step and just activate.
 
 ## Connect an agent
 
