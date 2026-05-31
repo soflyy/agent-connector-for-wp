@@ -11,6 +11,7 @@ This plugin registers additional WordPress **Abilities** and surfaces them over 
 | Ability | Purpose |
 | --- | --- |
 | `root-for-agents/shell-exec` | Run arbitrary shell commands (`proc_open`), capturing stdout/stderr/exit code, with cwd + timeout. |
+| `root-for-agents/wp-cli` | Run a WP-CLI command against this install (everything after `wp`); auto-adds `--allow-root` when running as root. |
 | `root-for-agents/php-eval` | Evaluate arbitrary PHP in the loaded WordPress runtime; returns output, return value, and errors. |
 | `root-for-agents/file-read` | Read any file (binary-safe via base64). |
 | `root-for-agents/file-write` | Write any file, creating dirs; binary-safe; append mode. |
@@ -112,6 +113,12 @@ define( 'ROOT_FOR_AGENTS_AUDIT_LOG', '/path/to/audit.log' );
 
 ```json
 { "path": "wp-content/debug.log" }
+```
+
+`wp-cli` input:
+
+```json
+{ "command": "plugin list --status=active --format=json" }
 ```
 
 ## Philosophy

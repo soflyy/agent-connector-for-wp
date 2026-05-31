@@ -17,6 +17,7 @@ Root for Agents fills the execution gap in the WordPress MCP ecosystem. The exis
 This plugin registers additional WordPress **Abilities** and exposes them over MCP. It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. It adds:
 
 * **Shell execution** (`root-for-agents/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
+* **WP-CLI execution** (`root-for-agents/wp-cli`) — run a WP-CLI command (everything after `wp`) against this install; runs from the WordPress root and auto-adds --allow-root when running as root.
 * **PHP runtime execution** (`root-for-agents/php-eval`) — evaluate arbitrary PHP inside the loaded WordPress runtime; returns printed output, the returned value, and any error.
 * **Filesystem access** (`root-for-agents/file-read`, `file-write`, `file-delete`, `file-list`) — read/write/delete arbitrary files (binary-safe via base64) and list directories recursively.
 * **Environment inspection** (`root-for-agents/env-inspect`) — versions, paths, active plugins/theme, debug flags, writable-ness, and available CLI tooling.
@@ -81,6 +82,6 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 == Changelog ==
 
 = 0.1.0 =
-* Initial release: shell-exec, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
+* Initial release: shell-exec, wp-cli, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
 * Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.
 * Adds a "Root for Agents > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.

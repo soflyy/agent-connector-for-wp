@@ -17,6 +17,7 @@ use RootForAgents\Abilities\FileWriteAbility;
 use RootForAgents\Abilities\PhpEvalAbility;
 use RootForAgents\Abilities\ProcessExecAbility;
 use RootForAgents\Abilities\ShellAbility;
+use RootForAgents\Abilities\WpCliAbility;
 use RootForAgents\Admin\ConnectPage;
 
 defined( 'ABSPATH' ) || exit;
@@ -38,6 +39,7 @@ final class Plugin {
 		EnvInspectAbility::class,
 		ShellAbility::class,
 		ProcessExecAbility::class,
+		WpCliAbility::class,
 		PhpEvalAbility::class,
 		FileReadAbility::class,
 		FileWriteAbility::class,
