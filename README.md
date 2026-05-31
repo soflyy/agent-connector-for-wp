@@ -4,7 +4,7 @@
 
 Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin registers additional WordPress **Abilities** only. It does **not** run its own MCP server — the [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) plugin must be installed to surface these abilities.
+This plugin registers additional WordPress **Abilities** and surfaces them over MCP. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts.
 
 ## What it adds
 
@@ -25,20 +25,50 @@ The goal: give trusted agents in development environments effectively **SSH-equi
 
 - WordPress 7.0+
 - The WordPress AI plugin (provides the Abilities API)
-- `wordpress/mcp-adapter`
 - PHP 8.1+
 - WP-CLI available on the server (recommended)
 - A local / development / staging environment
 
+> `wordpress/mcp-adapter` is bundled — you do not need to install it separately.
+
 ## Install
 
-Clone into your plugins directory and activate:
+Clone into your plugins directory, install dependencies, and activate:
 
 ```bash
 cd wp-content/plugins
 git clone https://github.com/soflyy/root-for-agents.git
+cd root-for-agents
+composer install --no-dev
 wp plugin activate root-for-agents
 ```
+
+Dependencies (`vendor/`) are not committed to the repository — `composer install`
+fetches them. If you download a packaged release `.zip` (built by CI, with
+`vendor/` already bundled), skip the `composer install` step and just activate.
+
+## Connect an agent
+
+Once enabled, go to **Root for Agents → Connect** in wp-admin and click
+**Generate connection**. The plugin will:
+
+1. mint a fresh WordPress application password for your account,
+2. compute this site's MCP server URL, and
+3. give you three ready-to-paste artifacts:
+   - a **natural-language prompt** to drop into Claude (or any coding agent),
+     which tells it to configure and connect to the MCP server itself;
+   - a **`claude mcp add` CLI command** for Claude Code; and
+   - an **`mcpServers` JSON** block for client config files (e.g. `.mcp.json`).
+
+All three drive [`@automattic/mcp-wordpress-remote`](https://www.npmjs.com/package/@automattic/mcp-wordpress-remote)
+— a small stdio MCP proxy the agent runs locally via `npx` (so the client needs
+Node.js). The proxy connects to this site's MCP endpoint and authenticates with
+the application password (passed as the `WP_API_PASSWORD` environment variable,
+alongside `WP_API_URL` and `WP_API_USERNAME`).
+
+The application password is shown only once, embedded in those artifacts — copy
+it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
+Application Passwords** when you're done.
 
 ## Enable (mandatory gates)
 

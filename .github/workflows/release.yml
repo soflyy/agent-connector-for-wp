@@ -1,0 +1,65 @@
+name: Build release zip
+
+# Builds a distributable plugin zip with production Composer dependencies
+# vendored in (vendor/ is gitignored, so the repo stays lean). Runs on version
+# tags, and can be triggered manually for testing.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install production dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+
+      - name: Stage plugin files
+        # Mirror the repo into a clean, correctly-named plugin directory,
+        # excluding development-only files, then add the built vendor/ tree.
+        run: |
+          PLUGIN_SLUG=root-for-agents
+          mkdir -p "dist/${PLUGIN_SLUG}"
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='dist' \
+            --exclude='vendor' \
+            --exclude='.gitignore' \
+            --exclude='*.zip' \
+            ./ "dist/${PLUGIN_SLUG}/"
+          # vendor/ is gitignored (so excluded above); copy the freshly built one in.
+          cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
+
+      - name: Create zip
+        run: |
+          PLUGIN_SLUG=root-for-agents
+          cd dist
+          zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: root-for-agents
+          path: dist/root-for-agents.zip
+
+      - name: Attach zip to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/root-for-agents.zip

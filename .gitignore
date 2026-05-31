@@ -1,3 +1,12 @@
+# Composer dependencies — installed via `composer install`, bundled into the
+# release zip by CI (see .github/workflows/release.yml). composer.lock IS
+# tracked so builds are reproducible.
+/vendor/
+
+# Build artifacts
+/dist/
+*.zip
+
 # Runtime artifacts
 root-for-agents-audit.log
 *.log

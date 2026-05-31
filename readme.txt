@@ -14,7 +14,7 @@ Give agents unrestricted execution capability on WordPress: shell, PHP eval, fil
 
 Root for Agents fills the execution gap in the WordPress MCP ecosystem. The existing stack (the WordPress AI plugin, the MCP Abilities API, and wordpress/mcp-adapter) provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin registers additional WordPress **Abilities** — it does NOT run its own MCP server. The installed mcp-adapter surfaces them automatically. It adds:
+This plugin registers additional WordPress **Abilities** and exposes them over MCP. It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. It adds:
 
 * **Shell execution** (`root-for-agents/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
 * **PHP runtime execution** (`root-for-agents/php-eval`) — evaluate arbitrary PHP inside the loaded WordPress runtime; returns printed output, the returned value, and any error.
@@ -40,10 +40,11 @@ It assumes the environment is trusted and that authenticated administrators inte
 
 * WordPress 7.0+
 * The WordPress AI plugin (provides the Abilities API)
-* wordpress/mcp-adapter
 * PHP 8.1+
 * WP-CLI available on the server (recommended)
 * A local / development / staging environment
+
+wordpress/mcp-adapter is bundled with this plugin; you do not need to install it separately.
 
 == Mandatory Environment Gates ==
 
@@ -56,6 +57,10 @@ Additionally, the plugin will not run when `wp_get_environment_type()` is `produ
 `define( 'ROOT_FOR_AGENTS_ALLOW_PRODUCTION', true );  // not recommended`
 
 All abilities are registered when `ROOT_FOR_AGENTS_ENABLED` is true.
+
+== Connecting an Agent ==
+
+Go to **Root for Agents > Connect** in wp-admin and click **Generate connection**. The plugin mints a fresh WordPress application password, computes this site's MCP server URL, and hands you three copy-paste artifacts: a natural-language prompt for any coding agent, a `claude mcp add` CLI command, and an `mcpServers` JSON block. All three drive the @automattic/mcp-wordpress-remote proxy, which the agent runs locally via npx (Node.js required) and which authenticates using the application password (shown only once). Revoke it from Users > Profile > Application Passwords when finished.
 
 == Optional Configuration ==
 
@@ -77,3 +82,5 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 
 = 0.1.0 =
 * Initial release: shell-exec, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
+* Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.
+* Adds a "Root for Agents > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.
