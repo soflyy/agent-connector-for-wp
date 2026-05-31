@@ -35,21 +35,52 @@ define( 'ROOT_FOR_AGENTS_FILE', __FILE__ );
 define( 'ROOT_FOR_AGENTS_DIR', plugin_dir_path( __FILE__ ) );
 
 /**
- * Minimal PSR-4 autoloader for the RootForAgents\ namespace, rooted at src/.
+ * Load bundled Composer dependencies via the Jetpack Autoloader.
+ *
+ * We ship wordpress/mcp-adapter (and its php-mcp-schema dependency) inside this
+ * plugin so it works standalone — the separate "MCP Adapter" plugin does not
+ * need to be installed. The Jetpack Autoloader (autoload_packages.php, not the
+ * plain vendor/autoload.php) deduplicates shared packages across plugins: when
+ * several plugins bundle the adapter, only the newest version is loaded, which
+ * prevents fatal "class already declared" / version-mismatch conflicts.
+ *
+ * It also registers this plugin's own RootForAgents\ namespace (PSR-4, src/),
+ * so the fallback autoloader below is only used when dependencies are missing
+ * (e.g. a source checkout where `composer install` has not been run yet).
  */
-spl_autoload_register(
-	static function ( string $class ): void {
-		$prefix = __NAMESPACE__ . '\\';
-		if ( 0 !== strpos( $class, $prefix ) ) {
-			return;
+$root_for_agents_jetpack_autoloader = ROOT_FOR_AGENTS_DIR . 'vendor/autoload_packages.php';
+$root_for_agents_has_vendor         = is_readable( $root_for_agents_jetpack_autoloader );
+if ( $root_for_agents_has_vendor ) {
+	require_once $root_for_agents_jetpack_autoloader;
+}
+unset( $root_for_agents_jetpack_autoloader );
+
+/**
+ * Minimal PSR-4 fallback autoloader for the RootForAgents\ namespace, rooted at
+ * src/.
+ *
+ * Registered only when the Jetpack autoloader is absent (e.g. a source checkout
+ * where `composer install` has not been run). When vendor/ is present the
+ * Jetpack autoloader already maps the RootForAgents\ namespace, and registering
+ * a second loader here would re-require the class files and trigger a "Cannot
+ * declare class … already in use" fatal.
+ */
+if ( ! $root_for_agents_has_vendor ) {
+	spl_autoload_register(
+		static function ( string $class ): void {
+			$prefix = __NAMESPACE__ . '\\';
+			if ( 0 !== strpos( $class, $prefix ) ) {
+				return;
+			}
+			$relative = substr( $class, strlen( $prefix ) );
+			$path     = ROOT_FOR_AGENTS_DIR . 'src/' . str_replace( '\\', '/', $relative ) . '.php';
+			if ( is_readable( $path ) ) {
+				require $path;
+			}
 		}
-		$relative = substr( $class, strlen( $prefix ) );
-		$path     = ROOT_FOR_AGENTS_DIR . 'src/' . str_replace( '\\', '/', $relative ) . '.php';
-		if ( is_readable( $path ) ) {
-			require $path;
-		}
-	}
-);
+	);
+}
+unset( $root_for_agents_has_vendor );
 
 /**
  * Boot the plugin once WordPress is loaded.
@@ -66,6 +97,20 @@ add_action(
 			add_action( 'admin_notices', array( Support\Config::class, 'render_gate_notice' ) );
 			return;
 		}
+
 		( new Plugin() )->register();
+
+		/**
+		 * Ensure the MCP Adapter is running.
+		 *
+		 * If the standalone "MCP Adapter" plugin is active it will already have
+		 * booted the adapter; McpAdapter::instance() is an idempotent singleton,
+		 * so calling it again is safe. If that plugin is *not* installed, this is
+		 * what brings the bundled adapter (and its default MCP server) to life,
+		 * letting Root for Agents work entirely on its own.
+		 */
+		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
+			\WP\MCP\Core\McpAdapter::instance();
+		}
 	}
 );

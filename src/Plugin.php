@@ -17,6 +17,7 @@ use RootForAgents\Abilities\FileWriteAbility;
 use RootForAgents\Abilities\PhpEvalAbility;
 use RootForAgents\Abilities\ProcessExecAbility;
 use RootForAgents\Abilities\ShellAbility;
+use RootForAgents\Admin\ConnectPage;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -47,6 +48,10 @@ final class Plugin {
 	public function register(): void {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+
+		if ( is_admin() ) {
+			( new ConnectPage() )->register();
+		}
 	}
 
 	/**
