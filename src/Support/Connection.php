@@ -17,6 +17,14 @@ defined( 'ABSPATH' ) || exit;
  * Root for Agents reuses the MCP Adapter's *default* server rather than
  * registering its own. Its abilities (all flagged mcp.public=true) are surfaced
  * there automatically, reachable through the adapter's discover/execute tools.
+ *
+ * The connection artifacts drive Automattic's mcp-wordpress-remote proxy
+ * (https://www.npmjs.com/package/@automattic/mcp-wordpress-remote), a small
+ * stdio MCP server the agent runs locally via npx. The proxy connects to this
+ * site's MCP endpoint and authenticates with the operator's WordPress
+ * application password. We use the proxy (rather than a direct HTTP transport)
+ * because it's the broadly-supported way to reach a WordPress MCP server from
+ * clients that only speak stdio, and it handles auth/transport details for us.
  */
 final class Connection {
 
@@ -24,6 +32,11 @@ final class Connection {
 	 * A stable client name agents will use to label this server.
 	 */
 	public const CLIENT_NAME = 'wordpress-root-for-agents';
+
+	/**
+	 * The npm package providing the stdio proxy the agent runs locally.
+	 */
+	public const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote';
 
 	/**
 	 * The MCP Adapter default server's REST namespace and route.
@@ -53,13 +66,22 @@ final class Connection {
 	}
 
 	/**
-	 * Build the Basic auth token (base64 of "user:application-password").
+	 * Environment variables the mcp-wordpress-remote proxy needs.
 	 *
-	 * Application passwords are transmitted exactly like a regular password over
-	 * HTTP Basic auth; WordPress core authenticates them on REST requests.
+	 * WP_API_URL must be the full endpoint path (the proxy treats a bare domain
+	 * as a legacy install). OAUTH_ENABLED is disabled because we authenticate
+	 * with an application password via the proxy's legacy auth path rather than
+	 * the interactive OAuth 2.1 flow.
+	 *
+	 * @return array<string,string>
 	 */
-	public static function basic_token( string $username, string $password ): string {
-		return base64_encode( $username . ':' . $password );
+	public static function proxy_env( string $username, string $password ): array {
+		return array(
+			'WP_API_URL'      => self::endpoint_url(),
+			'WP_API_USERNAME' => $username,
+			'WP_API_PASSWORD' => $password,
+			'OAUTH_ENABLED'   => 'false',
+		);
 	}
 
 	/**
@@ -68,17 +90,16 @@ final class Connection {
 	 * @return array{
 	 *     url:string,
 	 *     username:string,
-	 *     auth_header:string,
 	 *     prompt:string,
 	 *     cli:string,
 	 *     json:string
 	 * }
 	 */
 	public static function build_artifacts( string $username, string $password ): array {
-		$url         = self::endpoint_url();
-		$token       = self::basic_token( $username, $password );
-		$auth_header = 'Basic ' . $token;
-		$name        = self::CLIENT_NAME;
+		$url     = self::endpoint_url();
+		$name    = self::CLIENT_NAME;
+		$package = self::PROXY_PACKAGE;
+		$env     = self::proxy_env( $username, $password );
 
 		// 1) A natural-language prompt the user can paste into any coding agent.
 		$prompt = implode(
@@ -87,36 +108,43 @@ final class Connection {
 				'Please configure a new MCP (Model Context Protocol) server for me, then connect to it.',
 				'',
 				'- Name: ' . $name,
-				'- Transport: Streamable HTTP',
-				'- URL: ' . $url,
-				'- Required HTTP header: Authorization: ' . $auth_header,
+				'- Transport: stdio, via Automattic\'s mcp-wordpress-remote proxy run with npx',
+				'- Command: npx -y ' . $package,
+				'- Environment variables:',
+				'    WP_API_URL=' . $env['WP_API_URL'],
+				'    WP_API_USERNAME=' . $env['WP_API_USERNAME'],
+				'    WP_API_PASSWORD=' . $env['WP_API_PASSWORD'],
+				'    OAUTH_ENABLED=false',
 				'',
-				'This is a WordPress site exposing its abilities over MCP. Once connected, list the',
-				'available tools to confirm it works. Use the "mcp-adapter/discover-abilities" tool to',
-				'see what this site can do and "mcp-adapter/execute-ability" to run an ability — including',
-				'root-for-agents/shell-exec, root-for-agents/php-eval, and the file-read/write/list/delete',
-				'abilities, which give you shell, PHP, and filesystem access on the server.',
+				'This is a WordPress site exposing its abilities over MCP. The proxy connects to it and',
+				'authenticates with the WordPress application password above. Once connected, list the',
+				'available tools to confirm it works. Use the "discover-abilities" tool to see what this',
+				'site can do and "execute-ability" to run one — including root-for-agents/shell-exec,',
+				'root-for-agents/php-eval, and the file-read/write/list/delete abilities, which give you',
+				'shell, PHP, and filesystem access on the server.',
 			)
 		);
 
-		// 2) A ready-to-run Claude Code CLI command.
-		$cli = sprintf(
-			'claude mcp add --transport http %s %s --header %s',
-			escapeshellarg( $name ),
-			escapeshellarg( $url ),
-			escapeshellarg( 'Authorization: ' . $auth_header )
-		);
+		// 2) A ready-to-run Claude Code CLI command (stdio server with env vars).
+		$cli_parts = array( 'claude', 'mcp', 'add', escapeshellarg( $name ) );
+		foreach ( $env as $key => $value ) {
+			$cli_parts[] = '--env';
+			$cli_parts[] = escapeshellarg( $key . '=' . $value );
+		}
+		$cli_parts[] = '--';
+		$cli_parts[] = 'npx';
+		$cli_parts[] = '-y';
+		$cli_parts[] = escapeshellarg( $package );
+		$cli         = implode( ' ', $cli_parts );
 
 		// 3) A standard mcpServers JSON config block.
 		$json = (string) wp_json_encode(
 			array(
 				'mcpServers' => array(
 					$name => array(
-						'type'    => 'http',
-						'url'     => $url,
-						'headers' => array(
-							'Authorization' => $auth_header,
-						),
+						'command' => 'npx',
+						'args'    => array( '-y', $package ),
+						'env'     => $env,
 					),
 				),
 			),
@@ -124,12 +152,11 @@ final class Connection {
 		);
 
 		return array(
-			'url'         => $url,
-			'username'    => $username,
-			'auth_header' => $auth_header,
-			'prompt'      => $prompt,
-			'cli'         => $cli,
-			'json'        => $json,
+			'url'      => $url,
+			'username' => $username,
+			'prompt'   => $prompt,
+			'cli'      => $cli,
+			'json'     => $json,
 		);
 	}
 }

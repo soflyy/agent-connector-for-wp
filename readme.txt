@@ -60,7 +60,7 @@ All abilities are registered when `ROOT_FOR_AGENTS_ENABLED` is true.
 
 == Connecting an Agent ==
 
-Go to **Root for Agents > Connect** in wp-admin and click **Generate connection**. The plugin mints a fresh WordPress application password, computes this site's MCP server URL, and hands you three copy-paste artifacts: a natural-language prompt for any coding agent, a `claude mcp add` CLI command, and an `mcpServers` JSON block. The agent authenticates over HTTP Basic auth using the application password (shown only once). Revoke it from Users > Profile > Application Passwords when finished.
+Go to **Root for Agents > Connect** in wp-admin and click **Generate connection**. The plugin mints a fresh WordPress application password, computes this site's MCP server URL, and hands you three copy-paste artifacts: a natural-language prompt for any coding agent, a `claude mcp add` CLI command, and an `mcpServers` JSON block. All three drive the @automattic/mcp-wordpress-remote proxy, which the agent runs locally via npx (Node.js required) and which authenticates using the application password (shown only once). Revoke it from Users > Profile > Application Passwords when finished.
 
 == Optional Configuration ==
 
@@ -83,4 +83,4 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 = 0.1.0 =
 * Initial release: shell-exec, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
 * Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.
-* Adds a "Root for Agents > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON).
+* Adds a "Root for Agents > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.

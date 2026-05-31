@@ -59,9 +59,14 @@ Once enabled, go to **Root for Agents → Connect** in wp-admin and click
    - a **`claude mcp add` CLI command** for Claude Code; and
    - an **`mcpServers` JSON** block for client config files (e.g. `.mcp.json`).
 
+All three drive [`@automattic/mcp-wordpress-remote`](https://www.npmjs.com/package/@automattic/mcp-wordpress-remote)
+— a small stdio MCP proxy the agent runs locally via `npx` (so the client needs
+Node.js). The proxy connects to this site's MCP endpoint and authenticates with
+the application password (passed as the `WP_API_PASSWORD` environment variable,
+alongside `WP_API_URL` and `WP_API_USERNAME`).
+
 The application password is shown only once, embedded in those artifacts — copy
-it immediately. The agent authenticates to the MCP endpoint over HTTP Basic auth
-using that password. Treat it like an SSH key; revoke it from **Users → Profile →
+it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
 ## Enable (mandatory gates)

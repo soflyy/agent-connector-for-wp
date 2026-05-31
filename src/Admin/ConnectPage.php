@@ -175,12 +175,12 @@ final class ConnectPage {
 					$this->render_result_block(
 						'rfa-cli',
 						__( 'Claude Code CLI', 'root-for-agents' ),
-						__( 'Run this in your terminal to add the server to Claude Code.', 'root-for-agents' )
+						__( 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'root-for-agents' )
 					);
 					$this->render_result_block(
 						'rfa-json',
 						__( 'mcpServers JSON', 'root-for-agents' ),
-						__( 'Drop this into an MCP client config file (e.g. .mcp.json).', 'root-for-agents' )
+						__( 'Drop this into an MCP client config file (e.g. .mcp.json). It launches the mcp-wordpress-remote proxy via npx (Node.js required).', 'root-for-agents' )
 					);
 					?>
 				</div>
