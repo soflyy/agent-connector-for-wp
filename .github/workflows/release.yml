@@ -1,8 +1,8 @@
 name: Build release zip
 
 # Builds a distributable plugin zip with production Composer dependencies
-# vendored in (vendor/ is gitignored, so the repo stays lean). Runs on version
-# tags, and can be triggered manually for testing.
+# vendored in (plugin/vendor is gitignored, so the repo stays lean). Runs on
+# version tags, and can be triggered manually for testing.
 on:
   push:
     tags:
@@ -12,9 +12,15 @@ on:
 permissions:
   contents: write
 
+env:
+  PLUGIN_SLUG: agent-connector-for-wp
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,36 +36,30 @@ jobs:
         run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
 
       - name: Stage plugin files
-        # Mirror the repo into a clean, correctly-named plugin directory,
-        # excluding development-only files, then add the built vendor/ tree.
+        # Mirror the plugin/ subtree into a clean, correctly-named plugin
+        # directory, excluding development-only files, then add the built
+        # vendor/ tree (gitignored, so excluded by the rsync and copied in).
         run: |
-          PLUGIN_SLUG=root-for-agents
           mkdir -p "dist/${PLUGIN_SLUG}"
           rsync -a --delete \
-            --exclude='.git' \
-            --exclude='.github' \
             --exclude='dist' \
             --exclude='vendor' \
-            --exclude='.gitignore' \
-            --exclude='*.zip' \
             ./ "dist/${PLUGIN_SLUG}/"
-          # vendor/ is gitignored (so excluded above); copy the freshly built one in.
           cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
 
       - name: Create zip
         run: |
-          PLUGIN_SLUG=root-for-agents
           cd dist
           zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: root-for-agents
-          path: dist/root-for-agents.zip
+          name: ${{ env.PLUGIN_SLUG }}
+          path: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
 
       - name: Attach zip to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/root-for-agents.zip
+          files: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
