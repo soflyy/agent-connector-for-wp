@@ -50,22 +50,19 @@ wordpress/mcp-adapter is bundled with this plugin; you do not need to install it
 
 == Enabling the Plugin ==
 
-The plugin is completely inert until a human explicitly switches it on — there is no enabling constant. Go to **Agent Connector for WP > Settings** in wp-admin and tick *Enable Agent Connector*. The Settings screen is always available, even while the plugin is off.
+Everything is configured on one screen: **Agent Connector for WP > Connection** in wp-admin (always available, even while the plugin is off). There is no enabling constant.
 
-Enabling has two gates:
-
-1. **Enable Agent Connector** — the master toggle.
-2. **Production override** — required only when `wp_get_environment_type()` reports `production` (which is also the default when the environment type is never configured). On a `local`, `development`, or `staging` site the master toggle alone activates the plugin; on `production` you must additionally tick the override, which is where the danger warning lives. This makes it hard to accidentally expose root-equivalent access on a live site.
-
-Enabling also locks the plugin to the current domain (see the Security Model below).
+* **Enable Agent Connector** — the master toggle. When on, the plugin runs an MCP server for this site and exposes the abilities other plugins registered ("third-party abilities", always active while enabled). Enabling also locks the plugin to the current domain (see Domain Lock).
+* **Built-in abilities** — a separate opt-in, **off by default**. When on, the plugin also exposes its own powerful abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login). Leave it off if you only want third-party abilities exposed.
+* **Production override** — required only when `wp_get_environment_type()` reports `production` (also the default when the environment type is never configured). On `local`/`development`/`staging` the master toggle alone activates the plugin; on `production` you must additionally tick the override, which carries the danger warning.
 
 == Domain Lock ==
 
-When you enable the plugin (or click **Reconnect to this domain**), it records the site's declared home host. If the site is later cloned or moved to a different domain, every ability is blocked and returns an error telling the calling agent that an administrator must visit **Agent Connector for WP > Settings** and click **Reconnect to this domain**. This stops a copied database — and the application passwords inside it — from silently granting access on a different site.
+When you enable the plugin (or click **Reconnect to this domain**), it records the site's declared home host. If the site is later cloned or moved to a different domain, the built-in abilities are blocked and return an error telling the calling agent that an administrator must visit **Agent Connector for WP > Connection** and click **Reconnect to this domain**. This stops a copied database — and the application passwords inside it — from silently granting access on a different site.
 
 == Connecting an Agent ==
 
-Go to **Agent Connector for WP > Connect** in wp-admin and click **Generate connection**. The plugin mints a fresh WordPress application password, computes this site's MCP server URL, and hands you three copy-paste artifacts: a natural-language prompt for any coding agent, a `claude mcp add` CLI command, and an `mcpServers` JSON block. All three drive the @automattic/mcp-wordpress-remote proxy, which the agent runs locally via npx (Node.js required) and which authenticates using the application password (shown only once). Revoke it from Users > Profile > Application Passwords when finished.
+On the same **Connection** screen, once the plugin is enabled, click **Generate connection**. The plugin mints a fresh WordPress application password, computes this site's MCP server URL, and hands you three copy-paste artifacts: a natural-language prompt for any coding agent, a `claude mcp add` CLI command, and an `mcpServers` JSON block. All three drive the @automattic/mcp-wordpress-remote proxy, which the agent runs locally via npx (Node.js required) and which authenticates using the application password (shown only once). Revoke it from Users > Profile > Application Passwords when finished.
 
 == Optional Configuration ==
 
@@ -77,10 +74,10 @@ Go to **Agent Connector for WP > Connect** in wp-admin and click **Generate conn
 
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
-* administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every ability
-* explicit opt-in: off until enabled via the Settings screen
-* the production gate: on a production environment type, abilities stay inactive until the operator also ticks the production override
-* the domain lock (abilities refuse to run on a domain the plugin was not enabled on)
+* administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every built-in ability
+* explicit opt-in: off until enabled on the Connection screen, and the powerful built-in abilities are a further opt-in that is off by default
+* the production gate: on a production environment type, the plugin stays inactive until the operator also ticks the production override
+* the domain lock (built-in abilities refuse to run on a domain the plugin was not enabled on)
 * timeout enforcement and output caps
 * append-only audit logging of every invocation (user, ability, input summary, status, duration)
 
@@ -92,4 +89,5 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 * Domain lock: abilities are blocked, with an agent-actionable error, if the site is moved to a domain the plugin was not enabled on; reconnect from the Settings screen.
 * One-time admin login links so a browser-driving agent holding only an application password can reach wp-admin.
 * Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.
-* Adds an "Agent Connector for WP > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.
+* Splits abilities into third-party (registered by other plugins, exposed over MCP whenever enabled) and built-in (this plugin's own, off by default behind a separate toggle).
+* Single "Agent Connector for WP > Connection" admin screen for enabling, the built-in-abilities toggle, the domain lock, and generating the connection (application password + ready-to-paste prompt, Claude Code CLI command, and mcpServers JSON for the @automattic/mcp-wordpress-remote proxy).

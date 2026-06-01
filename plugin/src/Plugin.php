@@ -19,7 +19,6 @@ use AgentConnectorForWp\Abilities\PhpEvalAbility;
 use AgentConnectorForWp\Abilities\ProcessExecAbility;
 use AgentConnectorForWp\Abilities\ShellAbility;
 use AgentConnectorForWp\Abilities\WpCliAbility;
-use AgentConnectorForWp\Admin\ConnectPage;
 use AgentConnectorForWp\Services\AdminLoginLink;
 
 defined( 'ABSPATH' ) || exit;
@@ -50,6 +49,11 @@ final class Plugin {
 		AdminLoginAbility::class,
 	);
 
+	/**
+	 * Register the plugin's own (built-in) abilities. Called only when the
+	 * built-in abilities toggle is on (see the main plugin file) — the admin
+	 * Connection screen is registered separately and always.
+	 */
 	public function register(): void {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
@@ -57,10 +61,6 @@ final class Plugin {
 		// Redeem one-time admin login links. Hooked on the front end too — the
 		// browser opening the link is logged out, so it won't reach wp-admin yet.
 		add_action( 'init', array( AdminLoginLink::class, 'maybe_consume' ) );
-
-		if ( is_admin() ) {
-			( new ConnectPage() )->register();
-		}
 	}
 
 	/**

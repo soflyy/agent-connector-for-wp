@@ -37,6 +37,14 @@ final class Config {
 	public const PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
 
 	/**
+	 * Option toggling this plugin's *own* (built-in) abilities — shell, PHP eval,
+	 * filesystem, WP-CLI, env-inspect, admin-login. Default OFF: enabling the
+	 * plugin runs the MCP server and exposes third-party abilities, but the
+	 * powerful built-in ones stay hidden until the operator opts in here.
+	 */
+	public const BUILTIN_ABILITIES_OPTION = 'agent_connector_for_wp_builtin_abilities';
+
+	/**
 	 * Option storing the host the plugin was last enabled / reconnected on.
 	 *
 	 * This is the domain lock: abilities refuse to run if the site's declared
@@ -97,6 +105,23 @@ final class Config {
 	 */
 	public static function is_blocked_by_production(): bool {
 		return self::is_enabled() && ! self::is_non_production_env() && ! self::production_override_enabled();
+	}
+
+	/**
+	 * Whether the operator opted in to the plugin's own (built-in) abilities.
+	 * Default OFF — see BUILTIN_ABILITIES_OPTION.
+	 */
+	public static function builtin_abilities_enabled(): bool {
+		return (bool) get_option( self::BUILTIN_ABILITIES_OPTION, false );
+	}
+
+	/**
+	 * Whether the built-in abilities should actually be registered: the plugin
+	 * must be active (master gate, incl. the production override) AND the
+	 * built-in toggle must be on.
+	 */
+	public static function builtin_abilities_active(): bool {
+		return self::can_boot() && self::builtin_abilities_enabled();
 	}
 
 	/**

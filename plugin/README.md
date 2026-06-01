@@ -51,8 +51,8 @@ fetches them. If you download a packaged release `.zip` (built by CI, with
 
 ## Connect an agent
 
-Once enabled, go to **Agent Connector for WP → Connect** in wp-admin and click
-**Generate connection**. The plugin will:
+Once enabled, scroll to the **Connect an agent** section of **Agent Connector for
+WP → Connection** in wp-admin and click **Generate connection**. The plugin will:
 
 1. mint a fresh WordPress application password for your account,
 2. compute this site's MCP server URL, and
@@ -74,20 +74,24 @@ Application Passwords** when you're done.
 
 ## Enable
 
-The plugin is completely inert until a human explicitly switches it on — there is
-no enabling constant. Go to **Agent Connector for WP → Settings** in wp-admin and
-tick *Enable Agent Connector*. This screen is always available, even while the
-plugin is off, and enabling here also locks the plugin to the current domain.
+Everything is configured on one screen — **Agent Connector for WP → Connection**
+in wp-admin (always available, even while the plugin is off). There is no
+enabling constant.
 
-Enabling has two gates:
-
-1. **Enable Agent Connector** — the master toggle.
-2. **Production override** — only required when `wp_get_environment_type()` reports
-   `production` (also the default when the environment type was never configured).
-   On `local` / `development` / `staging` the master toggle alone activates the
-   plugin; on `production` you must additionally tick the override, which is where
-   the danger warning lives. This makes it hard to accidentally expose
-   root-equivalent access on a live site.
+- **Enable Agent Connector** — the master toggle. When on, the plugin runs an MCP
+  server for this site and exposes the abilities other plugins registered
+  ("third-party abilities" — always active while enabled). Enabling also locks the
+  plugin to the current domain.
+- **Built-in abilities** — a separate opt-in, **off by default**. When on, the
+  plugin also exposes its *own* powerful abilities (shell, PHP eval, filesystem,
+  WP-CLI, env-inspect, admin-login). Leave it off to expose only third-party
+  abilities.
+- **Production override** — required only when `wp_get_environment_type()` reports
+  `production` (also the default when the environment type was never configured).
+  On `local` / `development` / `staging` the master toggle alone activates the
+  plugin; on `production` you must additionally tick the override, which carries
+  the danger warning. This makes it hard to accidentally expose the plugin on a
+  live site.
 
 ### Domain lock
 

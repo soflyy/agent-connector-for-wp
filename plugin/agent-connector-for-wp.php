@@ -85,18 +85,18 @@ unset( $agent_connector_for_wp_has_vendor );
 /**
  * Boot the plugin once WordPress is loaded.
  *
- * The plugin is inert unless the operator has explicitly switched it on via the
- * Settings toggle (see Support\Config). This keeps a stray activation from ever
+ * The plugin is inert unless the operator has explicitly switched it on from the
+ * Connection screen (see Support\Config). This keeps a stray activation from ever
  * exposing dangerous abilities by accident.
  */
 add_action(
 	'plugins_loaded',
 	static function (): void {
-		// The Settings screen is always available — even while inert — because
+		// The Connection screen is always available — even while inert — because
 		// it's the only place to switch the plugin on. It registers nothing
-		// dangerous; the boot gate below still guards every ability.
+		// dangerous; the gates below still guard the MCP server and abilities.
 		if ( is_admin() ) {
-			( new Admin\SettingsPage() )->register();
+			( new Admin\ConnectionPage() )->register();
 		}
 
 		if ( ! Support\Config::can_boot() ) {
@@ -105,19 +105,26 @@ add_action(
 			return;
 		}
 
-		( new Plugin() )->register();
-
 		/**
 		 * Ensure the MCP Adapter is running.
+		 *
+		 * This is the plugin's first job: run the MCP server so the abilities
+		 * other plugins registered (third-party abilities) are exposed. It's
+		 * always on while the plugin is enabled.
 		 *
 		 * If the standalone "MCP Adapter" plugin is active it will already have
 		 * booted the adapter; McpAdapter::instance() is an idempotent singleton,
 		 * so calling it again is safe. If that plugin is *not* installed, this is
-		 * what brings the bundled adapter (and its default MCP server) to life,
-		 * letting Agent Connector for WP work entirely on its own.
+		 * what brings the bundled adapter (and its default MCP server) to life.
 		 */
 		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
 			\WP\MCP\Core\McpAdapter::instance();
+		}
+
+		// The plugin's own (built-in) abilities are opt-in and off by default;
+		// register them only when the operator has turned them on.
+		if ( Support\Config::builtin_abilities_enabled() ) {
+			( new Plugin() )->register();
 		}
 	}
 );
