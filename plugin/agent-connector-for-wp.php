@@ -105,6 +105,11 @@ add_action(
 			return;
 		}
 
+		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
+		// crash recovery (safe mode) so a fatal in generated code can't take the
+		// site down. See Services\SandboxLoader.
+		( new Services\SandboxLoader() )->run();
+
 		/**
 		 * Ensure the MCP Adapter is running.
 		 *
