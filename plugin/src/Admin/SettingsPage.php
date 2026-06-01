@@ -144,7 +144,7 @@ final class SettingsPage {
 								<div class="notice notice-error inline" style="margin:0 0 .9em;max-width:46em;">
 									<p>
 										<strong><?php esc_html_e( 'Danger:', 'agent-connector-for-wp' ); ?></strong>
-										<?php esc_html_e( 'This site reports a production environment type. Agent Connector grants root-equivalent control of this server — arbitrary shell commands, PHP evaluation, and filesystem access — to anyone holding a WordPress application password, and to the agents acting for them. There is no sandbox. On production this is almost never what you want; leave this unticked unless you fully accept that risk.', 'agent-connector-for-wp' ); ?>
+										<?php esc_html_e( 'This site reports a production environment type. Agent Connector grants admin-equivalent control of this site — arbitrary shell commands, PHP evaluation, and filesystem access — to anyone holding a WordPress application password, and to the agents acting for them. There is no sandbox. Leave this unticked unless you fully accept that risk.', 'agent-connector-for-wp' ); ?>
 									</p>
 								</div>
 								<label>
