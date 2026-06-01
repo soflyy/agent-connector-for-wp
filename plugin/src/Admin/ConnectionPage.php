@@ -430,6 +430,8 @@ final class ConnectionPage {
 			'saved'        => array( 'success', __( 'Settings saved.', 'agent-connector-for-wp' ) ),
 			'prod_blocked' => array( 'warning', __( 'Saved, but Agent Connector is inactive: this is a production environment. Tick the production override to activate it.', 'agent-connector-for-wp' ) ),
 			'reconnected'  => array( 'success', __( 'Reconnected — abilities are allowed on this domain again.', 'agent-connector-for-wp' ) ),
+			'safe_mode_cleared'     => array( 'success', __( 'Sandbox safe mode cleared. Sandbox files will load again on the next request.', 'agent-connector-for-wp' ) ),
+			'safe_mode_clear_failed' => array( 'error', __( 'Could not clear sandbox safe mode — delete the ".crashed" marker file manually.', 'agent-connector-for-wp' ) ),
 		);
 
 		if ( ! isset( $messages[ $notice ] ) ) {
