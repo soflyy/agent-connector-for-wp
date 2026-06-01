@@ -9,7 +9,11 @@
  * License:           GPL-2.0-or-later
  *
  * Agent Connector: Ability Pack
- * Agent Connector Host: agent-connector-for-wp
+ *
+ * A real pack that extends a specific WP plugin also declares, e.g.:
+ *   Agent Connector Target: woocommerce/woocommerce.php
+ * This demo extends nothing in particular, so it omits the Target header and
+ * does not appear in the ability-pack directory.
  *
  * @package AcfwAbilityPackHello
  *

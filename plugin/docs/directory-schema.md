@@ -33,11 +33,11 @@ The client normalizes both to the same internal list.
 
 ## Entry object
 
-| Field               | Required | Type   | Notes |
-| ------------------- | :------: | ------ | ----- |
-| `host_plugin_slug`  | **yes**  | string | The host WP plugin this pack targets. Either a full plugin file (`woocommerce/woocommerce.php`) or a bare folder slug (`woocommerce`). Matching tolerates both forms. |
-| `ability_pack_name` | **yes**  | string | Human-readable name of the ability pack. |
-| `host_plugin_name`  | no       | string | Display name of the host plugin (the installed plugin's own name is preferred when present). |
+| Field                | Required | Type   | Notes |
+| -------------------- | :------: | ------ | ----- |
+| `target_plugin`      | **yes**  | string | The WP plugin this pack extends — the **join key**. Either a full plugin file (`woocommerce/woocommerce.php`) or a bare folder slug (`woocommerce`). Matching tolerates both forms. This is the same value the pack declares in its `Agent Connector Target:` header. |
+| `ability_pack_name`  | **yes**  | string | Human-readable name of the ability pack. |
+| `target_plugin_name` | no       | string | Display name of the target plugin (the installed plugin's own name is preferred when present). |
 | `ability_pack_slug` | no       | string | The companion plugin's own slug (`folder/file.php` or folder). When given, the client also reports whether the pack itself is already installed/active. |
 | `source_url`        | no       | string | Where to get the pack (GitHub repo, wp.org page, etc.). Rendered as a link. |
 | `description`       | no       | string | One-line description shown in the table. |
@@ -48,7 +48,7 @@ trimmed; non-string values are coerced to empty strings.
 
 ## Matching behavior
 
-For each entry whose `host_plugin_slug` resolves to an **installed** plugin
+For each entry whose `target_plugin` resolves to an **installed** plugin
 (via `get_plugins()`), the UI shows a row with the installed plugin name, the
 ability pack (linked to `source_url`), and a status:
 
@@ -61,9 +61,11 @@ plugins (e.g. `hello.php` ⇄ `hello`).
 
 ## Companion-plugin targeting convention
 
-This directory keys each pack by the **host WP plugin** it extends
-(`host_plugin_slug`). That should line up with whatever convention the
-ability-API side uses to declare which host plugin a companion targets — when
-reconciling, treat `host_plugin_slug` as the join key.
+This directory keys each pack by the **WP plugin it extends** — the `target_plugin`
+field. That is the single join key shared with the ability-API side: a companion
+"ability pack" declares the same value in its `Agent Connector Target:` plugin
+header (see [registering-abilities.md](registering-abilities.md)). A directory
+entry's `target_plugin` and a pack's `Agent Connector Target:` header must match
+for the pack to surface against an installed plugin.
 
 See [`directory.json`](directory.json) for a working sample.

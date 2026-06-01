@@ -222,8 +222,10 @@ final class PluginDirectory {
 	/**
 	 * Validate + normalize a single directory entry, or null if it is unusable.
 	 *
-	 * Required: host_plugin_slug, ability_pack_name. Everything else is
-	 * optional and defaulted to an empty string.
+	 * Required: target_plugin, ability_pack_name. Everything else is optional and
+	 * defaulted to an empty string. `target_plugin` is the WP plugin the pack
+	 * extends — the same value a pack declares in its `Agent Connector Target:`
+	 * header.
 	 *
 	 * @param mixed $item Raw entry.
 	 *
@@ -234,14 +236,14 @@ final class PluginDirectory {
 			return null;
 		}
 
-		$host_slug = isset( $item['host_plugin_slug'] ) && is_string( $item['host_plugin_slug'] )
-			? trim( $item['host_plugin_slug'] )
+		$target = isset( $item['target_plugin'] ) && is_string( $item['target_plugin'] )
+			? trim( $item['target_plugin'] )
 			: '';
 		$pack_name = isset( $item['ability_pack_name'] ) && is_string( $item['ability_pack_name'] )
 			? trim( $item['ability_pack_name'] )
 			: '';
 
-		if ( '' === $host_slug || '' === $pack_name ) {
+		if ( '' === $target || '' === $pack_name ) {
 			return null;
 		}
 
@@ -250,8 +252,8 @@ final class PluginDirectory {
 		};
 
 		return array(
-			'host_plugin_slug' => $host_slug,
-			'host_plugin_name' => $str( $item['host_plugin_name'] ?? '' ),
+			'target_plugin'      => $target,
+			'target_plugin_name' => $str( $item['target_plugin_name'] ?? '' ),
 			'ability_pack_slug' => $str( $item['ability_pack_slug'] ?? '' ),
 			'ability_pack_name' => $pack_name,
 			'source_url'        => $str( $item['source_url'] ?? '' ),
@@ -266,16 +268,16 @@ final class PluginDirectory {
 	 * @param array<int,array<string,string>> $entries Normalized directory entries.
 	 *
 	 * @return array<int,array<string,mixed>> One row per match, each with the
-	 *     directory entry plus host_installed / host_active / pack_installed /
-	 *     pack_active booleans and the resolved installed host plugin name.
+	 *     directory entry plus target_plugin_file / target_plugin_name /
+	 *     target_active and pack_installed / pack_active booleans.
 	 */
 	public static function match_installed( array $entries ): array {
 		$installed = self::installed_plugins();
 
 		$matches = array();
 		foreach ( $entries as $entry ) {
-			$host_key = self::find_installed_key( $entry['host_plugin_slug'], $installed );
-			if ( null === $host_key ) {
+			$target_key = self::find_installed_key( $entry['target_plugin'], $installed );
+			if ( null === $target_key ) {
 				continue;
 			}
 
@@ -284,10 +286,10 @@ final class PluginDirectory {
 				: null;
 
 			$matches[] = array(
-				'entry'             => $entry,
-				'host_plugin_file'  => $host_key,
-				'host_plugin_name'  => (string) ( $installed[ $host_key ]['Name'] ?? $entry['host_plugin_name'] ),
-				'host_active'       => self::is_active( $host_key ),
+				'entry'              => $entry,
+				'target_plugin_file' => $target_key,
+				'target_plugin_name' => (string) ( $installed[ $target_key ]['Name'] ?? $entry['target_plugin_name'] ),
+				'target_active'      => self::is_active( $target_key ),
 				'pack_installed'    => null !== $pack_key,
 				'pack_active'       => null !== $pack_key && self::is_active( $pack_key ),
 			);

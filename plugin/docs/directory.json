@@ -2,8 +2,8 @@
   "schema_version": 1,
   "entries": [
     {
-      "host_plugin_slug": "woocommerce/woocommerce.php",
-      "host_plugin_name": "WooCommerce",
+      "target_plugin": "woocommerce/woocommerce.php",
+      "target_plugin_name": "WooCommerce",
       "ability_pack_slug": "agent-connector-woocommerce/agent-connector-woocommerce.php",
       "ability_pack_name": "Agent Connector for WooCommerce",
       "source_url": "https://github.com/soflyy/agent-connector-woocommerce",
@@ -11,8 +11,8 @@
       "version": "1.0.0"
     },
     {
-      "host_plugin_slug": "contact-form-7",
-      "host_plugin_name": "Contact Form 7",
+      "target_plugin": "contact-form-7",
+      "target_plugin_name": "Contact Form 7",
       "ability_pack_slug": "agent-connector-cf7",
       "ability_pack_name": "Agent Connector for Contact Form 7",
       "source_url": "https://github.com/soflyy/agent-connector-cf7",
@@ -20,8 +20,8 @@
       "version": "0.3.1"
     },
     {
-      "host_plugin_slug": "wordpress-seo/wp-seo.php",
-      "host_plugin_name": "Yoast SEO",
+      "target_plugin": "wordpress-seo/wp-seo.php",
+      "target_plugin_name": "Yoast SEO",
       "ability_pack_slug": "agent-connector-yoast/agent-connector-yoast.php",
       "ability_pack_name": "Agent Connector for Yoast SEO",
       "source_url": "https://github.com/soflyy/agent-connector-yoast",

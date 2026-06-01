@@ -158,9 +158,9 @@ final class DirectoryPage {
 		?>
 		<tr>
 			<td>
-				<strong><?php echo esc_html( (string) $match['host_plugin_name'] ); ?></strong><br />
-				<code style="font-size:11px;"><?php echo esc_html( (string) $match['host_plugin_file'] ); ?></code>
-				<?php if ( ! $match['host_active'] ) : ?>
+				<strong><?php echo esc_html( (string) $match['target_plugin_name'] ); ?></strong><br />
+				<code style="font-size:11px;"><?php echo esc_html( (string) $match['target_plugin_file'] ); ?></code>
+				<?php if ( ! $match['target_active'] ) : ?>
 					<br /><span class="description"><?php esc_html_e( '(installed, not active)', 'agent-connector-for-wp' ); ?></span>
 				<?php endif; ?>
 			</td>
