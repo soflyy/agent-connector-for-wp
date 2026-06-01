@@ -1,6 +1,6 @@
 # Agent Connector for WP
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
+> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; everywhere else the Enable toggle is enough. Only turn it on where you would be comfortable handing out a root shell.
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
@@ -19,6 +19,7 @@ This plugin registers additional WordPress **Abilities** and surfaces them over 
 | `agent-connector-for-wp/file-list` | List a directory, optionally recursively. |
 | `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, available CLI tools. |
 | `agent-connector-for-wp/process-exec` | Longer-running command execution (proxies shell-exec in v1). |
+| `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
 
 The goal: give trusted agents in development environments effectively **SSH-equivalent** operational access through the existing WordPress MCP stack.
 
@@ -71,21 +72,31 @@ The application password is shown only once, embedded in those artifacts — cop
 it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
-## Enable (mandatory gates)
+## Enable
 
-The plugin is inert until you explicitly opt in. Add to `wp-config.php`:
+The plugin is completely inert until a human explicitly switches it on — there is
+no enabling constant. Go to **Agent Connector for WP → Settings** in wp-admin and
+tick *Enable Agent Connector*. This screen is always available, even while the
+plugin is off, and enabling here also locks the plugin to the current domain.
 
-```php
-define( 'AGENT_CONNECTOR_FOR_WP_ENABLED', true );
-```
+Enabling has two gates:
 
-It also refuses to run when `wp_get_environment_type()` is `production`, unless you additionally (and inadvisably) set:
+1. **Enable Agent Connector** — the master toggle.
+2. **Production override** — only required when `wp_get_environment_type()` reports
+   `production` (also the default when the environment type was never configured).
+   On `local` / `development` / `staging` the master toggle alone activates the
+   plugin; on `production` you must additionally tick the override, which is where
+   the danger warning lives. This makes it hard to accidentally expose
+   root-equivalent access on a live site.
 
-```php
-define( 'AGENT_CONNECTOR_FOR_WP_ALLOW_PRODUCTION', true );
-```
+### Domain lock
 
-All abilities register when `AGENT_CONNECTOR_FOR_WP_ENABLED` is true.
+When enabled (or when you click **Reconnect to this domain**), the plugin records
+the site's declared home host. If the site is later cloned or moved to a
+different domain, every ability is blocked and returns an error telling the agent
+that an administrator must reconnect from **Agent Connector for WP → Settings** —
+so a copied database (and the application passwords in it) can't silently grant
+access on another site.
 
 ### Optional tunables
 

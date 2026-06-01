@@ -22,6 +22,7 @@ This plugin registers additional WordPress **Abilities** and exposes them over M
 * **Filesystem access** (`agent-connector-for-wp/file-read`, `file-write`, `file-delete`, `file-list`) — read/write/delete arbitrary files (binary-safe via base64) and list directories recursively.
 * **Environment inspection** (`agent-connector-for-wp/env-inspect`) — versions, paths, active plugins/theme, debug flags, writable-ness, and available CLI tooling.
 * **Process execution** (`agent-connector-for-wp/process-exec`) — longer-running command execution (proxies shell-exec in v1).
+* **Admin login link** (`agent-connector-for-wp/create-admin-login-link`) — mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin, so a browser-driving agent (e.g. Playwright) that only holds an application password can still use the admin UI.
 
 The goal: give trusted agents in local/development environments the same operational capabilities as a human administrator — effectively SSH-equivalent access — through the existing WordPress MCP stack.
 
@@ -32,7 +33,7 @@ This plugin is **dangerous by design**. It is:
 * developer-focused
 * intentionally unrestricted
 * **NOT** sandboxed
-* **NOT** intended for production
+* blocked on production environments unless you explicitly tick the production override
 * **NOT** enterprise security software
 
 It assumes the environment is trusted and that authenticated administrators intentionally trust the agents acting on their behalf. Do not install it anywhere you would not hand out a root shell.
@@ -47,17 +48,20 @@ It assumes the environment is trusted and that authenticated administrators inte
 
 wordpress/mcp-adapter is bundled with this plugin; you do not need to install it separately.
 
-== Mandatory Environment Gates ==
+== Enabling the Plugin ==
 
-The plugin refuses to initialize unless explicitly enabled. Add to `wp-config.php`:
+The plugin is completely inert until a human explicitly switches it on — there is no enabling constant. Go to **Agent Connector for WP > Settings** in wp-admin and tick *Enable Agent Connector*. The Settings screen is always available, even while the plugin is off.
 
-`define( 'AGENT_CONNECTOR_FOR_WP_ENABLED', true );`
+Enabling has two gates:
 
-Additionally, the plugin will not run when `wp_get_environment_type()` is `production` unless you also define:
+1. **Enable Agent Connector** — the master toggle.
+2. **Production override** — required only when `wp_get_environment_type()` reports `production` (which is also the default when the environment type is never configured). On a `local`, `development`, or `staging` site the master toggle alone activates the plugin; on `production` you must additionally tick the override, which is where the danger warning lives. This makes it hard to accidentally expose root-equivalent access on a live site.
 
-`define( 'AGENT_CONNECTOR_FOR_WP_ALLOW_PRODUCTION', true );  // not recommended`
+Enabling also locks the plugin to the current domain (see the Security Model below).
 
-All abilities are registered when `AGENT_CONNECTOR_FOR_WP_ENABLED` is true.
+== Domain Lock ==
+
+When you enable the plugin (or click **Reconnect to this domain**), it records the site's declared home host. If the site is later cloned or moved to a different domain, every ability is blocked and returns an error telling the calling agent that an administrator must visit **Agent Connector for WP > Settings** and click **Reconnect to this domain**. This stops a copied database — and the application passwords inside it — from silently granting access on a different site.
 
 == Connecting an Agent ==
 
@@ -74,14 +78,18 @@ Go to **Agent Connector for WP > Connect** in wp-admin and click **Generate conn
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
 * administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every ability
-* the mandatory environment gates above
-* the production guard
+* explicit opt-in: off until enabled via the Settings screen
+* the production gate: on a production environment type, abilities stay inactive until the operator also ticks the production override
+* the domain lock (abilities refuse to run on a domain the plugin was not enabled on)
 * timeout enforcement and output caps
 * append-only audit logging of every invocation (user, ability, input summary, status, duration)
 
 == Changelog ==
 
 = 0.1.0 =
-* Initial release: shell-exec, wp-cli, php-eval, file read/write/delete/list, env-inspect, process-exec abilities; environment gates; audit logging.
+* Initial release: shell-exec, wp-cli, php-eval, file read/write/delete/list, env-inspect, process-exec, create-admin-login-link abilities; audit logging.
+* Explicit opt-in enable model: off until enabled via the Settings screen (no enabling constant). On a production environment type, a second explicit override is required before abilities activate.
+* Domain lock: abilities are blocked, with an agent-actionable error, if the site is moved to a domain the plugin was not enabled on; reconnect from the Settings screen.
+* One-time admin login links so a browser-driving agent holding only an application password can reach wp-admin.
 * Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.
-* Adds a "Agent Connector for WP > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.
+* Adds an "Agent Connector for WP > Connect" admin page that generates an application password and ready-to-paste connection instructions (agent prompt, Claude Code CLI command, and mcpServers JSON) for the @automattic/mcp-wordpress-remote proxy.

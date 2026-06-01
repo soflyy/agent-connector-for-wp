@@ -85,15 +85,22 @@ unset( $agent_connector_for_wp_has_vendor );
 /**
  * Boot the plugin once WordPress is loaded.
  *
- * The plugin is inert unless the operator has explicitly opted in via the
- * mandatory environment gates (see Support\Config). This keeps a stray
- * activation from ever exposing dangerous abilities by accident.
+ * The plugin is inert unless the operator has explicitly switched it on via the
+ * Settings toggle (see Support\Config). This keeps a stray activation from ever
+ * exposing dangerous abilities by accident.
  */
 add_action(
 	'plugins_loaded',
 	static function (): void {
+		// The Settings screen is always available — even while inert — because
+		// it's the only place to switch the plugin on. It registers nothing
+		// dangerous; the boot gate below still guards every ability.
+		if ( is_admin() ) {
+			( new Admin\SettingsPage() )->register();
+		}
+
 		if ( ! Support\Config::can_boot() ) {
-			// Surface *why* in the admin so the gate isn't a silent mystery.
+			// Surface *why* it's off so the disabled state isn't a silent mystery.
 			add_action( 'admin_notices', array( Support\Config::class, 'render_gate_notice' ) );
 			return;
 		}

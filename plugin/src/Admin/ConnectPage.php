@@ -11,6 +11,7 @@ namespace AgentConnectorForWp\Admin;
 
 use AgentConnectorForWp\Support\Connection;
 use AgentConnectorForWp\Support\Config;
+use AgentConnectorForWp\Admin\SettingsPage;
 use WP_Application_Passwords;
 use WP_Error;
 
@@ -27,7 +28,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class ConnectPage {
 
-	private const MENU_SLUG = 'agent-connector-for-wp';
+	private const MENU_SLUG = 'agent-connector-for-wp-connect';
 	private const AJAX_ACTION = 'rfa_generate_connection';
 
 	/**
@@ -42,22 +43,13 @@ final class ConnectPage {
 	}
 
 	/**
-	 * Add the top-level menu and Connect page.
+	 * Add the Connect page as a submenu under the (always-present) Agent
+	 * Connector top-level menu owned by SettingsPage. Only registered when the
+	 * plugin is booted, so it appears once abilities are actually enabled.
 	 */
 	public function register_menu(): void {
-		$this->hook_suffix = (string) add_menu_page(
-			__( 'Agent Connector for WP', 'agent-connector-for-wp' ),
-			__( 'Agent Connector for WP', 'agent-connector-for-wp' ),
-			Config::CAP,
-			self::MENU_SLUG,
-			array( $this, 'render_page' ),
-			'dashicons-superhero-alt',
-			81
-		);
-
-		// Give the submenu item a friendlier label than the menu title.
-		add_submenu_page(
-			self::MENU_SLUG,
+		$this->hook_suffix = (string) add_submenu_page(
+			SettingsPage::MENU_SLUG,
 			__( 'Connect an Agent', 'agent-connector-for-wp' ),
 			__( 'Connect', 'agent-connector-for-wp' ),
 			Config::CAP,
