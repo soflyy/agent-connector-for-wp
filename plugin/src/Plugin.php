@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp;
 
+use AgentConnectorForWp\Abilities\AdminLoginAbility;
 use AgentConnectorForWp\Abilities\EnvInspectAbility;
 use AgentConnectorForWp\Abilities\FileDeleteAbility;
 use AgentConnectorForWp\Abilities\FileListAbility;
@@ -19,6 +20,7 @@ use AgentConnectorForWp\Abilities\ProcessExecAbility;
 use AgentConnectorForWp\Abilities\ShellAbility;
 use AgentConnectorForWp\Abilities\WpCliAbility;
 use AgentConnectorForWp\Admin\ConnectPage;
+use AgentConnectorForWp\Services\AdminLoginLink;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -45,11 +47,16 @@ final class Plugin {
 		FileWriteAbility::class,
 		FileListAbility::class,
 		FileDeleteAbility::class,
+		AdminLoginAbility::class,
 	);
 
 	public function register(): void {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
 		add_action( 'wp_abilities_api_init', array( $this, 'register_abilities' ) );
+
+		// Redeem one-time admin login links. Hooked on the front end too — the
+		// browser opening the link is logged out, so it won't reach wp-admin yet.
+		add_action( 'init', array( AdminLoginLink::class, 'maybe_consume' ) );
 
 		if ( is_admin() ) {
 			( new ConnectPage() )->register();

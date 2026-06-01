@@ -121,7 +121,9 @@ final class Connection {
 				'available tools to confirm it works. Use the "discover-abilities" tool to see what this',
 				'site can do and "execute-ability" to run one — including agent-connector-for-wp/shell-exec,',
 				'agent-connector-for-wp/php-eval, and the file-read/write/list/delete abilities, which give you',
-				'shell, PHP, and filesystem access on the server.',
+				'shell, PHP, and filesystem access on the server. To drive the WordPress admin in a browser,',
+				'run agent-connector-for-wp/create-admin-login-link and open the returned URL: it logs the',
+				'browser into wp-admin once, without a username or password.',
 			)
 		);
 

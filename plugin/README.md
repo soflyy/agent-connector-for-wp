@@ -19,6 +19,7 @@ This plugin registers additional WordPress **Abilities** and surfaces them over 
 | `agent-connector-for-wp/file-list` | List a directory, optionally recursively. |
 | `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, available CLI tools. |
 | `agent-connector-for-wp/process-exec` | Longer-running command execution (proxies shell-exec in v1). |
+| `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
 
 The goal: give trusted agents in development environments effectively **SSH-equivalent** operational access through the existing WordPress MCP stack.
 
@@ -71,21 +72,22 @@ The application password is shown only once, embedded in those artifacts — cop
 it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
-## Enable (mandatory gates)
+## Enable
 
-The plugin is inert until you explicitly opt in. Add to `wp-config.php`:
+The plugin is completely inert until a human explicitly switches it on — there is
+no environment heuristic and no enabling constant. Go to **Agent Connector for WP
+→ Settings** in wp-admin and tick *Enable Agent Connector*. This screen is always
+available, even while the plugin is off, and enabling here also locks the plugin
+to the current domain.
 
-```php
-define( 'AGENT_CONNECTOR_FOR_WP_ENABLED', true );
-```
+### Domain lock
 
-It also refuses to run when `wp_get_environment_type()` is `production`, unless you additionally (and inadvisably) set:
-
-```php
-define( 'AGENT_CONNECTOR_FOR_WP_ALLOW_PRODUCTION', true );
-```
-
-All abilities register when `AGENT_CONNECTOR_FOR_WP_ENABLED` is true.
+When enabled (or when you click **Reconnect to this domain**), the plugin records
+the site's declared home host. If the site is later cloned or moved to a
+different domain, every ability is blocked and returns an error telling the agent
+that an administrator must reconnect from **Agent Connector for WP → Settings** —
+so a copied database (and the application passwords in it) can't silently grant
+access on another site.
 
 ### Optional tunables
 

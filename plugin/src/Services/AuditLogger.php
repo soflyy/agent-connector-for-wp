@@ -63,8 +63,24 @@ final class AuditLogger {
 	 */
 	public static function wrap( string $ability, callable $handler, ?callable $summarizer = null ): callable {
 		return static function ( $input = array() ) use ( $ability, $handler, $summarizer ) {
-			$input   = is_array( $input ) ? $input : array();
-			$start   = microtime( true );
+			$input = is_array( $input ) ? $input : array();
+			$start = microtime( true );
+
+			// Domain lock: this is the single chokepoint every ability runs
+			// through, so enforcement lives here rather than in each handler. On
+			// a mismatch we never invoke the handler — we return an
+			// agent-actionable error and still record the blocked attempt.
+			$lock_reason = Config::lock_mismatch_reason();
+			if ( null !== $lock_reason ) {
+				$summary = $summarizer ? (array) $summarizer( $input ) : array();
+				self::log( $ability, $summary, 'error', 0 );
+				return new \WP_Error(
+					'agent_connector_domain_locked',
+					$lock_reason,
+					array( 'status' => 403 )
+				);
+			}
+
 			$result  = $handler( $input );
 			$status  = is_wp_error( $result ) ? 'error' : 'ok';
 			$summary = $summarizer ? (array) $summarizer( $input ) : array();
