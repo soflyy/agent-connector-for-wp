@@ -83,6 +83,17 @@ if ( ! $agent_connector_for_wp_has_vendor ) {
 unset( $agent_connector_for_wp_has_vendor );
 
 /**
+ * Load the public ability-registration API (plain functions, global namespace).
+ *
+ * This is a functions file, not a PSR-4 class, so it is required explicitly
+ * rather than autoloaded. It is loaded unconditionally and early so a companion
+ * "ability pack" plugin can call agent_connector_for_wp_register_ability() the
+ * moment this plugin's file has run, regardless of the enable gates below — the
+ * gates still decide whether the MCP server actually exposes anything.
+ */
+require_once AGENT_CONNECTOR_FOR_WP_DIR . 'src/api.php';
+
+/**
  * Boot the plugin once WordPress is loaded.
  *
  * The plugin is inert unless the operator has explicitly switched it on from the
@@ -120,6 +131,13 @@ add_action(
 		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
 			\WP\MCP\Core\McpAdapter::instance();
 		}
+
+		// Security backstop: force our auth + domain-lock + audit onto EVERY
+		// ability the MCP server will expose (mcp.public), no matter who
+		// registered it — including raw third-party registrations that ship
+		// their own (or no) permission callback. Hooks the core
+		// wp_register_ability_args filter; see Support\Governance.
+		Support\Governance::register();
 
 		// The plugin's own (built-in) abilities are opt-in and off by default;
 		// register them only when the operator has turned them on.
