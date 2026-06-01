@@ -83,6 +83,17 @@ if ( ! $agent_connector_for_wp_has_vendor ) {
 unset( $agent_connector_for_wp_has_vendor );
 
 /**
+ * Load the public ability-registration API (plain functions, global namespace).
+ *
+ * This is a functions file, not a PSR-4 class, so it is required explicitly
+ * rather than autoloaded. It is loaded unconditionally and early so a companion
+ * "ability pack" plugin can call agent_connector_for_wp_register_ability() the
+ * moment this plugin's file has run, regardless of the enable gates below — the
+ * gates still decide whether the MCP server actually exposes anything.
+ */
+require_once AGENT_CONNECTOR_FOR_WP_DIR . 'src/api.php';
+
+/**
  * Boot the plugin once WordPress is loaded.
  *
  * The plugin is inert unless the operator has explicitly switched it on from the
@@ -97,6 +108,8 @@ add_action(
 		// dangerous; the gates below still guard the MCP server and abilities.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
+			// Read-only browser of available companion "ability pack" plugins.
+			( new Admin\DirectoryPage() )->register();
 		}
 
 		if ( ! Support\Config::can_boot() ) {
@@ -104,6 +117,11 @@ add_action(
 			add_action( 'admin_notices', array( Support\Config::class, 'render_gate_notice' ) );
 			return;
 		}
+
+		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
+		// crash recovery (safe mode) so a fatal in generated code can't take the
+		// site down. See Services\SandboxLoader.
+		( new Services\SandboxLoader() )->run();
 
 		/**
 		 * Ensure the MCP Adapter is running.
@@ -121,10 +139,87 @@ add_action(
 			\WP\MCP\Core\McpAdapter::instance();
 		}
 
+		// Security backstop: force our auth + domain-lock + audit onto EVERY
+		// ability the MCP server will expose (mcp.public), no matter who
+		// registered it — including raw third-party registrations that ship
+		// their own (or no) permission callback. Hooks the core
+		// wp_register_ability_args filter; see Support\Governance.
+		Support\Governance::register();
+
 		// The plugin's own (built-in) abilities are opt-in and off by default;
 		// register them only when the operator has turned them on.
 		if ( Support\Config::builtin_abilities_enabled() ) {
 			( new Plugin() )->register();
 		}
+	}
+);
+
+/**
+ * Self-update from GitHub Releases via yahnis-elsts/plugin-update-checker.
+ *
+ * We pull updates straight from this plugin's GitHub repo instead of the
+ * wordpress.org directory (the plugin is intentionally dev-only and is not, and
+ * will not be, hosted there). The library is bundled through the same Jetpack
+ * Autoloader as the rest of vendor/: its loader (load-v5p7.php) is registered in
+ * the autoloader's filemap, so YahnisElsts\PluginUpdateChecker\v5\PucFactory is
+ * available once vendor/ is present — no separate require needed here.
+ *
+ * IMPORTANT — release assets, not the source tarball:
+ * enableReleaseAssets() makes the checker install the built ZIP attached to each
+ * GitHub Release (which bundles vendor/) rather than GitHub's auto-generated
+ * source tarball. The source tarball would be BROKEN as an update because
+ * vendor/ is gitignored, so it ships without the Jetpack autoloader or the MCP
+ * adapter and the plugin would fatal on load. The release ZIP is produced by
+ * .github/workflows/auto-release.yml / release.yml.
+ *
+ * Maintainer action required for updates to flow: cut a GitHub Release on a
+ * vX.Y.Z tag with the built `agent-connector-for-wp.zip` attached as a release
+ * asset. The auto-release workflow does this automatically on merge to master.
+ *
+ * The repo is assumed PUBLIC. If it's made private, supply a GitHub token via
+ * the `agent_connector_for_wp_github_auth_token` filter (or define the
+ * AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN constant). No token is hardcoded.
+ *
+ * Guarded to admin context: update checks only need to run in wp-admin, never on
+ * every front-end request.
+ */
+add_action(
+	'admin_init',
+	static function (): void {
+		$factory = '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
+		if ( ! class_exists( $factory ) ) {
+			// vendor/ missing (e.g. a source checkout without `composer install`).
+			return;
+		}
+
+		$update_checker = $factory::buildUpdateChecker(
+			'https://github.com/soflyy/agent-connector-for-wp/',
+			AGENT_CONNECTOR_FOR_WP_FILE,
+			'agent-connector-for-wp'
+		);
+
+		// Default branch holding the stable tags/releases.
+		$update_checker->setBranch( 'master' );
+
+		/**
+		 * GitHub auth token for the update checker.
+		 *
+		 * The repo is public, so this is empty by default. To support a private
+		 * repo later, return a token here (or define
+		 * AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN). Never hardcode a token in source.
+		 *
+		 * @param string $token GitHub personal access token. Empty for public repos.
+		 */
+		$github_token = (string) apply_filters(
+			'agent_connector_for_wp_github_auth_token',
+			defined( 'AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN' ) ? (string) AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN : ''
+		);
+		if ( '' !== $github_token ) {
+			$update_checker->setAuthentication( $github_token );
+		}
+
+		// Install the built release ZIP (with bundled vendor/) attached to each
+		// GitHub Release — NOT the source tarball, which lacks vendor/.
+		$update_checker->getVcsApi()->enableReleaseAssets();
 	}
 );

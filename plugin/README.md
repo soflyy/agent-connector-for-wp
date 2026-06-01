@@ -136,6 +136,32 @@ define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/path/to/audit.log' );
 { "command": "plugin list --status=active --format=json" }
 ```
 
+## Register your own abilities
+
+Third-party plugins can add abilities that are exposed over this plugin's MCP
+server and **automatically protected by its auth, domain lock, and audit log** —
+the companion plugin writes no permission or security code. Use the public API:
+
+```php
+add_action( 'wp_abilities_api_init', function () {
+    if ( ! function_exists( 'agent_connector_for_wp_register_ability' ) ) {
+        return;
+    }
+    agent_connector_for_wp_register_ability( 'my-plugin/do-thing', array(
+        'label'            => 'Do Thing',
+        'description'      => 'Does the thing.',
+        'category'         => 'my-plugin', // register it on wp_abilities_api_categories_init
+        'input_schema'     => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+        'output_schema'    => array( 'type' => 'object', 'properties' => array( 'message' => array( 'type' => 'string' ) ) ),
+        'execute_callback' => fn( array $input ) => array( 'message' => 'done' ),
+    ) );
+} );
+```
+
+Full guide, schema conventions, audit-redaction contract, and the companion
+"ability pack" plugin convention: **[`docs/registering-abilities.md`](docs/registering-abilities.md)**.
+A runnable reference pack lives in [`examples/acfw-ability-pack-hello/`](examples/acfw-ability-pack-hello/).
+
 ## Philosophy
 
 > Trusted agents in trusted environments should have root-equivalent operational capability.

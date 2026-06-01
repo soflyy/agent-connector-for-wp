@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "target_plugin": "woocommerce/woocommerce.php",
+      "target_plugin_name": "WooCommerce",
+      "ability_pack_slug": "agent-connector-woocommerce/agent-connector-woocommerce.php",
+      "ability_pack_name": "Agent Connector for WooCommerce",
+      "source_url": "https://github.com/soflyy/agent-connector-woocommerce",
+      "description": "Exposes order, product, and customer abilities so agents can manage your store over MCP.",
+      "version": "1.0.0"
+    },
+    {
+      "target_plugin": "contact-form-7",
+      "target_plugin_name": "Contact Form 7",
+      "ability_pack_slug": "agent-connector-cf7",
+      "ability_pack_name": "Agent Connector for Contact Form 7",
+      "source_url": "https://github.com/soflyy/agent-connector-cf7",
+      "description": "Lets agents read submissions and edit form definitions.",
+      "version": "0.3.1"
+    },
+    {
+      "target_plugin": "wordpress-seo/wp-seo.php",
+      "target_plugin_name": "Yoast SEO",
+      "ability_pack_slug": "agent-connector-yoast/agent-connector-yoast.php",
+      "ability_pack_name": "Agent Connector for Yoast SEO",
+      "source_url": "https://github.com/soflyy/agent-connector-yoast",
+      "description": "Abilities for auditing and updating per-post SEO metadata.",
+      "version": "0.9.0"
+    }
+  ]
+}

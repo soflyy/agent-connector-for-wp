@@ -56,36 +56,57 @@ final class AuditLogger {
 	/**
 	 * Wrap an ability handler so every invocation is timed and audit-logged.
 	 *
+	 * Returns a {@see WrappedHandler} marker (an invokable, so still `callable`)
+	 * rather than a plain closure. The marker lets the governance layer detect an
+	 * already-wrapped execute callback and avoid wrapping it a second time, which
+	 * would double-log and run the domain-lock check twice. Built-in abilities and
+	 * third-party abilities therefore share one wrapping path.
+	 *
 	 * @param string        $ability    Ability name.
 	 * @param callable      $handler    fn(array $input): mixed|WP_Error
 	 * @param ?callable     $summarizer fn(array $input): array — a redacted summary for the log.
-	 * @return callable The wrapped execute_callback.
+	 * @return WrappedHandler The wrapped execute_callback.
 	 */
-	public static function wrap( string $ability, callable $handler, ?callable $summarizer = null ): callable {
-		return static function ( $input = array() ) use ( $ability, $handler, $summarizer ) {
-			$input = is_array( $input ) ? $input : array();
-			$start = microtime( true );
+	public static function wrap( string $ability, callable $handler, ?callable $summarizer = null ): WrappedHandler {
+		return new WrappedHandler( $ability, $handler, $summarizer );
+	}
 
-			// Domain lock: this is the single chokepoint every ability runs
-			// through, so enforcement lives here rather than in each handler. On
-			// a mismatch we never invoke the handler — we return an
-			// agent-actionable error and still record the blocked attempt.
-			$lock_reason = Config::lock_mismatch_reason();
-			if ( null !== $lock_reason ) {
-				$summary = $summarizer ? (array) $summarizer( $input ) : array();
-				self::log( $ability, $summary, 'error', 0 );
-				return new \WP_Error(
-					'agent_connector_domain_locked',
-					$lock_reason,
-					array( 'status' => 403 )
-				);
-			}
+	/**
+	 * The single chokepoint every wrapped ability runs through: domain-lock
+	 * enforcement, then the handler, then audit logging.
+	 *
+	 * Called by {@see WrappedHandler::__invoke()}. Kept here (rather than inside
+	 * the wrapper) so the enforcement/logging logic lives in one place.
+	 *
+	 * @param string        $ability    Ability name.
+	 * @param callable      $handler    fn(array $input): mixed|WP_Error.
+	 * @param ?callable     $summarizer fn(array $input): array — a redacted summary for the log.
+	 * @param mixed         $input      Raw ability input.
+	 * @return mixed|\WP_Error
+	 */
+	public static function run( string $ability, callable $handler, ?callable $summarizer, $input = array() ) {
+		$input = is_array( $input ) ? $input : array();
+		$start = microtime( true );
 
-			$result  = $handler( $input );
-			$status  = is_wp_error( $result ) ? 'error' : 'ok';
+		// Domain lock: this is the single chokepoint every ability runs
+		// through, so enforcement lives here rather than in each handler. On
+		// a mismatch we never invoke the handler — we return an
+		// agent-actionable error and still record the blocked attempt.
+		$lock_reason = Config::lock_mismatch_reason();
+		if ( null !== $lock_reason ) {
 			$summary = $summarizer ? (array) $summarizer( $input ) : array();
-			self::log( $ability, $summary, $status, (int) round( ( microtime( true ) - $start ) * 1000 ) );
-			return $result;
-		};
+			self::log( $ability, $summary, 'error', 0 );
+			return new \WP_Error(
+				'agent_connector_domain_locked',
+				$lock_reason,
+				array( 'status' => 403 )
+			);
+		}
+
+		$result  = $handler( $input );
+		$status  = is_wp_error( $result ) ? 'error' : 'ok';
+		$summary = $summarizer ? (array) $summarizer( $input ) : array();
+		self::log( $ability, $summary, $status, (int) round( ( microtime( true ) - $start ) * 1000 ) );
+		return $result;
 	}
 }

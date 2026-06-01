@@ -11,6 +11,7 @@ namespace AgentConnectorForWp\Services;
 
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Helpers;
+use AgentConnectorForWp\Support\Sandbox;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -67,6 +68,21 @@ final class FileManager {
 		$resolved = Helpers::resolve_path( $path );
 		if ( '' === $resolved ) {
 			return new \WP_Error( 'agent_connector_for_wp_bad_path', 'No path provided.' );
+		}
+
+		// PHP-execution boundary: .php and execution-control files (.htaccess,
+		// .user.ini, php.ini, web.config) may only be written inside the sandbox
+		// directory, so generated code that runs each request has a single,
+		// recoverable home. Non-PHP writes elsewhere stay allowed by design.
+		$sandbox_check = Sandbox::check_php_execution_boundary( $resolved );
+		if ( is_wp_error( $sandbox_check ) ) {
+			return $sandbox_check;
+		}
+
+		// Never write *through* a symlinked final path.
+		$symlink_check = Sandbox::reject_final_symlink( $resolved );
+		if ( is_wp_error( $symlink_check ) ) {
+			return $symlink_check;
 		}
 
 		$existed = is_file( $resolved );
