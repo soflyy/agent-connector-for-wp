@@ -14,9 +14,10 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Centralizes the mandatory opt-in gates and tunables.
  *
- * The plugin is dangerous by design, so nothing initializes unless the operator
- * has explicitly flicked the toggle on the Settings screen. There is
- * intentionally no environment heuristic: off means off until a human says yes.
+ * Nothing initializes unless the operator flicked the Enable toggle on the
+ * Settings screen. As a second safety gate, if the site reports a production
+ * environment type, enabling alone is not enough — the operator must also tick
+ * an explicit production-override box. Off means off until a human says yes.
  */
 final class Config {
 
@@ -28,6 +29,14 @@ final class Config {
 	public const ENABLED_OPTION = 'agent_connector_for_wp_enabled';
 
 	/**
+	 * Option storing the explicit "run on production anyway" override (boolean).
+	 *
+	 * Only consulted when the site reports a production environment type; on
+	 * non-production environments the Enable toggle alone is sufficient.
+	 */
+	public const PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
+
+	/**
 	 * Option storing the host the plugin was last enabled / reconnected on.
 	 *
 	 * This is the domain lock: abilities refuse to run if the site's declared
@@ -37,19 +46,57 @@ final class Config {
 	public const LOCKED_HOST_OPTION = 'agent_connector_for_wp_locked_host';
 
 	/**
-	 * Master switch. The plugin does nothing unless the operator turned the
-	 * Settings toggle on.
+	 * The Enable toggle (box 1). This is the operator's intent to turn the
+	 * plugin on; whether it actually boots also depends on the environment gate.
 	 */
 	public static function is_enabled(): bool {
 		return (bool) get_option( self::ENABLED_OPTION, false );
 	}
 
 	/**
-	 * Master boot decision. With the production heuristic gone this is simply
-	 * "did a human explicitly enable it".
+	 * Whether this site reports a non-production environment type.
+	 *
+	 * wp_get_environment_type() is one of 'local', 'development', 'staging', or
+	 * 'production', defaulting to 'production' when WP_ENVIRONMENT_TYPE is unset.
+	 * Anything other than 'production' is treated as safe to enable without the
+	 * extra override — and a site that never configured its environment type is
+	 * therefore (correctly) treated as production.
+	 */
+	public static function is_non_production_env(): bool {
+		if ( ! function_exists( 'wp_get_environment_type' ) ) {
+			return false; // Can't prove it's non-production → require the override.
+		}
+		return 'production' !== wp_get_environment_type();
+	}
+
+	/**
+	 * The production-override toggle (box 2). Only meaningful on production.
+	 */
+	public static function production_override_enabled(): bool {
+		return (bool) get_option( self::PRODUCTION_OVERRIDE_OPTION, false );
+	}
+
+	/**
+	 * Master boot decision. Two gates:
+	 *   1. The operator enabled the plugin (box 1), AND
+	 *   2. the environment is non-production, OR the operator explicitly ticked
+	 *      the production override (box 2).
 	 */
 	public static function can_boot(): bool {
-		return self::is_enabled();
+		if ( ! self::is_enabled() ) {
+			return false;
+		}
+		if ( self::is_non_production_env() ) {
+			return true;
+		}
+		return self::production_override_enabled();
+	}
+
+	/**
+	 * Enabled (box 1) but held back by the production gate (no override).
+	 */
+	public static function is_blocked_by_production(): bool {
+		return self::is_enabled() && ! self::is_non_production_env() && ! self::production_override_enabled();
 	}
 
 	/**
@@ -173,8 +220,8 @@ final class Config {
 	}
 
 	/**
-	 * Admin notice shown when the plugin is installed but switched off, pointing
-	 * the operator at the Settings screen (which is always reachable).
+	 * Admin notice shown when the plugin is installed but not currently active,
+	 * pointing the operator at the always-reachable Settings screen.
 	 */
 	public static function render_gate_notice(): void {
 		if ( ! current_user_can( self::CAP ) ) {
@@ -183,14 +230,26 @@ final class Config {
 
 		$settings_url = admin_url( 'admin.php?page=agent-connector-for-wp' );
 
+		if ( self::is_blocked_by_production() ) {
+			$message = sprintf(
+				'It is enabled, but this is a <code>production</code> environment, so it stays inactive until you confirm the production override on the <a href="%s">Settings screen</a>.',
+				esc_url( $settings_url )
+			);
+		} else {
+			$message = sprintf(
+				'Enable it on the <a href="%s">Settings screen</a>.',
+				esc_url( $settings_url )
+			);
+		}
+
 		printf(
-			'<div class="notice notice-warning"><p><strong>Agent Connector for WP</strong> is installed but switched off. %s</p></div>',
+			'<div class="notice notice-warning"><p><strong>Agent Connector for WP</strong> is installed but inactive. %s</p></div>',
 			wp_kses(
-				sprintf(
-					'Enable it on the <a href="%s">Settings screen</a>.',
-					esc_url( $settings_url )
-				),
-				array( 'a' => array( 'href' => array() ) )
+				$message,
+				array(
+					'a'    => array( 'href' => array() ),
+					'code' => array(),
+				)
 			)
 		);
 	}

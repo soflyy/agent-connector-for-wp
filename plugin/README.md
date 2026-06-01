@@ -1,6 +1,6 @@
 # Agent Connector for WP
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed** and **not for production**. Install it only in trusted local/dev/staging environments where you would be comfortable handing out a root shell.
+> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; everywhere else the Enable toggle is enough. Only turn it on where you would be comfortable handing out a root shell.
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
@@ -75,10 +75,19 @@ Application Passwords** when you're done.
 ## Enable
 
 The plugin is completely inert until a human explicitly switches it on — there is
-no environment heuristic and no enabling constant. Go to **Agent Connector for WP
-→ Settings** in wp-admin and tick *Enable Agent Connector*. This screen is always
-available, even while the plugin is off, and enabling here also locks the plugin
-to the current domain.
+no enabling constant. Go to **Agent Connector for WP → Settings** in wp-admin and
+tick *Enable Agent Connector*. This screen is always available, even while the
+plugin is off, and enabling here also locks the plugin to the current domain.
+
+Enabling has two gates:
+
+1. **Enable Agent Connector** — the master toggle.
+2. **Production override** — only required when `wp_get_environment_type()` reports
+   `production` (also the default when the environment type was never configured).
+   On `local` / `development` / `staging` the master toggle alone activates the
+   plugin; on `production` you must additionally tick the override, which is where
+   the danger warning lives. This makes it hard to accidentally expose
+   root-equivalent access on a live site.
 
 ### Domain lock
 

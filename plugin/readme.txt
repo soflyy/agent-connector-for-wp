@@ -33,7 +33,7 @@ This plugin is **dangerous by design**. It is:
 * developer-focused
 * intentionally unrestricted
 * **NOT** sandboxed
-* **NOT** intended for production
+* blocked on production environments unless you explicitly tick the production override
 * **NOT** enterprise security software
 
 It assumes the environment is trusted and that authenticated administrators intentionally trust the agents acting on their behalf. Do not install it anywhere you would not hand out a root shell.
@@ -50,7 +50,12 @@ wordpress/mcp-adapter is bundled with this plugin; you do not need to install it
 
 == Enabling the Plugin ==
 
-The plugin is completely inert until a human explicitly switches it on — there is no environment heuristic and no enabling constant. Go to **Agent Connector for WP > Settings** in wp-admin and tick *Enable Agent Connector*. The Settings screen is always available, even while the plugin is off.
+The plugin is completely inert until a human explicitly switches it on — there is no enabling constant. Go to **Agent Connector for WP > Settings** in wp-admin and tick *Enable Agent Connector*. The Settings screen is always available, even while the plugin is off.
+
+Enabling has two gates:
+
+1. **Enable Agent Connector** — the master toggle.
+2. **Production override** — required only when `wp_get_environment_type()` reports `production` (which is also the default when the environment type is never configured). On a `local`, `development`, or `staging` site the master toggle alone activates the plugin; on `production` you must additionally tick the override, which is where the danger warning lives. This makes it hard to accidentally expose root-equivalent access on a live site.
 
 Enabling also locks the plugin to the current domain (see the Security Model below).
 
@@ -73,7 +78,8 @@ Go to **Agent Connector for WP > Connect** in wp-admin and click **Generate conn
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
 * administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every ability
-* explicit opt-in: off until enabled via the Settings screen or the wp-config constant
+* explicit opt-in: off until enabled via the Settings screen
+* the production gate: on a production environment type, abilities stay inactive until the operator also ticks the production override
 * the domain lock (abilities refuse to run on a domain the plugin was not enabled on)
 * timeout enforcement and output caps
 * append-only audit logging of every invocation (user, ability, input summary, status, duration)
@@ -82,7 +88,7 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 
 = 0.1.0 =
 * Initial release: shell-exec, wp-cli, php-eval, file read/write/delete/list, env-inspect, process-exec, create-admin-login-link abilities; audit logging.
-* Explicit opt-in enable model: off until enabled via the Settings screen (no environment heuristic, no enabling constant).
+* Explicit opt-in enable model: off until enabled via the Settings screen (no enabling constant). On a production environment type, a second explicit override is required before abilities activate.
 * Domain lock: abilities are blocked, with an agent-actionable error, if the site is moved to a domain the plugin was not enabled on; reconnect from the Settings screen.
 * One-time admin login links so a browser-driving agent holding only an application password can reach wp-admin.
 * Bundles wordpress/mcp-adapter via the Jetpack Autoloader so the plugin works standalone.

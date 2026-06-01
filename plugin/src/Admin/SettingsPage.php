@@ -72,34 +72,45 @@ final class SettingsPage {
 			return;
 		}
 
-		$enabled        = Config::is_enabled();
-		$locked_host    = Config::locked_host();
-		$declared_host  = Config::declared_host();
-		$lock_mismatch  = $enabled && '' !== $locked_host && $locked_host !== $declared_host;
-		$notice         = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$enabled       = Config::is_enabled();          // box 1.
+		$active        = Config::can_boot();             // truly running.
+		$non_prod      = Config::is_non_production_env();
+		$override      = Config::production_override_enabled(); // box 2.
+		$prod_blocked  = Config::is_blocked_by_production();
+		$env_type      = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown';
+		$locked_host   = Config::locked_host();
+		$declared_host = Config::declared_host();
+		$lock_mismatch = $active && '' !== $locked_host && $locked_host !== $declared_host;
+		$notice        = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Agent Connector for WP — Settings', 'agent-connector-for-wp' ); ?></h1>
 
 			<?php $this->render_status_notice( $notice ); ?>
 
-			<div class="notice notice-error inline" style="max-width:48em;">
-				<p>
-					<strong><?php esc_html_e( 'Danger:', 'agent-connector-for-wp' ); ?></strong>
-					<?php esc_html_e( 'When enabled, this plugin grants root-equivalent control of this server — arbitrary shell commands, PHP evaluation, and filesystem access — to anyone holding a WordPress application password, and to the agents acting for them. There is no sandbox. Enable it only on trusted local, development, or staging environments. Never on production.', 'agent-connector-for-wp' ); ?>
-				</p>
-			</div>
-
 			<h2><?php esc_html_e( 'Status', 'agent-connector-for-wp' ); ?></h2>
 			<table class="form-table" role="presentation">
 				<tr>
 					<th scope="row"><?php esc_html_e( 'Abilities', 'agent-connector-for-wp' ); ?></th>
 					<td>
-						<?php if ( $enabled ) : ?>
-							<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'ENABLED', 'agent-connector-for-wp' ); ?></span>
+						<?php if ( $active ) : ?>
+							<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'ACTIVE', 'agent-connector-for-wp' ); ?></span>
+							<p class="description"><?php esc_html_e( 'Abilities are registered and exposed to agents over MCP.', 'agent-connector-for-wp' ); ?></p>
+						<?php elseif ( $prod_blocked ) : ?>
+							<span style="color:#b32d2e;font-weight:600;"><?php esc_html_e( 'Enabled, but inactive', 'agent-connector-for-wp' ); ?></span>
+							<p class="description"><?php esc_html_e( 'This is a production environment, so the Enable toggle alone does not activate it. Tick the production override below to activate.', 'agent-connector-for-wp' ); ?></p>
 						<?php else : ?>
 							<span style="color:#1a7f37;font-weight:600;"><?php esc_html_e( 'Disabled', 'agent-connector-for-wp' ); ?></span>
 							<p class="description"><?php esc_html_e( 'The plugin is inert. No abilities are registered and the MCP endpoint exposes nothing from this plugin.', 'agent-connector-for-wp' ); ?></p>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Environment type', 'agent-connector-for-wp' ); ?></th>
+					<td>
+						<code><?php echo esc_html( $env_type ); ?></code>
+						<?php if ( ! $non_prod ) : ?>
+							<span class="description"><?php esc_html_e( '— treated as production; enabling requires the override below.', 'agent-connector-for-wp' ); ?></span>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -126,11 +137,33 @@ final class SettingsPage {
 							</p>
 						</td>
 					</tr>
+					<?php if ( ! $non_prod ) : ?>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Production override', 'agent-connector-for-wp' ); ?></th>
+							<td>
+								<div class="notice notice-error inline" style="margin:0 0 .9em;max-width:46em;">
+									<p>
+										<strong><?php esc_html_e( 'Danger:', 'agent-connector-for-wp' ); ?></strong>
+										<?php esc_html_e( 'This site reports a production environment type. Agent Connector grants root-equivalent control of this server — arbitrary shell commands, PHP evaluation, and filesystem access — to anyone holding a WordPress application password, and to the agents acting for them. There is no sandbox. On production this is almost never what you want; leave this unticked unless you fully accept that risk.', 'agent-connector-for-wp' ); ?>
+									</p>
+								</div>
+								<label>
+									<input
+										type="checkbox"
+										name="acfw_allow_production"
+										value="1"
+										<?php checked( $override ); ?>
+									/>
+									<?php esc_html_e( 'I understand the risk — run Agent Connector on this production environment anyway.', 'agent-connector-for-wp' ); ?>
+								</label>
+							</td>
+						</tr>
+					<?php endif; ?>
 				</table>
 				<?php submit_button( $enabled ? __( 'Save changes', 'agent-connector-for-wp' ) : __( 'Enable plugin', 'agent-connector-for-wp' ) ); ?>
 			</form>
 
-			<?php if ( $enabled ) : ?>
+			<?php if ( $active ) : ?>
 				<hr />
 				<h2><?php esc_html_e( 'Domain lock', 'agent-connector-for-wp' ); ?></h2>
 				<p style="max-width:48em;">
@@ -189,6 +222,7 @@ final class SettingsPage {
 			'enabled'    => array( 'success', __( 'Agent Connector is now enabled and locked to this domain.', 'agent-connector-for-wp' ) ),
 			'disabled'   => array( 'success', __( 'Agent Connector is now disabled. The plugin is inert.', 'agent-connector-for-wp' ) ),
 			'saved'      => array( 'success', __( 'Settings saved.', 'agent-connector-for-wp' ) ),
+			'prod_blocked' => array( 'warning', __( 'Saved, but Agent Connector is inactive: this is a production environment. Tick the production override to activate it.', 'agent-connector-for-wp' ) ),
 			'reconnected' => array( 'success', __( 'Reconnected — abilities are allowed on this domain again.', 'agent-connector-for-wp' ) ),
 		);
 
@@ -211,13 +245,19 @@ final class SettingsPage {
 
 		$was_enabled = Config::is_enabled();
 		$enable      = isset( $_POST['acfw_enabled'] ) && '1' === $_POST['acfw_enabled']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$allow_prod  = isset( $_POST['acfw_allow_production'] ) && '1' === $_POST['acfw_allow_production']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		update_option( Config::ENABLED_OPTION, $enable, true );
+		update_option( Config::PRODUCTION_OVERRIDE_OPTION, $allow_prod, true );
 
 		if ( $enable ) {
 			// (Re)lock to the current domain whenever we transition to enabled.
 			if ( ! $was_enabled ) {
 				Config::lock_to_current_host();
+			}
+			// Enabled on production without the override → saved but not active.
+			if ( ! Config::can_boot() ) {
+				$this->redirect( 'prod_blocked' );
 			}
 			$this->redirect( $was_enabled ? 'saved' : 'enabled' );
 		}
