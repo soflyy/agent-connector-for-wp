@@ -1,0 +1,149 @@
+name: Auto release on merge
+
+# On every merge to master that touches the plugin, work out the next version
+# from the merged PR's title (Conventional Commits), bump the version in source,
+# tag it, build the vendored zip, and publish a GitHub Release.
+#
+# Bump rules (highest wins):
+#   * a breaking change  -> major   (PR title like "feat!: …", or "BREAKING CHANGE" in the body)
+#   * "fix: …"           -> patch
+#   * anything else       -> minor   (this is the default: an unprefixed or
+#                                      feat/chore/docs/… title is treated as a feature)
+#
+# Manual minor/major or re-runs: use the workflow_dispatch "bump" input, or push
+# a vX.Y.Z tag yourself (handled by release.yml).
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'plugin/**'
+      - '.github/workflows/auto-release.yml'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Force bump level'
+        default: 'auto'
+        type: choice
+        options: [auto, patch, minor, major]
+
+# Need to push the bump commit + tag, and read the merged PR for its title.
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+env:
+  PLUGIN_SLUG: agent-connector-for-wp
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Never react to our own "[skip ci]" version-bump commit (belt-and-braces:
+    # GitHub also skips runs whose head commit message contains [skip ci]).
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, needed to compute the next version
+
+      - name: Determine next version
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          latest=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+          [ -n "$latest" ] || latest="v0.0.0"
+          echo "Latest tag: $latest"
+
+          # Prefer the merged PR title; fall back to the head commit subject
+          # (e.g. a direct push to master).
+          title=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].title' 2>/dev/null || true)
+          if [ -z "${title}" ] || [ "${title}" = "null" ]; then
+            title=$(git log -1 --pretty=%s)
+          fi
+          body=$(git log -1 --pretty=%b)
+          echo "Analyzing: $title"
+
+          # Allow a manual override via workflow_dispatch.
+          level="${{ github.event.inputs.bump || 'auto' }}"
+          if [ "$level" = "auto" ]; then
+            if printf '%s' "$title" | grep -qE '^[a-zA-Z]+(\(.+\))?!:' || printf '%s' "$body" | grep -qE 'BREAKING[ -]CHANGE'; then
+              level="major"
+            elif printf '%s' "$title" | grep -qiE '^fix(\(.+\))?:'; then
+              level="patch"
+            else
+              # feat:, unprefixed, chore:, docs:, … all default to a feature bump.
+              level="minor"
+            fi
+          fi
+          echo "Bump: $level"
+
+          ver=${latest#v}
+          IFS='.' read -r MA MI PA <<< "$ver"
+          case "$level" in
+            major) MA=$((MA + 1)); MI=0; PA=0 ;;
+            minor) MI=$((MI + 1)); PA=0 ;;
+            patch) PA=$((PA + 1)) ;;
+          esac
+          new="${MA}.${MI}.${PA}"
+          echo "New version: $new"
+          {
+            echo "version=$new"
+            echo "tag=v$new"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync version into source
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          php="plugin/agent-connector-for-wp.php"
+          sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${V}/" "$php"
+          sed -i -E "s/(define\( 'AGENT_CONNECTOR_FOR_WP_VERSION', ')[^']*(' \);)/\1${V}\2/" "$php"
+          sed -i -E "s/^(Stable tag:[[:space:]]+).*/\1${V}/" plugin/readme.txt
+          echo "---- changed lines ----"
+          grep -nE "Version:|AGENT_CONNECTOR_FOR_WP_VERSION|Stable tag" "$php" plugin/readme.txt
+
+      - name: Commit, tag, and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add plugin/agent-connector-for-wp.php plugin/readme.txt
+          git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]"
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "${{ steps.ver.outputs.tag }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install production dependencies
+        working-directory: plugin
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
+
+      - name: Build plugin zip
+        working-directory: plugin
+        run: |
+          mkdir -p "dist/${PLUGIN_SLUG}"
+          rsync -a --delete --exclude='dist' --exclude='vendor' ./ "dist/${PLUGIN_SLUG}/"
+          cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
+          cd dist && zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          files: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
