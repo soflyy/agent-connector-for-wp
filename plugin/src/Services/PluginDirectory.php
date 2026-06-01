@@ -1,0 +1,396 @@
+<?php
+/**
+ * Client for the remote "ability pack" companion-plugin directory.
+ *
+ * @package AgentConnectorForWp
+ */
+
+declare( strict_types=1 );
+
+namespace AgentConnectorForWp\Services;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Fetches a remote JSON directory of companion "ability pack" plugins and matches
+ * its entries against the WP plugins installed on this site.
+ *
+ * The directory is a published list of third-party companion plugins, each of
+ * which targets a specific host WP plugin (e.g. an ability pack "for WooCommerce")
+ * and registers AI abilities through Agent Connector's API. This client tells the
+ * admin which of *their* installed plugins have an ability pack available.
+ *
+ * Network access is best-effort and never fatal: the result is cached in a
+ * transient, failures fall back to the last good copy, and malformed JSON or
+ * entries are ignored defensively. See docs/directory-schema.md for the schema.
+ */
+final class PluginDirectory {
+
+	/**
+	 * Default remote directory URL.
+	 *
+	 * PLACEHOLDER — there is no live endpoint yet. Point this (or the
+	 * `agent_connector_for_wp_directory_url` filter) at the real published
+	 * directory.json before relying on it. A 404 here is handled gracefully:
+	 * the UI shows a clean "directory unavailable" state, never a fatal.
+	 */
+	public const DEFAULT_DIRECTORY_URL = 'https://raw.githubusercontent.com/soflyy/agent-connector-for-wp-directory/main/directory.json';
+
+	/**
+	 * Transient holding the last successfully fetched + normalized directory.
+	 *
+	 * @var array<int,array<string,string>>|false
+	 */
+	public const CACHE_KEY = 'agent_connector_for_wp_directory_cache';
+
+	/**
+	 * Transient lifetime: 12 hours.
+	 */
+	public const CACHE_TTL = 12 * HOUR_IN_SECONDS;
+
+	/**
+	 * Network timeout for the directory fetch, in seconds. Kept short so a slow
+	 * or unreachable endpoint never stalls an admin page render for long.
+	 */
+	private const HTTP_TIMEOUT = 5;
+
+	/**
+	 * The remote directory URL, after the override filter.
+	 */
+	public static function directory_url(): string {
+		/**
+		 * Filters the URL of the remote ability-pack directory.
+		 *
+		 * @param string $url Default directory URL.
+		 */
+		$url = (string) apply_filters( 'agent_connector_for_wp_directory_url', self::DEFAULT_DIRECTORY_URL );
+
+		return $url;
+	}
+
+	/**
+	 * Return the cached directory, or null when nothing has been cached yet.
+	 *
+	 * @return array<int,array<string,string>>|null
+	 */
+	public static function cached(): ?array {
+		$cached = get_transient( self::CACHE_KEY );
+
+		return is_array( $cached ) ? $cached : null;
+	}
+
+	/**
+	 * Fetch the directory, preferring the cache. On a cache miss it hits the
+	 * network; on a network/parse failure it falls back to any stale cached copy.
+	 *
+	 * @param bool $force When true, bypass the cache and refetch from the network.
+	 *
+	 * @return array{
+	 *     entries: array<int,array<string,string>>,
+	 *     stale: bool,
+	 *     error: string,
+	 *     url: string
+	 * }
+	 */
+	public static function get( bool $force = false ): array {
+		$url = self::directory_url();
+
+		if ( ! $force ) {
+			$cached = self::cached();
+			if ( null !== $cached ) {
+				return array(
+					'entries' => $cached,
+					'stale'   => false,
+					'error'   => '',
+					'url'     => $url,
+				);
+			}
+		}
+
+		$fetched = self::fetch( $url );
+
+		if ( null !== $fetched ) {
+			set_transient( self::CACHE_KEY, $fetched, self::CACHE_TTL );
+
+			return array(
+				'entries' => $fetched,
+				'stale'   => false,
+				'error'   => '',
+				'url'     => $url,
+			);
+		}
+
+		// Network/parse failed — fall back to any (possibly stale) cached copy.
+		$cached = self::cached();
+		if ( null !== $cached ) {
+			return array(
+				'entries' => $cached,
+				'stale'   => true,
+				'error'   => __( 'Could not refresh the directory; showing the last cached copy.', 'agent-connector-for-wp' ),
+				'url'     => $url,
+			);
+		}
+
+		return array(
+			'entries' => array(),
+			'stale'   => false,
+			'error'   => __( 'The ability-pack directory is currently unavailable.', 'agent-connector-for-wp' ),
+			'url'     => $url,
+		);
+	}
+
+	/**
+	 * Drop the cached directory so the next read refetches.
+	 */
+	public static function clear_cache(): void {
+		delete_transient( self::CACHE_KEY );
+	}
+
+	/**
+	 * Fetch + decode + normalize the directory from the network.
+	 *
+	 * @param string $url Directory URL.
+	 *
+	 * @return array<int,array<string,string>>|null Normalized entries, or null on any failure.
+	 */
+	private static function fetch( string $url ): ?array {
+		if ( '' === $url || ! function_exists( 'wp_remote_get' ) ) {
+			return null;
+		}
+
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout'    => self::HTTP_TIMEOUT,
+				'user-agent' => 'AgentConnectorForWp/' . ( defined( 'AGENT_CONNECTOR_FOR_WP_VERSION' ) ? AGENT_CONNECTOR_FOR_WP_VERSION : 'dev' ),
+				'headers'    => array( 'Accept' => 'application/json' ),
+			)
+		);
+
+		if ( $response instanceof \WP_Error ) {
+			return null;
+		}
+
+		if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+			return null;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		if ( '' === $body ) {
+			return null;
+		}
+
+		$decoded = json_decode( $body, true );
+		if ( JSON_ERROR_NONE !== json_last_error() ) {
+			return null;
+		}
+
+		return self::normalize( $decoded );
+	}
+
+	/**
+	 * Normalize a decoded directory payload into a clean list of entries.
+	 *
+	 * Accepts either a top-level array of entries, or an object with an
+	 * `entries` key holding that array. Malformed entries (missing the two
+	 * required keys) are silently dropped.
+	 *
+	 * @param mixed $decoded Decoded JSON.
+	 *
+	 * @return array<int,array<string,string>>
+	 */
+	private static function normalize( $decoded ): array {
+		if ( is_array( $decoded ) && isset( $decoded['entries'] ) && is_array( $decoded['entries'] ) ) {
+			$raw = $decoded['entries'];
+		} elseif ( is_array( $decoded ) ) {
+			$raw = $decoded;
+		} else {
+			return array();
+		}
+
+		$entries = array();
+		foreach ( $raw as $item ) {
+			$entry = self::normalize_entry( $item );
+			if ( null !== $entry ) {
+				$entries[] = $entry;
+			}
+		}
+
+		return $entries;
+	}
+
+	/**
+	 * Validate + normalize a single directory entry, or null if it is unusable.
+	 *
+	 * Required: host_plugin_slug, ability_pack_name. Everything else is
+	 * optional and defaulted to an empty string.
+	 *
+	 * @param mixed $item Raw entry.
+	 *
+	 * @return array<string,string>|null
+	 */
+	private static function normalize_entry( $item ): ?array {
+		if ( ! is_array( $item ) ) {
+			return null;
+		}
+
+		$host_slug = isset( $item['host_plugin_slug'] ) && is_string( $item['host_plugin_slug'] )
+			? trim( $item['host_plugin_slug'] )
+			: '';
+		$pack_name = isset( $item['ability_pack_name'] ) && is_string( $item['ability_pack_name'] )
+			? trim( $item['ability_pack_name'] )
+			: '';
+
+		if ( '' === $host_slug || '' === $pack_name ) {
+			return null;
+		}
+
+		$str = static function ( $value ): string {
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		return array(
+			'host_plugin_slug' => $host_slug,
+			'host_plugin_name' => $str( $item['host_plugin_name'] ?? '' ),
+			'ability_pack_slug' => $str( $item['ability_pack_slug'] ?? '' ),
+			'ability_pack_name' => $pack_name,
+			'source_url'        => $str( $item['source_url'] ?? '' ),
+			'description'       => $str( $item['description'] ?? '' ),
+			'version'           => $str( $item['version'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Match directory entries against the plugins installed on this site.
+	 *
+	 * @param array<int,array<string,string>> $entries Normalized directory entries.
+	 *
+	 * @return array<int,array<string,mixed>> One row per match, each with the
+	 *     directory entry plus host_installed / host_active / pack_installed /
+	 *     pack_active booleans and the resolved installed host plugin name.
+	 */
+	public static function match_installed( array $entries ): array {
+		$installed = self::installed_plugins();
+
+		$matches = array();
+		foreach ( $entries as $entry ) {
+			$host_key = self::find_installed_key( $entry['host_plugin_slug'], $installed );
+			if ( null === $host_key ) {
+				continue;
+			}
+
+			$pack_key = '' !== $entry['ability_pack_slug']
+				? self::find_installed_key( $entry['ability_pack_slug'], $installed )
+				: null;
+
+			$matches[] = array(
+				'entry'             => $entry,
+				'host_plugin_file'  => $host_key,
+				'host_plugin_name'  => (string) ( $installed[ $host_key ]['Name'] ?? $entry['host_plugin_name'] ),
+				'host_active'       => self::is_active( $host_key ),
+				'pack_installed'    => null !== $pack_key,
+				'pack_active'       => null !== $pack_key && self::is_active( $pack_key ),
+			);
+		}
+
+		return $matches;
+	}
+
+	/**
+	 * Convenience: fetch (cache-aware) and match in one call.
+	 *
+	 * @param bool $force Force a network refresh.
+	 *
+	 * @return array{
+	 *     matches: array<int,array<string,mixed>>,
+	 *     stale: bool,
+	 *     error: string,
+	 *     url: string,
+	 *     total: int
+	 * }
+	 */
+	public static function matches( bool $force = false ): array {
+		$result = self::get( $force );
+
+		return array(
+			'matches' => self::match_installed( $result['entries'] ),
+			'stale'   => $result['stale'],
+			'error'   => $result['error'],
+			'url'     => $result['url'],
+			'total'   => count( $result['entries'] ),
+		);
+	}
+
+	/**
+	 * All installed plugins, keyed by plugin file (e.g. "woocommerce/woocommerce.php").
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private static function installed_plugins(): array {
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		return (array) get_plugins();
+	}
+
+	/**
+	 * Resolve a directory slug to an installed plugin file, tolerating slug
+	 * format differences (full "folder/file.php" path vs bare folder slug).
+	 *
+	 * @param string                            $slug      Directory-supplied slug.
+	 * @param array<string,array<string,mixed>> $installed get_plugins() output.
+	 *
+	 * @return string|null The matching plugin file key, or null when not installed.
+	 */
+	private static function find_installed_key( string $slug, array $installed ): ?string {
+		$slug = trim( $slug );
+		if ( '' === $slug ) {
+			return null;
+		}
+
+		// 1. Exact "folder/file.php" match.
+		if ( isset( $installed[ $slug ] ) ) {
+			return $slug;
+		}
+
+		// 2. Treat the supplied value as a folder slug and match on dirname,
+		//    or on the file stem for single-file plugins ("hello.php").
+		$needle = self::folder_slug( $slug );
+		foreach ( array_keys( $installed ) as $file ) {
+			if ( self::folder_slug( $file ) === $needle ) {
+				return $file;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Reduce a plugin file or slug to its comparable folder slug.
+	 *
+	 * "woocommerce/woocommerce.php" → "woocommerce"
+	 * "woocommerce"                 → "woocommerce"
+	 * "hello.php"                   → "hello"
+	 */
+	private static function folder_slug( string $value ): string {
+		$value = trim( $value );
+		if ( false !== strpos( $value, '/' ) ) {
+			return dirname( $value );
+		}
+
+		// Single-file plugin or bare slug: strip a trailing ".php".
+		return preg_replace( '/\.php$/', '', $value ) ?? $value;
+	}
+
+	/**
+	 * Whether a plugin file is active (site-wide or, on multisite, network-active).
+	 */
+	private static function is_active( string $plugin_file ): bool {
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		return is_plugin_active( $plugin_file );
+	}
+}

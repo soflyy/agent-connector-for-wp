@@ -97,6 +97,8 @@ add_action(
 		// dangerous; the gates below still guard the MCP server and abilities.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
+			// Read-only browser of available companion "ability pack" plugins.
+			( new Admin\DirectoryPage() )->register();
 		}
 
 		if ( ! Support\Config::can_boot() ) {
