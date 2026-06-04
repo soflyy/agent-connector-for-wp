@@ -1,0 +1,10 @@
+SPDX-License-Identifier: GPL-2.0-or-later
+
+This project — the wp-mcp-generator skill and the ability-pack plugins generated
+with it — is licensed under the GNU General Public License, version 2 or (at your
+option) any later version, consistent with the WordPress plugins it produces.
+
+The full text of the GNU General Public License v2.0 is available at:
+https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt
+
+(The full license text should be vendored into this file before the repo is made public.)
