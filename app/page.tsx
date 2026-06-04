@@ -1,31 +1,16 @@
 import Link from "next/link";
-import { PLUGINS } from "@/data/plugins";
-import { getAllAIStatuses } from "@/lib/db";
+import { getAllPluginsWithStatus } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
-import type { PluginWithStatus } from "@/lib/types";
 
 export const revalidate = 3600;
 
-async function getPluginsWithStatus(): Promise<PluginWithStatus[]> {
-  const statuses = await getAllAIStatuses(PLUGINS.map((p) => p.slug));
-  return PLUGINS.map((p) => ({
-    ...p,
-    aiStatus: statuses[p.slug] ?? {
-      level: "none" as const,
-      unofficialPlugins: [],
-      lastVerified: "unknown",
-    },
-  }));
-}
-
 export default async function HomePage() {
-  const plugins = await getPluginsWithStatus();
+  const plugins = await getAllPluginsWithStatus();
 
   const counts = {
     total: plugins.length,
     official: plugins.filter((p) => p.aiStatus.level === "official").length,
     unofficial: plugins.filter((p) => p.aiStatus.level === "unofficial").length,
-    coming_soon: plugins.filter((p) => p.aiStatus.level === "coming_soon").length,
     none: plugins.filter((p) => p.aiStatus.level === "none").length,
   };
 
@@ -76,10 +61,7 @@ export default async function HomePage() {
             { label: "Unofficial available", value: counts.unofficial, color: "text-amber-600" },
             { label: "Not yet", value: counts.none, color: "text-slate-400" },
           ].map(({ label, value, color }) => (
-            <div
-              key={label}
-              className="rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm"
-            >
+            <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 text-center shadow-sm">
               <p className={`text-3xl font-bold ${color}`}>{value}</p>
               <p className="mt-1 text-sm text-slate-500">{label}</p>
             </div>
@@ -123,13 +105,8 @@ export default async function HomePage() {
       {featuredOfficial.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pb-10">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Official AI Abilities
-            </h2>
-            <Link
-              href="/plugins?status=official"
-              className="text-sm text-wp-blue hover:underline"
-            >
+            <h2 className="text-xl font-semibold text-slate-900">Official AI Abilities</h2>
+            <Link href="/plugins?status=official" className="text-sm text-wp-blue hover:underline">
               View all →
             </Link>
           </div>
@@ -141,9 +118,7 @@ export default async function HomePage() {
                 className="group rounded-xl border border-emerald-200 bg-white p-4 shadow-sm transition-all hover:border-emerald-400 hover:shadow-md"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900 group-hover:text-wp-blue">
-                    {plugin.name}
-                  </h3>
+                  <h3 className="font-semibold text-slate-900 group-hover:text-wp-blue">{plugin.name}</h3>
                   <StatusBadge level="official" size="sm" />
                 </div>
                 <p className="text-sm text-slate-500">{plugin.tagline}</p>
@@ -162,13 +137,8 @@ export default async function HomePage() {
       {featuredUnofficial.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 pb-16">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-slate-900">
-              Community Plugins Available
-            </h2>
-            <Link
-              href="/plugins?status=unofficial"
-              className="text-sm text-wp-blue hover:underline"
-            >
+            <h2 className="text-xl font-semibold text-slate-900">Community Plugins Available</h2>
+            <Link href="/plugins?status=unofficial" className="text-sm text-wp-blue hover:underline">
               View all →
             </Link>
           </div>
@@ -180,9 +150,7 @@ export default async function HomePage() {
                 className="group rounded-xl border border-amber-200 bg-white p-4 shadow-sm transition-all hover:border-amber-400 hover:shadow-md"
               >
                 <div className="mb-1 flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900 group-hover:text-wp-blue">
-                    {plugin.name}
-                  </h3>
+                  <h3 className="font-semibold text-slate-900 group-hover:text-wp-blue">{plugin.name}</h3>
                   <StatusBadge level="unofficial" size="sm" />
                 </div>
                 <p className="text-sm text-slate-500">{plugin.tagline}</p>

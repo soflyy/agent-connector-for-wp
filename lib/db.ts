@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { AIStatus, Submission } from "./types";
+import type { AIStatus, Plugin, PluginWithStatus, Submission } from "./types";
 
 function getClient() {
   const url = process.env.SUPABASE_URL;
@@ -8,41 +8,70 @@ function getClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ---- AI Status ----
+// ---- Plugins ----
 
-export async function getAIStatus(slug: string): Promise<AIStatus | null> {
+export async function getAllPlugins(): Promise<Plugin[]> {
+  const supabase = getClient();
+  if (!supabase) return [];
+  const { data } = await supabase.from("plugins").select("*").order("name");
+  return data?.map(rowToPlugin) ?? [];
+}
+
+export async function getPlugin(slug: string): Promise<Plugin | null> {
+  const supabase = getClient();
+  if (!supabase) return null;
+  const { data } = await supabase.from("plugins").select("*").eq("slug", slug).single();
+  return data ? rowToPlugin(data) : null;
+}
+
+export async function upsertPlugin(plugin: Plugin): Promise<void> {
+  const supabase = getClient();
+  if (!supabase) throw new Error("Supabase not configured");
+  const { error } = await supabase.from("plugins").upsert(pluginToRow(plugin));
+  if (error) throw error;
+}
+
+// ---- Plugins + AI status joined ----
+
+export async function getAllPluginsWithStatus(): Promise<PluginWithStatus[]> {
+  const supabase = getClient();
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("plugins")
+    .select("*, ai_statuses(*)")
+    .order("name");
+  if (!data) return [];
+  return data.map((row) => ({
+    ...rowToPlugin(row),
+    aiStatus: row.ai_statuses
+      ? rowToStatus(row.ai_statuses)
+      : { level: "none" as const, unofficialPlugins: [], lastVerified: "unknown" },
+  }));
+}
+
+export async function getPluginWithStatus(slug: string): Promise<PluginWithStatus | null> {
   const supabase = getClient();
   if (!supabase) return null;
   const { data } = await supabase
-    .from("ai_statuses")
-    .select("*")
+    .from("plugins")
+    .select("*, ai_statuses(*)")
     .eq("slug", slug)
     .single();
-  return data ? rowToStatus(data) : null;
+  if (!data) return null;
+  return {
+    ...rowToPlugin(data),
+    aiStatus: data.ai_statuses
+      ? rowToStatus(data.ai_statuses)
+      : { level: "none" as const, unofficialPlugins: [], lastVerified: "unknown" },
+  };
 }
 
-export async function getAllAIStatuses(
-  slugs: string[]
-): Promise<Record<string, AIStatus>> {
-  const supabase = getClient();
-  if (!supabase || slugs.length === 0) return {};
-  const { data } = await supabase
-    .from("ai_statuses")
-    .select("*")
-    .in("slug", slugs);
-  if (!data) return {};
-  return Object.fromEntries(data.map((row) => [row.slug, rowToStatus(row)]));
-}
+// ---- AI Status ----
 
-export async function setAIStatus(
-  slug: string,
-  status: AIStatus
-): Promise<void> {
+export async function setAIStatus(slug: string, status: AIStatus): Promise<void> {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase
-    .from("ai_statuses")
-    .upsert(statusToRow(slug, status));
+  const { error } = await supabase.from("ai_statuses").upsert(statusToRow(slug, status));
   if (error) throw error;
 }
 
@@ -65,7 +94,38 @@ export async function getSubmissions(): Promise<Submission[]> {
   return data ?? [];
 }
 
-// ---- Row <-> Type conversions (DB uses snake_case) ----
+// ---- Row converters ----
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToPlugin(row: any): Plugin {
+  return {
+    slug: row.slug,
+    name: row.name,
+    tagline: row.tagline,
+    wpOrgUrl: row.wp_org_url ?? undefined,
+    repoUrl: row.repo_url ?? undefined,
+    isPremium: row.is_premium,
+    categories: row.categories ?? [],
+    activeInstalls: row.active_installs,
+    author: row.author,
+    authorUrl: row.author_url ?? undefined,
+  };
+}
+
+function pluginToRow(p: Plugin) {
+  return {
+    slug: p.slug,
+    name: p.name,
+    tagline: p.tagline,
+    wp_org_url: p.wpOrgUrl ?? null,
+    repo_url: p.repoUrl ?? null,
+    is_premium: p.isPremium,
+    categories: p.categories,
+    active_installs: p.activeInstalls,
+    author: p.author,
+    author_url: p.authorUrl ?? null,
+  };
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToStatus(row: any): AIStatus {

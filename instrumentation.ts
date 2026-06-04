@@ -9,23 +9,40 @@ export async function register() {
     { auth: { persistSession: false } }
   );
 
-  // Check if the table exists and has data yet
   const { count, error } = await supabase
-    .from("ai_statuses")
+    .from("plugins")
     .select("*", { count: "exact", head: true });
 
-  // Table doesn't exist yet — user still needs to run migration.sql
   if (error) {
-    console.warn("[wp-ai-ready] ai_statuses table not found — run supabase/migration.sql first");
+    console.warn("[wp-ai-ready] plugins table not found — run supabase/migration.sql first");
     return;
   }
 
-  // Already seeded
   if ((count ?? 0) > 0) return;
 
-  // Seed initial data
+  const { PLUGINS } = await import("./data/plugins");
   const { AI_STATUS_SEED } = await import("./data/ai-status-seed");
-  const rows = Object.entries(AI_STATUS_SEED).map(([slug, s]) => ({
+
+  const pluginRows = PLUGINS.map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    tagline: p.tagline,
+    wp_org_url: p.wpOrgUrl ?? null,
+    repo_url: p.repoUrl ?? null,
+    is_premium: p.isPremium,
+    categories: p.categories,
+    active_installs: p.activeInstalls,
+    author: p.author,
+    author_url: p.authorUrl ?? null,
+  }));
+
+  const { error: pluginError } = await supabase.from("plugins").insert(pluginRows);
+  if (pluginError) {
+    console.error("[wp-ai-ready] Plugin seed error:", pluginError.message);
+    return;
+  }
+
+  const statusRows = Object.entries(AI_STATUS_SEED).map(([slug, s]) => ({
     slug,
     level: s.level,
     official_since: s.officialSince ?? null,
@@ -38,10 +55,10 @@ export async function register() {
     updated_at: new Date().toISOString(),
   }));
 
-  const { error: seedError } = await supabase.from("ai_statuses").insert(rows);
-  if (seedError) {
-    console.error("[wp-ai-ready] Seed error:", seedError.message);
+  const { error: statusError } = await supabase.from("ai_statuses").insert(statusRows);
+  if (statusError) {
+    console.error("[wp-ai-ready] Status seed error:", statusError.message);
   } else {
-    console.log(`[wp-ai-ready] Seeded ${rows.length} plugins`);
+    console.log(`[wp-ai-ready] Seeded ${pluginRows.length} plugins + statuses`);
   }
 }
