@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PLUGINS } from "@/data/plugins";
-import { AI_STATUS_SEED } from "@/data/ai-status-seed";
 import { getAllAIStatuses } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { PluginWithStatus } from "@/lib/types";
@@ -8,10 +7,10 @@ import type { PluginWithStatus } from "@/lib/types";
 export const revalidate = 3600;
 
 async function getPluginsWithStatus(): Promise<PluginWithStatus[]> {
-  const kvStatuses = await getAllAIStatuses(PLUGINS.map((p) => p.slug));
+  const statuses = await getAllAIStatuses(PLUGINS.map((p) => p.slug));
   return PLUGINS.map((p) => ({
     ...p,
-    aiStatus: kvStatuses[p.slug] ?? AI_STATUS_SEED[p.slug] ?? {
+    aiStatus: statuses[p.slug] ?? {
       level: "none" as const,
       unofficialPlugins: [],
       lastVerified: "unknown",

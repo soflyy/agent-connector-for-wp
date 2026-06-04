@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { PLUGINS } from "@/data/plugins";
-import { AI_STATUS_SEED } from "@/data/ai-status-seed";
 import { getAllAIStatuses } from "@/lib/db";
 import { PluginDirectory } from "@/components/PluginDirectory";
 import type { PluginWithStatus } from "@/lib/types";
@@ -14,11 +13,11 @@ export const metadata: Metadata = {
 export const revalidate = 3600;
 
 export default async function PluginsPage() {
-  const kvStatuses = await getAllAIStatuses(PLUGINS.map((p) => p.slug));
+  const statuses = await getAllAIStatuses(PLUGINS.map((p) => p.slug));
 
   const plugins: PluginWithStatus[] = PLUGINS.map((p) => ({
     ...p,
-    aiStatus: kvStatuses[p.slug] ?? AI_STATUS_SEED[p.slug] ?? {
+    aiStatus: statuses[p.slug] ?? {
       level: "none" as const,
       unofficialPlugins: [],
       lastVerified: "unknown",

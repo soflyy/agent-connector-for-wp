@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PLUGINS } from "@/data/plugins";
-import { AI_STATUS_SEED } from "@/data/ai-status-seed";
 import { getAIStatus } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CATEGORY_LABELS } from "@/lib/types";
@@ -15,10 +14,8 @@ export async function generateStaticParams() {
 }
 
 async function getStatus(slug: string): Promise<AIStatus> {
-  const kvStatus = await getAIStatus(slug);
   return (
-    kvStatus ??
-    AI_STATUS_SEED[slug] ?? {
+    (await getAIStatus(slug)) ?? {
       level: "none" as const,
       unofficialPlugins: [],
       lastVerified: "unknown",

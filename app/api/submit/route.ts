@@ -32,10 +32,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     console.error("Submit error:", err);
     const message = err instanceof Error ? err.message : "Internal error";
-    const isKvError = message.includes("KV not configured");
-    return NextResponse.json(
-      { error: isKvError ? "Submissions require Vercel KV to be configured." : message },
-      { status: isKvError ? 503 : 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
