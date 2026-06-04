@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PLUGINS } from "@/data/plugins";
 import { AI_STATUS_SEED } from "@/data/ai-status-seed";
-import { getAllAIStatuses } from "@/lib/kv";
+import { getAllAIStatuses } from "@/lib/db";
 import { PluginDirectory } from "@/components/PluginDirectory";
 import type { PluginWithStatus } from "@/lib/types";
 

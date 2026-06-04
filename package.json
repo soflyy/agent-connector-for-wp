@@ -10,7 +10,7 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
-    "@vercel/kv": "^3.0.0",
+    "@supabase/supabase-js": "^2.107.0",
     "autoprefixer": "^10.5.0",
     "next": "^15.3.9",
     "react": "^19.0.0",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PLUGINS } from "@/data/plugins";
 import { AI_STATUS_SEED } from "@/data/ai-status-seed";
-import { getAllAIStatuses } from "@/lib/kv";
+import { getAllAIStatuses } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { PluginWithStatus } from "@/lib/types";
 

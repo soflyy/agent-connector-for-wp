@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setAIStatus, getSubmissions } from "@/lib/kv";
+import { setAIStatus, getSubmissions } from "@/lib/db";
 import type { AIStatus } from "@/lib/types";
 
 function isAuthorized(req: NextRequest): boolean {

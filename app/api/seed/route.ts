@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setAIStatus } from "@/lib/kv";
+import { setAIStatus } from "@/lib/db";
 import { AI_STATUS_SEED } from "@/data/ai-status-seed";
 
 // Protected by SEED_SECRET env var — call once after deploying to populate KV

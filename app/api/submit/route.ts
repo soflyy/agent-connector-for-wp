@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addSubmission } from "@/lib/kv";
+import { addSubmission } from "@/lib/db";
 import type { Submission } from "@/lib/types";
 
 export async function POST(req: NextRequest) {

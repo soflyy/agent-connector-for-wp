@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PLUGINS } from "@/data/plugins";
 import { AI_STATUS_SEED } from "@/data/ai-status-seed";
-import { getAIStatus } from "@/lib/kv";
+import { getAIStatus } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CATEGORY_LABELS } from "@/lib/types";
 import type { AIStatus } from "@/lib/types";
