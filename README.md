@@ -36,6 +36,30 @@ automatically exposes as MCP endpoints — with auth, domain-lock, and audit inj
    ```
    then commit it under `packs/`.
 
+## For agents
+
+If you're an agent working in this repo's sandbox, here's the whole loop:
+
+1. **Make the skill available.** If `wp-mcp-generator` isn't already in your available
+   skills, run `./scripts/install-skill.sh` — it symlinks the skill into `~/.claude/skills/`.
+   Once present, the skill auto-advertises via its description; you don't need to read it to
+   know it exists. (Ideally the sandbox provisioning already ran this for you.)
+2. **Generate a pack.** When asked to build MCP / abilities for a WordPress plugin, invoke the
+   `wp-mcp-generator` skill and follow `skills/wp-mcp-generator/SKILL.md`. It installs the
+   target, understands it (code first, then by exercising it), designs an agent-ergonomic
+   ability surface, and builds the pack under
+   `wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<slug>/`.
+3. **Don't stop early.** A pack is done only when its `coverage/coverage-report.md` accounts
+   for every surface and task and every ability passes acceptance — verified through the real
+   MCP surface (`mcp-adapter-execute-ability`) and confirmed from independent vantage points
+   (Playwright UI, the database, REST). "The endpoints are wrapped" is not done.
+4. **Harvest it into the repo.** `./scripts/save-pack.sh <slug>` copies the finished pack from
+   the WP install into `packs/`; then commit it.
+
+If you're *improving the generator itself*, see `CONTRIBUTING.md` — keep the skill
+principle-driven (no per-plugin recipes), keep the two invariants (code is the source of
+truth; agent-ergonomics over code-reuse), and keep the standard of done behavioral.
+
 ## What "done" means
 
 The generator's standard of acceptance is not "the endpoints are wrapped" — it's: *the agent
