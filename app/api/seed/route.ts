@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { setAIStatus } from "@/lib/db";
 import { AI_STATUS_SEED } from "@/data/ai-status-seed";
 
-export async function POST(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-  if (!process.env.SEED_SECRET || auth !== `Bearer ${process.env.SEED_SECRET}`) {
+export async function GET(req: NextRequest) {
+  const secret = req.nextUrl.searchParams.get("secret");
+  if (!process.env.SEED_SECRET || secret !== process.env.SEED_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
