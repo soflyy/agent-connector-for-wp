@@ -31,6 +31,25 @@ Copy [`.env.example`](.env.example) to `.env.local` and set:
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key. |
 | `SEED_SECRET` | Guards the seed API route. |
 | `ADMIN_SECRET` | Guards the admin API routes. |
+| `PACK_INDEX_URL` | Optional. Source manifest for `/api/ability-packs/match`; defaults to the agent-connector-for-wp `pack-index` release asset. |
+
+## Ability-pack API
+
+`POST /api/ability-packs/match` is a public, server-to-server endpoint used by the
+Agent Connector for WP plugin. A site POSTs the plugins it has installed and gets back the
+ability packs that target any of them:
+
+```jsonc
+// request
+{ "plugins": [ { "slug": "contact-form-7", "file": "contact-form-7/wp-contact-form-7.php", "active": true } ] }
+// response
+{ "entries": [ { "ability_pack_slug": "unofficial-abilities-for-contact-form-7",
+                 "target_plugin": "contact-form-7/wp-contact-form-7.php",
+                 "version": "0.1.0", "download_url": "https://github.com/.../<slug>.zip", ... } ] }
+```
+
+It reads the single `pack-index` `index.json` manifest (cached ~10 min) — nothing enumerates
+GitHub's releases — and is allowlisted as public in [`middleware.ts`](middleware.ts).
 
 ## Database
 
