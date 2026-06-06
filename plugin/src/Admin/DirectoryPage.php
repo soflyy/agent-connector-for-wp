@@ -262,7 +262,7 @@ final class DirectoryPage {
 		}
 
 		if ( ! $shown ) {
-			echo '<span class="description">' . esc_html__( 'None known yet', 'agent-connector-for-wp' ) . '</span>';
+			echo '<span class="description">' . esc_html__( 'Unknown', 'agent-connector-for-wp' ) . '</span>';
 		}
 	}
 
@@ -524,54 +524,148 @@ final class DirectoryPage {
 		<?php
 	}
 
+	/** How many abilities to show per page on the Registered Abilities tab. */
+	private const ABILITIES_PER_PAGE = 50;
+
 	/**
-	 * The "Registered Abilities" tab: every ability currently registered through
-	 * the WP Abilities API, with full detail. Read-only.
+	 * The "Registered Abilities" tab: a compact, searchable, paginated list of
+	 * every ability registered through the WP Abilities API. One line each; full
+	 * detail (schemas + meta) lives in a collapsed disclosure per row.
+	 *
+	 * Built to stay light with very large registries (e.g. 100 plugins ×
+	 * 100 abilities): we filter in a single pass, sort names (strings, not
+	 * objects), and only ever render one page (<= ABILITIES_PER_PAGE) of rows, so
+	 * the DOM and the rendered schema markup stay bounded regardless of the total.
 	 */
 	private function render_abilities_tab(): void {
-		$abilities = function_exists( 'wp_get_abilities' ) ? (array) wp_get_abilities() : array();
+		$all = function_exists( 'wp_get_abilities' ) ? (array) wp_get_abilities() : array();
+
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only GET navigation.
+		$search = isset( $_GET['ability_s'] ) ? sanitize_text_field( wp_unslash( $_GET['ability_s'] ) ) : '';
+		$paged  = isset( $_GET['ability_paged'] ) ? max( 1, (int) $_GET['ability_paged'] ) : 1;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$needle = strtolower( $search );
+
+		// Single pass: filter + key by name (names are unique).
+		$keyed = array();
+		foreach ( $all as $ability ) {
+			if ( ! is_object( $ability ) || ! method_exists( $ability, 'get_name' ) ) {
+				continue;
+			}
+			if ( '' !== $needle ) {
+				$category = method_exists( $ability, 'get_category' ) ? (string) $ability->get_category() : '';
+				$hay      = strtolower( $ability->get_name() . ' ' . $ability->get_label() . ' ' . $ability->get_description() . ' ' . $category );
+				if ( false === strpos( $hay, $needle ) ) {
+					continue;
+				}
+			}
+			$keyed[ (string) $ability->get_name() ] = $ability;
+		}
+
+		$names = array_keys( $keyed );
+		sort( $names, SORT_NATURAL | SORT_FLAG_CASE ); // Cheap: strings, not objects.
+
+		$total    = count( $names );
+		$pages    = (int) max( 1, (int) ceil( $total / self::ABILITIES_PER_PAGE ) );
+		$paged    = min( $paged, $pages );
+		$offset   = ( $paged - 1 ) * self::ABILITIES_PER_PAGE;
+		$page_set = array_slice( $names, $offset, self::ABILITIES_PER_PAGE );
+
+		$base = add_query_arg(
+			array(
+				'page' => self::MENU_SLUG,
+				'tab'  => 'abilities',
+			),
+			admin_url( 'admin.php' )
+		);
 		?>
 		<p style="max-width:52em;">
 			<?php esc_html_e( 'Every ability registered on this site through the WordPress Abilities API. Abilities whose plugin is inactive (or whose code is gated off) are not registered and so do not appear here. Those marked “Exposed via MCP” are surfaced to connected agents while the plugin is enabled.', 'agent-connector-for-wp' ); ?>
 		</p>
-		<?php
-		if ( empty( $abilities ) ) {
-			echo '<p><em>' . esc_html__( 'No abilities are registered yet.', 'agent-connector-for-wp' ) . '</em></p>';
-			return;
-		}
 
-		usort(
-			$abilities,
-			static function ( $a, $b ): int {
-				$ca = method_exists( $a, 'get_category' ) ? (string) $a->get_category() : '';
-				$cb = method_exists( $b, 'get_category' ) ? (string) $b->get_category() : '';
-				if ( $ca !== $cb ) {
-					return strcasecmp( $ca, $cb );
-				}
-				return strcasecmp( (string) $a->get_name(), (string) $b->get_name() );
-			}
-		);
-		?>
-		<table class="widefat striped" style="margin-top:1em;">
+		<form method="get" style="margin:.5em 0 1em;">
+			<input type="hidden" name="page" value="<?php echo esc_attr( self::MENU_SLUG ); ?>" />
+			<input type="hidden" name="tab" value="abilities" />
+			<input type="search" name="ability_s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search abilities…', 'agent-connector-for-wp' ); ?>" style="min-width:22em;" />
+			<?php submit_button( __( 'Search', 'agent-connector-for-wp' ), 'secondary', '', false ); ?>
+			<?php if ( '' !== $search ) : ?>
+				<a href="<?php echo esc_url( $base ); ?>" class="button-link" style="margin-left:.5em;"><?php esc_html_e( 'Clear', 'agent-connector-for-wp' ); ?></a>
+			<?php endif; ?>
+		</form>
+
+		<?php if ( 0 === $total ) : ?>
+			<p><em><?php echo '' !== $search ? esc_html__( 'No abilities match your search.', 'agent-connector-for-wp' ) : esc_html__( 'No abilities are registered yet.', 'agent-connector-for-wp' ); ?></em></p>
+			<?php return; ?>
+		<?php endif; ?>
+
+		<p class="description">
+			<?php
+			printf(
+				/* translators: 1: first row number, 2: last row number, 3: total count. */
+				esc_html__( 'Showing %1$d–%2$d of %3$d abilities.', 'agent-connector-for-wp' ),
+				(int) ( $offset + 1 ),
+				(int) min( $offset + self::ABILITIES_PER_PAGE, $total ),
+				(int) $total
+			);
+			?>
+		</p>
+
+		<table class="widefat striped" style="margin-top:.5em;">
 			<thead>
 				<tr>
-					<th scope="col"><?php esc_html_e( 'Ability', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col" style="width:48%;"><?php esc_html_e( 'Ability', 'agent-connector-for-wp' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Category', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Exposed via MCP', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'MCP', 'agent-connector-for-wp' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Details', 'agent-connector-for-wp' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ( $abilities as $ability ) : ?>
-					<?php $this->render_ability_row( $ability ); ?>
+				<?php foreach ( $page_set as $name ) : ?>
+					<?php $this->render_ability_row( $keyed[ $name ] ); ?>
 				<?php endforeach; ?>
 			</tbody>
 		</table>
+
+		<?php $this->render_abilities_pagination( $base, $search, $paged, $pages ); ?>
 		<?php
 	}
 
 	/**
-	 * Render one ability row with its full detail (schemas, meta).
+	 * Prev/next pager for the Registered Abilities tab (preserves the search term).
+	 */
+	private function render_abilities_pagination( string $base, string $search, int $paged, int $pages ): void {
+		if ( $pages < 2 ) {
+			return;
+		}
+		$extra = '' !== $search ? array( 'ability_s' => $search ) : array();
+		$link  = static function ( int $p ) use ( $base, $extra ): string {
+			return esc_url( add_query_arg( array_merge( $extra, array( 'ability_paged' => $p ) ), $base ) );
+		};
+		?>
+		<p style="margin-top:1em;">
+			<?php if ( $paged > 1 ) : ?>
+				<a class="button" href="<?php echo $link( $paged - 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>">&larr; <?php esc_html_e( 'Previous', 'agent-connector-for-wp' ); ?></a>
+			<?php endif; ?>
+			<span class="description" style="margin:0 .6em;">
+				<?php
+				printf(
+					/* translators: 1: current page, 2: total pages. */
+					esc_html__( 'Page %1$d of %2$d', 'agent-connector-for-wp' ),
+					(int) $paged,
+					(int) $pages
+				);
+				?>
+			</span>
+			<?php if ( $paged < $pages ) : ?>
+				<a class="button" href="<?php echo $link( $paged + 1 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>"><?php esc_html_e( 'Next', 'agent-connector-for-wp' ); ?> &rarr;</a>
+			<?php endif; ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render one compact ability row: a single line (label, name, category, MCP)
+	 * with a collapsed disclosure holding the description + schemas + meta.
 	 *
 	 * @param object $ability A WP_Ability instance.
 	 */
@@ -586,17 +680,17 @@ final class DirectoryPage {
 		$input       = $ability->get_input_schema();
 		$output      = method_exists( $ability, 'get_output_schema' ) ? $ability->get_output_schema() : null;
 
+		$pre  = 'white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;';
 		$json = static function ( $data ): string {
 			return (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
 		};
 		?>
 		<tr>
 			<td>
-				<strong><?php echo esc_html( '' !== $label ? $label : $name ); ?></strong><br />
-				<code style="font-size:11px;"><?php echo esc_html( $name ); ?></code>
-				<?php if ( '' !== $desc ) : ?>
-					<p class="description" style="margin:.3em 0 0;max-width:40em;"><?php echo esc_html( $desc ); ?></p>
+				<?php if ( '' !== $label && $label !== $name ) : ?>
+					<strong><?php echo esc_html( $label ); ?></strong>
 				<?php endif; ?>
+				<code style="font-size:11px;"><?php echo esc_html( $name ); ?></code>
 			</td>
 			<td><?php echo '' !== $category ? esc_html( $category ) : '<span class="description">—</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
 			<td>
@@ -608,16 +702,19 @@ final class DirectoryPage {
 			</td>
 			<td>
 				<details>
-					<summary style="cursor:pointer;"><?php esc_html_e( 'Schemas & meta', 'agent-connector-for-wp' ); ?></summary>
+					<summary style="cursor:pointer;"><?php esc_html_e( 'View', 'agent-connector-for-wp' ); ?></summary>
+					<?php if ( '' !== $desc ) : ?>
+						<p class="description" style="margin:.5em 0 0;max-width:48em;"><?php echo esc_html( $desc ); ?></p>
+					<?php endif; ?>
 					<?php if ( ! empty( $annotations ) ) : ?>
 						<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Annotations', 'agent-connector-for-wp' ); ?></strong></p>
-						<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $annotations ) ); ?></pre>
+						<pre style="<?php echo esc_attr( $pre ); ?>"><?php echo esc_html( $json( $annotations ) ); ?></pre>
 					<?php endif; ?>
 					<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Input schema', 'agent-connector-for-wp' ); ?></strong></p>
-					<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $input ) ); ?></pre>
+					<pre style="<?php echo esc_attr( $pre ); ?>"><?php echo esc_html( $json( $input ) ); ?></pre>
 					<?php if ( ! empty( $output ) ) : ?>
 						<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Output schema', 'agent-connector-for-wp' ); ?></strong></p>
-						<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $output ) ); ?></pre>
+						<pre style="<?php echo esc_attr( $pre ); ?>"><?php echo esc_html( $json( $output ) ); ?></pre>
 					<?php endif; ?>
 				</details>
 			</td>
