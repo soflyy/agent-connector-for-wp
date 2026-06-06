@@ -1,0 +1,12 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# Dependency / build output that should never be committed into a pack
+**/node_modules/
+**/vendor/
+
+# Local scratch from the generator's tooling
+/tmp/
+*.tsv
