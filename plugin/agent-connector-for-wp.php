@@ -108,9 +108,13 @@ add_action(
 		// dangerous; the gates below still guard the MCP server and abilities.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
-			// Read-only browser of available companion "ability pack" plugins.
+			// Browser of available companion "ability pack" plugins (with install).
 			( new Admin\DirectoryPage() )->register();
 		}
+
+		// Keep installed ability packs updatable from GitHub in every context
+		// (admin + cron), independent of whether the plugin is switched "on".
+		( new Services\PackUpdater() )->register();
 
 		if ( ! Support\Config::can_boot() ) {
 			// Surface *why* it's off so the disabled state isn't a silent mystery.

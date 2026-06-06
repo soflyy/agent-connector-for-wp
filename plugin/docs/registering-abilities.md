@@ -239,10 +239,9 @@ A companion plugin that exists to add abilities to a specific host MCP plugin is
 an **ability pack**. A remote directory feature discovers ability packs by their
 plugin header, so follow this convention exactly:
 
-1. **Slug / folder.** Name the plugin
-   `agent-connector-for-wp-ability-pack-<target>`, e.g.
-   `agent-connector-for-wp-ability-pack-woocommerce`. The folder, main file, and
-   `Plugin Name` should agree.
+1. **Slug / folder.** Name the plugin `unofficial-abilities-for-<target>`, e.g.
+   `unofficial-abilities-for-woocommerce`. The folder, main file, and `Plugin Name`
+   (`Unofficial Abilities for WooCommerce`) should agree.
 
 2. **Declare dependency, identity, and target.** Three header lines:
 
@@ -262,7 +261,7 @@ plugin header, so follow this convention exactly:
 
    ```php
    /**
-    * Plugin Name:       Agent Connector for WP Ability Pack: WooCommerce
+    * Plugin Name:       Unofficial Abilities for WooCommerce
     * Requires Plugins:  agent-connector-for-wp
     *
     * Agent Connector: Ability Pack

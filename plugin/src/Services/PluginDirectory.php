@@ -27,14 +27,15 @@ defined( 'ABSPATH' ) || exit;
 final class PluginDirectory {
 
 	/**
-	 * Default remote directory URL.
+	 * Default ability-pack match endpoint (the agent-ready-plugins-tracker app).
 	 *
-	 * PLACEHOLDER — there is no live endpoint yet. Point this (or the
-	 * `agent_connector_for_wp_directory_url` filter) at the real published
-	 * directory.json before relying on it. A 404 here is handled gracefully:
-	 * the UI shows a clean "directory unavailable" state, never a fatal.
+	 * This site POSTs its installed plugins here and gets back the ability packs
+	 * that target any of them (the tracker reads them from the GitHub `pack-index`
+	 * manifest). Override with the `agent_connector_for_wp_directory_url` filter.
+	 * A failure is handled gracefully: the UI shows a clean "directory unavailable"
+	 * state and falls back to the last cached copy, never a fatal.
 	 */
-	public const DEFAULT_DIRECTORY_URL = 'https://raw.githubusercontent.com/soflyy/agent-connector-for-wp-directory/main/directory.json';
+	public const DEFAULT_DIRECTORY_URL = 'https://agent-ready-plugins-tracker-git-master-future-layer.vercel.app/api/ability-packs/match';
 
 	/**
 	 * Transient holding the last successfully fetched + normalized directory.
@@ -69,14 +70,19 @@ final class PluginDirectory {
 	}
 
 	/**
-	 * Return the cached directory, or null when nothing has been cached yet.
+	 * Return the cached payload, or null when nothing usable has been cached yet.
 	 *
-	 * @return array<int,array<string,string>>|null
+	 * The payload wraps the entries with the installed-plugins fingerprint that
+	 * was current when it was stored, so a changed plugin set can invalidate it.
+	 *
+	 * @return array{fp:string,entries:array<int,array<string,string>>}|null
 	 */
 	public static function cached(): ?array {
 		$cached = get_transient( self::CACHE_KEY );
 
-		return is_array( $cached ) ? $cached : null;
+		return ( is_array( $cached ) && isset( $cached['entries'] ) && is_array( $cached['entries'] ) )
+			? $cached
+			: null;
 	}
 
 	/**
@@ -94,12 +100,15 @@ final class PluginDirectory {
 	 */
 	public static function get( bool $force = false ): array {
 		$url = self::directory_url();
+		$fp  = self::installed_fingerprint();
 
 		if ( ! $force ) {
 			$cached = self::cached();
-			if ( null !== $cached ) {
+			// Only serve the cache when it was built for the same installed-plugin
+			// set; otherwise a newly installed plugin would stay hidden for 12h.
+			if ( null !== $cached && isset( $cached['fp'] ) && $cached['fp'] === $fp ) {
 				return array(
-					'entries' => $cached,
+					'entries' => $cached['entries'],
 					'stale'   => false,
 					'error'   => '',
 					'url'     => $url,
@@ -110,7 +119,7 @@ final class PluginDirectory {
 		$fetched = self::fetch( $url );
 
 		if ( null !== $fetched ) {
-			set_transient( self::CACHE_KEY, $fetched, self::CACHE_TTL );
+			set_transient( self::CACHE_KEY, array( 'fp' => $fp, 'entries' => $fetched ), self::CACHE_TTL );
 
 			return array(
 				'entries' => $fetched,
@@ -120,11 +129,12 @@ final class PluginDirectory {
 			);
 		}
 
-		// Network/parse failed — fall back to any (possibly stale) cached copy.
+		// Network/parse failed — fall back to any (possibly stale) cached copy,
+		// even if the installed set has since changed: stale-but-real beats empty.
 		$cached = self::cached();
 		if ( null !== $cached ) {
 			return array(
-				'entries' => $cached,
+				'entries' => $cached['entries'],
 				'stale'   => true,
 				'error'   => __( 'Could not refresh the directory; showing the last cached copy.', 'agent-connector-for-wp' ),
 				'url'     => $url,
@@ -154,16 +164,25 @@ final class PluginDirectory {
 	 * @return array<int,array<string,string>>|null Normalized entries, or null on any failure.
 	 */
 	private static function fetch( string $url ): ?array {
-		if ( '' === $url || ! function_exists( 'wp_remote_get' ) ) {
+		if ( '' === $url || ! function_exists( 'wp_remote_post' ) ) {
 			return null;
 		}
 
-		$response = wp_remote_get(
+		$payload = array(
+			'site_url' => home_url(),
+			'plugins'  => self::installed_plugin_slugs(),
+		);
+
+		$response = wp_remote_post(
 			$url,
 			array(
 				'timeout'    => self::HTTP_TIMEOUT,
 				'user-agent' => 'AgentConnectorForWp/' . ( defined( 'AGENT_CONNECTOR_FOR_WP_VERSION' ) ? AGENT_CONNECTOR_FOR_WP_VERSION : 'dev' ),
-				'headers'    => array( 'Accept' => 'application/json' ),
+				'headers'    => array(
+					'Accept'       => 'application/json',
+					'Content-Type' => 'application/json',
+				),
+				'body'       => (string) wp_json_encode( $payload ),
 			)
 		);
 
@@ -236,20 +255,20 @@ final class PluginDirectory {
 			return null;
 		}
 
-		$target = isset( $item['target_plugin'] ) && is_string( $item['target_plugin'] )
-			? trim( $item['target_plugin'] )
-			: '';
-		$pack_name = isset( $item['ability_pack_name'] ) && is_string( $item['ability_pack_name'] )
-			? trim( $item['ability_pack_name'] )
-			: '';
+		$str = static function ( $value ): string {
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		$target = $str( $item['target_plugin'] ?? '' );
+		// Prefer ability_pack_name; fall back to the generic `name` field.
+		$pack_name = $str( $item['ability_pack_name'] ?? '' );
+		if ( '' === $pack_name ) {
+			$pack_name = $str( $item['name'] ?? '' );
+		}
 
 		if ( '' === $target || '' === $pack_name ) {
 			return null;
 		}
-
-		$str = static function ( $value ): string {
-			return is_string( $value ) ? trim( $value ) : '';
-		};
 
 		return array(
 			'target_plugin'      => $target,
@@ -259,6 +278,7 @@ final class PluginDirectory {
 			'source_url'        => $str( $item['source_url'] ?? '' ),
 			'description'       => $str( $item['description'] ?? '' ),
 			'version'           => $str( $item['version'] ?? '' ),
+			'download_url'      => $str( $item['download_url'] ?? '' ),
 		);
 	}
 
@@ -334,6 +354,44 @@ final class PluginDirectory {
 		}
 
 		return (array) get_plugins();
+	}
+
+	/**
+	 * The installed plugins as a compact list for the match request body.
+	 *
+	 * @return array<int,array{slug:string,file:string,active:bool}>
+	 */
+	private static function installed_plugin_slugs(): array {
+		$out = array();
+		foreach ( array_keys( self::installed_plugins() ) as $file ) {
+			$out[] = array(
+				'slug'   => self::folder_slug( $file ),
+				'file'   => $file,
+				'active' => self::is_active( $file ),
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * A fingerprint of the installed-plugin set, used to invalidate the cache when
+	 * plugins are added/removed (the match response depends on what's installed).
+	 */
+	private static function installed_fingerprint(): string {
+		$files = array_keys( self::installed_plugins() );
+		sort( $files );
+
+		return md5( implode( '|', $files ) );
+	}
+
+	/**
+	 * Resolve an ability-pack (or target) slug to its installed plugin file, or
+	 * null when it isn't installed. Public so the admin install/activate flow and
+	 * the pack updater can share the same tolerant matching.
+	 */
+	public static function installed_file_for_slug( string $slug ): ?string {
+		return self::find_installed_key( $slug, self::installed_plugins() );
 	}
 
 	/**
