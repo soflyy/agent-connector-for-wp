@@ -109,6 +109,13 @@ export async function getSubmissions(): Promise<Submission[]> {
   return data ?? [];
 }
 
+export async function markSubmissionReviewed(id: string): Promise<void> {
+  const supabase = getClient();
+  if (!supabase) throw new Error("Supabase not configured");
+  const { error } = await supabase.from("submissions").update({ reviewed: true }).eq("id", id);
+  if (error) throw error;
+}
+
 // ---- Row converters ----
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

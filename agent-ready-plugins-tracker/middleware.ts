@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/seed", "/api/ability-packs"];
+// /admin self-gates on the ADMIN_SECRET (see lib/admin-auth), independent of the
+// public site password; /api/admin routes carry their own checks.
+const PUBLIC_PATHS = ["/login", "/api/auth", "/api/seed", "/api/ability-packs", "/admin", "/api/admin"];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
