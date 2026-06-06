@@ -26,6 +26,12 @@ defined( 'ABSPATH' ) || exit;
  */
 final class PackUpdater {
 
+	/** Plugin header whose presence marks a file as an ability pack. */
+	private const MARKER_HEADER = 'Agent Connector';
+
+	/** Plugin header naming the host plugin a pack extends. */
+	private const TARGET_HEADER = 'Agent Connector Target';
+
 	public function register(): void {
 		add_filter( 'extra_plugin_headers', array( $this, 'declare_headers' ) );
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_updates' ) );
@@ -34,18 +40,21 @@ final class PackUpdater {
 	/**
 	 * Surface the ability-pack marker headers through get_plugins()/get_plugin_data().
 	 *
-	 * Core only parses a fixed header set unless extended here. `Agent Connector`
-	 * carries the marker value ("Ability Pack"); `Agent Connector Target` carries the
-	 * host plugin file the pack extends.
+	 * Core only parses a fixed header set unless extended via this filter (applied
+	 * by get_file_data() as `extra_plugin_headers`). Note get_file_data() does
+	 * `array_combine( $extra, $extra )`, so each entry's VALUE is the header name
+	 * AND the key the parsed value is returned under — i.e. the data comes back
+	 * keyed by the literal header name (`$data['Agent Connector']`), regardless of
+	 * the keys used here.
 	 *
-	 * @param array<string,string> $headers Extra headers to parse.
+	 * @param array<int|string,string> $headers Extra plugin headers to parse.
 	 *
-	 * @return array<string,string>
+	 * @return array<int|string,string>
 	 */
 	public function declare_headers( $headers ) {
-		$headers = (array) $headers;
-		$headers['AgentConnectorAbilityPack'] = 'Agent Connector';
-		$headers['AgentConnectorTarget']      = 'Agent Connector Target';
+		$headers   = (array) $headers;
+		$headers[] = self::MARKER_HEADER; // "Agent Connector" -> value "Ability Pack"
+		$headers[] = self::TARGET_HEADER; // "Agent Connector Target" -> host plugin file
 
 		return $headers;
 	}
@@ -127,7 +136,7 @@ final class PackUpdater {
 
 		$out = array();
 		foreach ( (array) get_plugins() as $file => $data ) {
-			$marker = isset( $data['AgentConnectorAbilityPack'] ) ? trim( (string) $data['AgentConnectorAbilityPack'] ) : '';
+			$marker = isset( $data[ self::MARKER_HEADER ] ) ? trim( (string) $data[ self::MARKER_HEADER ] ) : '';
 			if ( '' === $marker ) {
 				continue;
 			}
