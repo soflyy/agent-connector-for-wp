@@ -9,7 +9,9 @@ This is a **monorepo**:
 | Path | What it is |
 | --- | --- |
 | [`plugin/`](plugin/) | The WordPress plugin itself. See [`plugin/README.md`](plugin/README.md) for plugin docs, abilities, enabling, and the Connect page. |
-| [`site/`](site/) | The one-page marketing/overview site (static HTML/CSS), published to GitHub Pages. |
+| [`agent-ready-plugins-tracker/`](agent-ready-plugins-tracker/) | The public directory of agent-ready WordPress plugins — a Next.js app (Supabase-backed), deployed to Vercel. See [`agent-ready-plugins-tracker/README.md`](agent-ready-plugins-tracker/README.md). |
+| [`abilities-generator/`](abilities-generator/) | The `wp-mcp-generator` Claude Code skill + scripts that turn any WordPress plugin into an MCP-driveable ability pack. See [`abilities-generator/README.md`](abilities-generator/README.md). |
+| [`ability-packs/`](ability-packs/) | The generated ability-pack plugins (one directory each), produced by the abilities generator. |
 | [`bin/`](bin/) | Developer scripts — notably `install.sh`, which symlinks `plugin/` into a WordPress install. |
 
 ## Local development
@@ -49,11 +51,16 @@ You can also push a `v*` tag manually to build a one-off zip via
 [`.github/workflows/release.yml`](.github/workflows/release.yml). Downloaded
 release zips already include `vendor/` — no `composer install` needed.
 
-## Site
+## Tracker site
 
-[`.github/workflows/pages.yml`](.github/workflows/pages.yml) deploys `site/` to
-GitHub Pages on push to `master`. Enable it once under **Settings → Pages →
-Source: GitHub Actions**.
+[`agent-ready-plugins-tracker/`](agent-ready-plugins-tracker/) is a Next.js app
+deployed to **Vercel**, which builds it straight from this repo on every push. In
+the Vercel project, point the **Root Directory** at `agent-ready-plugins-tracker`
+and set the environment variables from
+[`agent-ready-plugins-tracker/.env.example`](agent-ready-plugins-tracker/.env.example)
+(Supabase keys, the site password gate, and the seed/admin secrets). See
+[`agent-ready-plugins-tracker/README.md`](agent-ready-plugins-tracker/README.md)
+for local development.
 
 ## License
 
