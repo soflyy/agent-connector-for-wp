@@ -146,11 +146,12 @@ test the surface the agent will actually use.
 convention (you write **no** auth/permission/domain/audit code — Agent Connector injects all
 of it). To start a pack:
 
-1. Copy `scaffold/` to `wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<target>/`.
+1. Copy `scaffold/` to `wp/wp-content/plugins/unofficial-abilities-for-<target>/`.
 2. Rename the main file to match the folder and fill its header placeholders — crucially
    `Agent Connector Target: <target-plugin-file>` (e.g. `woocommerce/woocommerce.php`), and
    pick your vendor namespace `<vendor>` for ability names (`<vendor>/add-field`). Never use
-   the `agent-connector-for-wp/` namespace.
+   the `agent-connector-for-wp/` namespace. Leave `Version: 0.0.0-dev` untouched — the
+   release CI stamps the real version into the built zip on merge; never hand-set it.
 3. Add abilities as files under `abilities/` using `ACFW_Pack::ability([...])` and categories
    with `ACFW_Pack::category(...)`. Put reimplemented/adapter logic under `src/`.
 4. Keep `coverage/inventory.json` and `coverage/coverage-report.md` current as you go — they
