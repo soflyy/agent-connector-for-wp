@@ -32,15 +32,30 @@ the data from the GitHub `pack-index` manifest the release CI generates.
 
 ## Response shape
 
-A JSON **object** with an `entries` array (a bare array is also accepted):
+A JSON **object** with an `entries` array (our installable packs) and an optional
+`statuses` array (per-plugin ecosystem AI-support info). A bare array is also
+accepted and treated as `entries`.
 
 ```json
 {
-  "entries": [ /* entry objects */ ]
+  "entries":  [ /* entry objects (our generated packs) */ ],
+  "statuses": [ /* status objects (official / third-party support per plugin) */ ]
 }
 ```
 
-The client normalizes both to the same internal list.
+## Status object (optional, per plugin)
+
+Drives the "Available AI abilities" column — informational only (nothing here is
+installed by the plugin). Keyed by plugin slug; entries without a `slug` are dropped.
+
+| Field                | Type   | Notes |
+| -------------------- | ------ | ----- |
+| `slug`               | string | The plugin's folder slug (join key). **Required** within a status object. |
+| `level`              | string | `official` \| `unofficial` \| `coming_soon` \| `none`. |
+| `official_since`     | string | Plugin version that added official AI abilities (when `official`). |
+| `official_docs_url`  | string | Link to official docs / roadmap. |
+| `abilities_count`    | int    | Number of official abilities, if known. |
+| `unofficial_plugins` | array  | Third-party extensions: `{ name, plugin_url, description, author, author_url }`. Rendered as informational links. |
 
 ## Entry object
 
