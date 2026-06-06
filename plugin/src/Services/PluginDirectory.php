@@ -102,16 +102,21 @@ final class PluginDirectory {
 		$url = self::directory_url();
 		$fp  = self::installed_fingerprint();
 
+		$cached_statuses = static function ( array $cached ): array {
+			return isset( $cached['statuses'] ) && is_array( $cached['statuses'] ) ? $cached['statuses'] : array();
+		};
+
 		if ( ! $force ) {
 			$cached = self::cached();
 			// Only serve the cache when it was built for the same installed-plugin
 			// set; otherwise a newly installed plugin would stay hidden for 12h.
 			if ( null !== $cached && isset( $cached['fp'] ) && $cached['fp'] === $fp ) {
 				return array(
-					'entries' => $cached['entries'],
-					'stale'   => false,
-					'error'   => '',
-					'url'     => $url,
+					'entries'  => $cached['entries'],
+					'statuses' => $cached_statuses( $cached ),
+					'stale'    => false,
+					'error'    => '',
+					'url'      => $url,
 				);
 			}
 		}
@@ -119,13 +124,22 @@ final class PluginDirectory {
 		$fetched = self::fetch( $url );
 
 		if ( null !== $fetched ) {
-			set_transient( self::CACHE_KEY, array( 'fp' => $fp, 'entries' => $fetched ), self::CACHE_TTL );
+			set_transient(
+				self::CACHE_KEY,
+				array(
+					'fp'       => $fp,
+					'entries'  => $fetched['entries'],
+					'statuses' => $fetched['statuses'],
+				),
+				self::CACHE_TTL
+			);
 
 			return array(
-				'entries' => $fetched,
-				'stale'   => false,
-				'error'   => '',
-				'url'     => $url,
+				'entries'  => $fetched['entries'],
+				'statuses' => $fetched['statuses'],
+				'stale'    => false,
+				'error'    => '',
+				'url'      => $url,
 			);
 		}
 
@@ -134,18 +148,20 @@ final class PluginDirectory {
 		$cached = self::cached();
 		if ( null !== $cached ) {
 			return array(
-				'entries' => $cached['entries'],
-				'stale'   => true,
-				'error'   => __( 'Could not refresh the directory; showing the last cached copy.', 'agent-connector-for-wp' ),
-				'url'     => $url,
+				'entries'  => $cached['entries'],
+				'statuses' => $cached_statuses( $cached ),
+				'stale'    => true,
+				'error'    => __( 'Could not refresh the directory; showing the last cached copy.', 'agent-connector-for-wp' ),
+				'url'      => $url,
 			);
 		}
 
 		return array(
-			'entries' => array(),
-			'stale'   => false,
-			'error'   => __( 'The ability-pack directory is currently unavailable.', 'agent-connector-for-wp' ),
-			'url'     => $url,
+			'entries'  => array(),
+			'statuses' => array(),
+			'stale'    => false,
+			'error'    => __( 'The ability-pack directory is currently unavailable.', 'agent-connector-for-wp' ),
+			'url'      => $url,
 		);
 	}
 
@@ -161,7 +177,8 @@ final class PluginDirectory {
 	 *
 	 * @param string $url Directory URL.
 	 *
-	 * @return array<int,array<string,string>>|null Normalized entries, or null on any failure.
+	 * @return array{entries:array<int,array<string,string>>,statuses:array<string,array<string,mixed>>}|null
+	 *         Normalized entries + per-slug statuses, or null on any failure.
 	 */
 	private static function fetch( string $url ): ?array {
 		if ( '' === $url || ! function_exists( 'wp_remote_post' ) ) {
@@ -219,23 +236,83 @@ final class PluginDirectory {
 	 * @return array<int,array<string,string>>
 	 */
 	private static function normalize( $decoded ): array {
+		$raw_entries  = array();
+		$raw_statuses = array();
+
 		if ( is_array( $decoded ) && isset( $decoded['entries'] ) && is_array( $decoded['entries'] ) ) {
-			$raw = $decoded['entries'];
+			$raw_entries = $decoded['entries'];
+			if ( isset( $decoded['statuses'] ) && is_array( $decoded['statuses'] ) ) {
+				$raw_statuses = $decoded['statuses'];
+			}
 		} elseif ( is_array( $decoded ) ) {
-			$raw = $decoded;
-		} else {
-			return array();
+			$raw_entries = $decoded;
 		}
 
 		$entries = array();
-		foreach ( $raw as $item ) {
+		foreach ( $raw_entries as $item ) {
 			$entry = self::normalize_entry( $item );
 			if ( null !== $entry ) {
 				$entries[] = $entry;
 			}
 		}
 
-		return $entries;
+		return array(
+			'entries'  => $entries,
+			'statuses' => self::normalize_status_map( $raw_statuses ),
+		);
+	}
+
+	/**
+	 * Normalize the per-plugin AI-status list into a map keyed by plugin slug.
+	 *
+	 * Each value: level, official_since, official_docs_url, abilities_count, and
+	 * unofficial_plugins[] (name, plugin_url, description, author, author_url).
+	 *
+	 * @param array<int,mixed> $raw Raw statuses array from the endpoint.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private static function normalize_status_map( array $raw ): array {
+		$str = static function ( $value ): string {
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		$out = array();
+		foreach ( $raw as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$slug = $str( $item['slug'] ?? '' );
+			if ( '' === $slug ) {
+				continue;
+			}
+
+			$unofficial = array();
+			if ( isset( $item['unofficial_plugins'] ) && is_array( $item['unofficial_plugins'] ) ) {
+				foreach ( $item['unofficial_plugins'] as $u ) {
+					if ( ! is_array( $u ) || '' === $str( $u['name'] ?? '' ) ) {
+						continue;
+					}
+					$unofficial[] = array(
+						'name'        => $str( $u['name'] ?? '' ),
+						'plugin_url'  => $str( $u['plugin_url'] ?? '' ),
+						'description' => $str( $u['description'] ?? '' ),
+						'author'      => $str( $u['author'] ?? '' ),
+						'author_url'  => $str( $u['author_url'] ?? '' ),
+					);
+				}
+			}
+
+			$out[ $slug ] = array(
+				'level'              => $str( $item['level'] ?? '' ),
+				'official_since'     => $str( $item['official_since'] ?? '' ),
+				'official_docs_url'  => $str( $item['official_docs_url'] ?? '' ),
+				'abilities_count'    => isset( $item['abilities_count'] ) && is_numeric( $item['abilities_count'] ) ? (int) $item['abilities_count'] : 0,
+				'unofficial_plugins' => $unofficial,
+			);
+		}
+
+		return $out;
 	}
 
 	/**
@@ -348,8 +425,9 @@ final class PluginDirectory {
 	 * joined with its available ability pack when one exists. Drives the admin
 	 * screen so plugins without a pack are still listed.
 	 *
-	 * Each row: plugin_file, plugin_name, plugin_active, has_pack, and — when
-	 * has_pack — entry / pack_installed / pack_active (as in match_installed()).
+	 * Only ACTIVE plugins are included. Each row: plugin_file, plugin_name,
+	 * plugin_active, has_pack, ai_status (level, official fields, unofficial_plugins;
+	 * may be empty), and — when has_pack — entry / pack_installed / pack_active.
 	 *
 	 * @return array{
 	 *     rows: array<int,array<string,mixed>>,
@@ -360,7 +438,8 @@ final class PluginDirectory {
 	 * }
 	 */
 	public static function installed_overview( bool $force = false ): array {
-		$result = self::get( $force );
+		$result   = self::get( $force );
+		$statuses = isset( $result['statuses'] ) && is_array( $result['statuses'] ) ? $result['statuses'] : array();
 
 		$by_file = array();
 		foreach ( self::match_installed( $result['entries'] ) as $match ) {
@@ -372,37 +451,45 @@ final class PluginDirectory {
 			if ( self::is_self_or_pack( $file, $data ) ) {
 				continue;
 			}
-
-			$name   = (string) ( $data['Name'] ?? $file );
-			$active = self::is_active( $file );
+			if ( ! self::is_active( $file ) ) {
+				continue; // Active plugins only.
+			}
 
 			if ( isset( $by_file[ $file ] ) ) {
-				$row                  = $by_file[ $file ];
-				$row['has_pack']      = true;
-				$row['plugin_file']   = $file;
-				$row['plugin_name']   = $name;
-				$row['plugin_active'] = $active;
+				$row             = $by_file[ $file ];
+				$row['has_pack'] = true;
 			} else {
 				$row = array(
 					'has_pack'       => false,
-					'plugin_file'    => $file,
-					'plugin_name'    => $name,
-					'plugin_active'  => $active,
 					'entry'          => array(),
 					'pack_installed' => false,
 					'pack_active'    => false,
 				);
 			}
 
+			$row['plugin_file']   = $file;
+			$row['plugin_name']   = (string) ( $data['Name'] ?? $file );
+			$row['plugin_active'] = true;
+			$row['ai_status']     = $statuses[ self::folder_slug( $file ) ] ?? array();
+
 			$rows[] = $row;
 		}
 
-		// Plugins with an available pack first, then alphabetically by name.
+		// Rank: our pack available first, then any known AI status, then the rest;
+		// alphabetical within each group.
 		usort(
 			$rows,
 			static function ( array $a, array $b ): int {
-				if ( $a['has_pack'] !== $b['has_pack'] ) {
-					return $a['has_pack'] ? -1 : 1;
+				$rank = static function ( array $r ): int {
+					if ( ! empty( $r['has_pack'] ) ) {
+						return 0;
+					}
+					return self::row_has_ai_info( $r ) ? 1 : 2;
+				};
+				$ra = $rank( $a );
+				$rb = $rank( $b );
+				if ( $ra !== $rb ) {
+					return $ra <=> $rb;
 				}
 				return strcasecmp( (string) $a['plugin_name'], (string) $b['plugin_name'] );
 			}
@@ -415,6 +502,20 @@ final class PluginDirectory {
 			'url'   => $result['url'],
 			'total' => count( $result['entries'] ),
 		);
+	}
+
+	/**
+	 * Whether a row's ai_status indicates any known official/third-party support.
+	 *
+	 * @param array<string,mixed> $row Overview row.
+	 */
+	public static function row_has_ai_info( array $row ): bool {
+		$s = isset( $row['ai_status'] ) && is_array( $row['ai_status'] ) ? $row['ai_status'] : array();
+		$level = (string) ( $s['level'] ?? '' );
+		if ( in_array( $level, array( 'official', 'unofficial', 'coming_soon' ), true ) ) {
+			return true;
+		}
+		return ! empty( $s['unofficial_plugins'] );
 	}
 
 	/**

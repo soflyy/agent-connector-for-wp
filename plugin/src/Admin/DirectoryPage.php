@@ -29,25 +29,27 @@ final class DirectoryPage {
 
 	public const MENU_SLUG = 'agent-connector-for-wp-ability-packs';
 
-	private const REFRESH_ACTION  = 'agent_connector_for_wp_refresh_directory';
-	private const INSTALL_ACTION  = 'agent_connector_for_wp_install_pack';
-	private const ACTIVATE_ACTION = 'agent_connector_for_wp_activate_pack';
+	private const REFRESH_ACTION    = 'agent_connector_for_wp_refresh_directory';
+	private const INSTALL_ACTION    = 'agent_connector_for_wp_install_pack';
+	private const ACTIVATE_ACTION   = 'agent_connector_for_wp_activate_pack';
+	private const DEACTIVATE_ACTION = 'agent_connector_for_wp_deactivate_pack';
 
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_post_' . self::REFRESH_ACTION, array( $this, 'handle_refresh' ) );
 		add_action( 'admin_post_' . self::INSTALL_ACTION, array( $this, 'handle_install' ) );
 		add_action( 'admin_post_' . self::ACTIVATE_ACTION, array( $this, 'handle_activate' ) );
+		add_action( 'admin_post_' . self::DEACTIVATE_ACTION, array( $this, 'handle_deactivate' ) );
 	}
 
 	/**
-	 * Add the "Ability Packs" submenu beneath the plugin's top-level menu.
+	 * Add the "Abilities" submenu beneath the plugin's top-level menu.
 	 */
 	public function register_menu(): void {
 		add_submenu_page(
 			ConnectionPage::MENU_SLUG,
-			__( 'Agent Connector — Ability Packs', 'agent-connector-for-wp' ),
-			__( 'Ability Packs', 'agent-connector-for-wp' ),
+			__( 'Agent Connector — Abilities', 'agent-connector-for-wp' ),
+			__( 'Abilities', 'agent-connector-for-wp' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' )
@@ -55,36 +57,68 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render the Ability Packs screen.
+	 * Render the Abilities screen — tabbed: Ability Packs + Registered Abilities.
 	 */
 	public function render_page(): void {
 		if ( ! current_user_can( Config::CAP ) ) {
 			return;
 		}
 
-		$result  = PluginDirectory::installed_overview();
-		$rows    = $result['rows'];
-		$notice  = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$tabs   = array(
+			'packs'     => __( 'Ability Packs', 'agent-connector-for-wp' ),
+			'abilities' => __( 'Registered Abilities', 'agent-connector-for-wp' ),
+		);
+		$tab    = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'packs'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$notice = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! isset( $tabs[ $tab ] ) ) {
+			$tab = 'packs';
+		}
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Agent Connector for WP — Ability Packs', 'agent-connector-for-wp' ); ?></h1>
+			<h1><?php esc_html_e( 'Agent Connector for WP — Abilities', 'agent-connector-for-wp' ); ?></h1>
 
 			<?php $this->render_notice( $notice ); ?>
 
-			<p style="max-width:50em;">
-				<?php esc_html_e( 'Plugins on this site can be extended with a companion "ability pack" that registers AI abilities through Agent Connector. This lists your installed plugins and, where one is available, lets you install it in one click. Installed packs are kept up to date automatically.', 'agent-connector-for-wp' ); ?>
-			</p>
+			<h2 class="nav-tab-wrapper">
+				<?php foreach ( $tabs as $key => $label ) : ?>
+					<a
+						href="<?php echo esc_url( add_query_arg( array( 'page' => self::MENU_SLUG, 'tab' => $key ), admin_url( 'admin.php' ) ) ); ?>"
+						class="nav-tab <?php echo esc_attr( $tab === $key ? 'nav-tab-active' : '' ); ?>"
+					><?php echo esc_html( $label ); ?></a>
+				<?php endforeach; ?>
+			</h2>
 
-			<?php $this->render_toolbar( $result ); ?>
-
-			<?php if ( '' !== $result['error'] ) : ?>
-				<div class="notice notice-warning inline" style="max-width:50em;">
-					<p><?php echo esc_html( $result['error'] ); ?></p>
-				</div>
-			<?php endif; ?>
-
-			<?php $this->render_table( $rows ); ?>
+			<?php
+			if ( 'abilities' === $tab ) {
+				$this->render_abilities_tab();
+			} else {
+				$this->render_packs_tab();
+			}
+			?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * The "Ability Packs" tab: active plugins, the AI abilities available for each
+	 * (official / third-party / ours), and one-click install of our packs.
+	 */
+	private function render_packs_tab(): void {
+		$result = PluginDirectory::installed_overview();
+		?>
+		<p style="max-width:52em;">
+			<?php esc_html_e( 'Your active plugins and the AI abilities available for each — official (built into the plugin), third-party extensions, and the optional unofficial ability pack we generate. Installing our pack is always optional.', 'agent-connector-for-wp' ); ?>
+		</p>
+
+		<?php $this->render_toolbar( $result ); ?>
+
+		<?php if ( '' !== $result['error'] ) : ?>
+			<div class="notice notice-warning inline" style="max-width:50em;">
+				<p><?php echo esc_html( $result['error'] ); ?></p>
+			</div>
+		<?php endif; ?>
+
+		<?php $this->render_table( $result['rows'] ); ?>
 		<?php
 	}
 
@@ -125,12 +159,12 @@ final class DirectoryPage {
 			return;
 		}
 		?>
-		<table class="widefat striped" style="max-width:64em;margin-top:1em;">
+		<table class="widefat striped" style="max-width:72em;margin-top:1em;">
 			<thead>
 				<tr>
-					<th scope="col"><?php esc_html_e( 'Installed plugin', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Ability pack', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Status', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Active plugin', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Available AI abilities', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Unofficial ability pack', 'agent-connector-for-wp' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -143,38 +177,107 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render one installed-plugin row — with its ability pack + actions when one
-	 * is available, or a "no pack" indicator otherwise.
+	 * Render one active-plugin row: the plugin, the AI abilities available for it
+	 * (official / third-party), and our optional ability pack with its actions.
 	 *
 	 * @param array<string,mixed> $row A single PluginDirectory overview row.
 	 */
 	private function render_row( array $row ): void {
-		$has_pack = ! empty( $row['has_pack'] );
 		?>
 		<tr>
 			<td>
 				<strong><?php echo esc_html( (string) $row['plugin_name'] ); ?></strong><br />
 				<code style="font-size:11px;"><?php echo esc_html( (string) $row['plugin_file'] ); ?></code>
-				<?php if ( empty( $row['plugin_active'] ) ) : ?>
-					<br /><span class="description"><?php esc_html_e( '(installed, not active)', 'agent-connector-for-wp' ); ?></span>
-				<?php endif; ?>
 			</td>
-			<?php if ( ! $has_pack ) : ?>
-				<td><span class="description">—</span></td>
-				<td><span class="description"><?php esc_html_e( 'No ability pack available yet', 'agent-connector-for-wp' ); ?></span></td>
-			<?php else : ?>
-				<?php $this->render_pack_cells( $row ); ?>
-			<?php endif; ?>
+			<td><?php $this->render_availability_cell( (array) ( $row['ai_status'] ?? array() ) ); ?></td>
+			<td><?php $this->render_pack_cell( $row ); ?></td>
 		</tr>
 		<?php
 	}
 
 	/**
-	 * Render the "Ability pack" + "Status" cells for a row that has a pack.
+	 * The "Available AI abilities" cell — official built-in support and/or
+	 * third-party unofficial extensions, from the directory. Informational only.
+	 *
+	 * @param array<string,mixed> $ai Normalized ai_status for the plugin.
+	 */
+	private function render_availability_cell( array $ai ): void {
+		$level      = (string) ( $ai['level'] ?? '' );
+		$docs       = (string) ( $ai['official_docs_url'] ?? '' );
+		$since      = (string) ( $ai['official_since'] ?? '' );
+		$count      = (int) ( $ai['abilities_count'] ?? 0 );
+		$unofficial = isset( $ai['unofficial_plugins'] ) && is_array( $ai['unofficial_plugins'] ) ? $ai['unofficial_plugins'] : array();
+
+		$shown = false;
+
+		if ( 'official' === $level ) {
+			$shown = true;
+			echo '<span style="color:#1a7f37;font-weight:600;">' . esc_html__( 'Official — built in', 'agent-connector-for-wp' ) . '</span>';
+			$bits = array();
+			if ( '' !== $since ) {
+				/* translators: %s: plugin version. */
+				$bits[] = sprintf( esc_html__( 'since v%s', 'agent-connector-for-wp' ), esc_html( $since ) );
+			}
+			if ( $count > 0 ) {
+				/* translators: %d: number of abilities. */
+				$bits[] = esc_html( sprintf( _n( '%d ability', '%d abilities', $count, 'agent-connector-for-wp' ), $count ) );
+			}
+			if ( $bits ) {
+				echo ' <span class="description">(' . implode( ', ', $bits ) . ')</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			}
+			if ( '' !== $docs ) {
+				echo '<br /><a href="' . esc_url( $docs ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Documentation', 'agent-connector-for-wp' ) . '</a>';
+			}
+		} elseif ( 'coming_soon' === $level ) {
+			$shown = true;
+			echo '<span style="color:#996800;font-weight:600;">' . esc_html__( 'Official support coming soon', 'agent-connector-for-wp' ) . '</span>';
+			if ( '' !== $docs ) {
+				echo ' — <a href="' . esc_url( $docs ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'roadmap', 'agent-connector-for-wp' ) . '</a>';
+			}
+		}
+
+		if ( ! empty( $unofficial ) ) {
+			$shown = true;
+			echo '<p class="description" style="margin:.4em 0 0;"><strong>' . esc_html__( 'Third-party extensions:', 'agent-connector-for-wp' ) . '</strong></p><ul style="margin:.2em 0 0 1.2em;list-style:disc;">';
+			foreach ( $unofficial as $u ) {
+				$name   = (string) ( $u['name'] ?? '' );
+				$purl   = (string) ( $u['plugin_url'] ?? '' );
+				$author = (string) ( $u['author'] ?? '' );
+				if ( '' === $name ) {
+					continue;
+				}
+				echo '<li>';
+				if ( '' !== $purl ) {
+					echo '<a href="' . esc_url( $purl ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $name ) . '</a>';
+				} else {
+					echo esc_html( $name );
+				}
+				if ( '' !== $author ) {
+					/* translators: %s: extension author. */
+					echo ' <span class="description">' . esc_html( sprintf( __( 'by %s', 'agent-connector-for-wp' ), $author ) ) . '</span>';
+				}
+				echo '</li>';
+			}
+			echo '</ul>';
+		}
+
+		if ( ! $shown ) {
+			echo '<span class="description">' . esc_html__( 'None known yet', 'agent-connector-for-wp' ) . '</span>';
+		}
+	}
+
+	/**
+	 * The "Unofficial ability pack" cell — our generated pack (if any) and its
+	 * Install & Activate / Enable / Disable actions.
 	 *
 	 * @param array<string,mixed> $row A single PluginDirectory overview row.
 	 */
-	private function render_pack_cells( array $row ): void {
+	private function render_pack_cell( array $row ): void {
+		if ( empty( $row['has_pack'] ) ) {
+			echo '<span class="description">' . esc_html__( 'None available', 'agent-connector-for-wp' ) . '</span>';
+			return;
+		}
+
 		$entry        = (array) $row['entry'];
 		$pack_name    = (string) ( $entry['ability_pack_name'] ?? '' );
 		$pack_slug    = (string) ( $entry['ability_pack_slug'] ?? '' );
@@ -182,38 +285,40 @@ final class DirectoryPage {
 		$source_url   = (string) ( $entry['source_url'] ?? '' );
 		$version      = (string) ( $entry['version'] ?? '' );
 		$download_url = (string) ( $entry['download_url'] ?? '' );
-		$can_install  = current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
+		$can_manage   = current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
 		?>
-		<td>
-			<strong>
-				<?php if ( '' !== $source_url ) : ?>
-					<a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pack_name ); ?></a>
-				<?php else : ?>
-					<?php echo esc_html( $pack_name ); ?>
-				<?php endif; ?>
-			</strong>
-			<?php if ( '' !== $version ) : ?>
-				<span class="description">v<?php echo esc_html( $version ); ?></span>
+		<strong>
+			<?php if ( '' !== $source_url ) : ?>
+				<a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pack_name ); ?></a>
+			<?php else : ?>
+				<?php echo esc_html( $pack_name ); ?>
 			<?php endif; ?>
-			<?php if ( '' !== $desc ) : ?>
-				<p class="description" style="margin:.3em 0 0;max-width:40em;"><?php echo esc_html( $desc ); ?></p>
-			<?php endif; ?>
-		</td>
-		<td>
+		</strong>
+		<?php if ( '' !== $version ) : ?>
+			<span class="description">v<?php echo esc_html( $version ); ?></span>
+		<?php endif; ?>
+		<?php if ( '' !== $desc ) : ?>
+			<p class="description" style="margin:.3em 0 .4em;max-width:36em;"><?php echo esc_html( $desc ); ?></p>
+		<?php endif; ?>
+
+		<div style="margin-top:.4em;">
 			<?php if ( $row['pack_active'] ) : ?>
 				<span style="color:#1a7f37;font-weight:600;"><?php esc_html_e( 'Installed &amp; active', 'agent-connector-for-wp' ); ?></span>
+				<?php if ( $can_manage && '' !== $pack_slug ) : ?>
+					<div style="margin-top:.3em;"><?php $this->render_action_form( self::DEACTIVATE_ACTION, $pack_slug, __( 'Disable', 'agent-connector-for-wp' ), 'secondary' ); ?></div>
+				<?php endif; ?>
 			<?php elseif ( $row['pack_installed'] ) : ?>
-				<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'Installed, inactive', 'agent-connector-for-wp' ); ?></span>
-				<?php if ( $can_install && '' !== $pack_slug ) : ?>
-					<div style="margin-top:.4em;"><?php $this->render_action_form( self::ACTIVATE_ACTION, $pack_slug, __( 'Activate', 'agent-connector-for-wp' ), 'secondary' ); ?></div>
+				<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'Installed, disabled', 'agent-connector-for-wp' ); ?></span>
+				<?php if ( $can_manage && '' !== $pack_slug ) : ?>
+					<div style="margin-top:.3em;"><?php $this->render_action_form( self::ACTIVATE_ACTION, $pack_slug, __( 'Enable', 'agent-connector-for-wp' ), 'primary' ); ?></div>
 				<?php endif; ?>
 			<?php else : ?>
-				<span style="color:#2271b1;font-weight:600;"><?php esc_html_e( 'Available to add', 'agent-connector-for-wp' ); ?></span>
-				<?php if ( $can_install && '' !== $pack_slug && '' !== $download_url ) : ?>
-					<div style="margin-top:.4em;"><?php $this->render_action_form( self::INSTALL_ACTION, $pack_slug, __( 'Install', 'agent-connector-for-wp' ), 'primary' ); ?></div>
+				<span style="color:#2271b1;font-weight:600;"><?php esc_html_e( 'Available', 'agent-connector-for-wp' ); ?></span>
+				<?php if ( $can_manage && '' !== $pack_slug && '' !== $download_url ) : ?>
+					<div style="margin-top:.3em;"><?php $this->render_action_form( self::INSTALL_ACTION, $pack_slug, __( 'Install &amp; Activate', 'agent-connector-for-wp' ), 'primary' ); ?></div>
 				<?php endif; ?>
 			<?php endif; ?>
-		</td>
+		</div>
 		<?php
 	}
 
@@ -301,6 +406,29 @@ final class DirectoryPage {
 
 		PluginDirectory::clear_cache();
 		$this->redirect( is_wp_error( $result ) ? 'install_failed' : 'activated' );
+	}
+
+	/**
+	 * admin-post: deactivate (disable) an installed ability pack.
+	 */
+	public function handle_deactivate(): void {
+		$this->verify( self::DEACTIVATE_ACTION );
+
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			$this->redirect( 'install_failed' );
+		}
+
+		$slug = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : '';
+		$file = PluginDirectory::installed_file_for_slug( $slug );
+		if ( null === $file ) {
+			$this->redirect( 'install_failed' );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		deactivate_plugins( $file, true );
+
+		PluginDirectory::clear_cache();
+		$this->redirect( 'disabled' );
 	}
 
 	/**
@@ -397,14 +525,116 @@ final class DirectoryPage {
 	}
 
 	/**
+	 * The "Registered Abilities" tab: every ability currently registered through
+	 * the WP Abilities API, with full detail. Read-only.
+	 */
+	private function render_abilities_tab(): void {
+		$abilities = function_exists( 'wp_get_abilities' ) ? (array) wp_get_abilities() : array();
+		?>
+		<p style="max-width:52em;">
+			<?php esc_html_e( 'Every ability registered on this site through the WordPress Abilities API. Abilities whose plugin is inactive (or whose code is gated off) are not registered and so do not appear here. Those marked “Exposed via MCP” are surfaced to connected agents while the plugin is enabled.', 'agent-connector-for-wp' ); ?>
+		</p>
+		<?php
+		if ( empty( $abilities ) ) {
+			echo '<p><em>' . esc_html__( 'No abilities are registered yet.', 'agent-connector-for-wp' ) . '</em></p>';
+			return;
+		}
+
+		usort(
+			$abilities,
+			static function ( $a, $b ): int {
+				$ca = method_exists( $a, 'get_category' ) ? (string) $a->get_category() : '';
+				$cb = method_exists( $b, 'get_category' ) ? (string) $b->get_category() : '';
+				if ( $ca !== $cb ) {
+					return strcasecmp( $ca, $cb );
+				}
+				return strcasecmp( (string) $a->get_name(), (string) $b->get_name() );
+			}
+		);
+		?>
+		<table class="widefat striped" style="margin-top:1em;">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Ability', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Category', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Exposed via MCP', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Details', 'agent-connector-for-wp' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $abilities as $ability ) : ?>
+					<?php $this->render_ability_row( $ability ); ?>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php
+	}
+
+	/**
+	 * Render one ability row with its full detail (schemas, meta).
+	 *
+	 * @param object $ability A WP_Ability instance.
+	 */
+	private function render_ability_row( $ability ): void {
+		$name        = (string) $ability->get_name();
+		$label       = (string) $ability->get_label();
+		$desc        = (string) $ability->get_description();
+		$category    = method_exists( $ability, 'get_category' ) ? (string) $ability->get_category() : '';
+		$meta        = (array) $ability->get_meta();
+		$mcp_public  = isset( $meta['mcp']['public'] ) && true === $meta['mcp']['public'];
+		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+		$input       = $ability->get_input_schema();
+		$output      = method_exists( $ability, 'get_output_schema' ) ? $ability->get_output_schema() : null;
+
+		$json = static function ( $data ): string {
+			return (string) wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		};
+		?>
+		<tr>
+			<td>
+				<strong><?php echo esc_html( '' !== $label ? $label : $name ); ?></strong><br />
+				<code style="font-size:11px;"><?php echo esc_html( $name ); ?></code>
+				<?php if ( '' !== $desc ) : ?>
+					<p class="description" style="margin:.3em 0 0;max-width:40em;"><?php echo esc_html( $desc ); ?></p>
+				<?php endif; ?>
+			</td>
+			<td><?php echo '' !== $category ? esc_html( $category ) : '<span class="description">—</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+			<td>
+				<?php if ( $mcp_public ) : ?>
+					<span style="color:#1a7f37;font-weight:600;"><?php esc_html_e( 'Yes', 'agent-connector-for-wp' ); ?></span>
+				<?php else : ?>
+					<span class="description"><?php esc_html_e( 'No', 'agent-connector-for-wp' ); ?></span>
+				<?php endif; ?>
+			</td>
+			<td>
+				<details>
+					<summary style="cursor:pointer;"><?php esc_html_e( 'Schemas & meta', 'agent-connector-for-wp' ); ?></summary>
+					<?php if ( ! empty( $annotations ) ) : ?>
+						<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Annotations', 'agent-connector-for-wp' ); ?></strong></p>
+						<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $annotations ) ); ?></pre>
+					<?php endif; ?>
+					<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Input schema', 'agent-connector-for-wp' ); ?></strong></p>
+					<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $input ) ); ?></pre>
+					<?php if ( ! empty( $output ) ) : ?>
+						<p style="margin:.5em 0 0;"><strong><?php esc_html_e( 'Output schema', 'agent-connector-for-wp' ); ?></strong></p>
+						<pre style="white-space:pre-wrap;max-width:48em;background:#f6f7f7;padding:.6em;overflow:auto;"><?php echo esc_html( $json( $output ) ); ?></pre>
+					<?php endif; ?>
+				</details>
+			</td>
+		</tr>
+		<?php
+	}
+
+	/**
 	 * Render the result notice for a given notice key (post-redirect-get).
 	 */
 	private function render_notice( string $notice ): void {
 		$map = array(
 			'refreshed'      => array( 'success', __( 'Directory refreshed.', 'agent-connector-for-wp' ) ),
 			'installed'      => array( 'success', __( 'Ability pack installed and activated.', 'agent-connector-for-wp' ) ),
-			'activated'      => array( 'success', __( 'Ability pack activated.', 'agent-connector-for-wp' ) ),
-			'install_failed' => array( 'error', __( 'Could not install the ability pack. Check that it is available and that this site can install plugins.', 'agent-connector-for-wp' ) ),
+			'activated'      => array( 'success', __( 'Ability pack enabled.', 'agent-connector-for-wp' ) ),
+			'disabled'       => array( 'success', __( 'Ability pack disabled.', 'agent-connector-for-wp' ) ),
+			'install_failed' => array( 'error', __( 'Could not complete that action. Check that the pack is available and that this site can install/activate plugins.', 'agent-connector-for-wp' ) ),
 			'fs_unavailable' => array( 'error', __( 'This site cannot install plugins directly (no direct filesystem access). Install the pack zip manually instead.', 'agent-connector-for-wp' ) ),
 		);
 		if ( ! isset( $map[ $notice ] ) ) {
