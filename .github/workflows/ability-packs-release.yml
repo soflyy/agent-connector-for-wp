@@ -1,0 +1,191 @@
+name: Release ability packs
+
+# Builds and publishes the generated ability packs in ability-packs/ as standalone,
+# versioned WordPress plugins, and regenerates the single index.json manifest that the
+# tracker (and the host plugin's updater) consume.
+#
+# Each pack is released independently:
+#   * tag    : <pack-slug>-vX.Y.Z         (e.g. unofficial-abilities-for-contact-form-7-v0.1.0)
+#   * release: same tag, asset <pack-slug>.zip
+# Versions auto-increment per pack from the pack's own latest tag (patch by default).
+# The pack's main-file header carries the placeholder "0.0.0-dev"; the real version is
+# stamped into the built zip only — never committed back to master (so this never loops).
+#
+# The manifest is published as the asset index.json of a stable, non-"latest" release
+# tagged `pack-index`, giving a permanent URL:
+#   https://github.com/<owner>/<repo>/releases/download/pack-index/index.json
+on:
+  push:
+    branches: [master]
+    paths: ['ability-packs/**', '.github/workflows/ability-packs-release.yml']
+  workflow_dispatch:
+    inputs:
+      pack:
+        description: 'Pack slug to (re)build, or "all"'
+        default: 'all'
+        type: string
+      bump:
+        description: 'Version bump level'
+        default: 'auto'
+        type: choice
+        options: [auto, patch, minor, major]
+
+# Push tags + create releases.
+permissions:
+  contents: write
+
+concurrency:
+  group: ability-packs-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, to compute per-pack versions
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+          coverage: none
+
+      - name: Determine which packs to build
+        id: which
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            req="${{ github.event.inputs.pack }}"
+            if [ "$req" = "all" ] || [ -z "$req" ]; then
+              packs=$(find ability-packs -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+            else
+              packs="$req"
+            fi
+          else
+            before="${{ github.event.before }}"
+            if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              before=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+            fi
+            packs=$(git diff --name-only "$before" "${{ github.sha }}" -- 'ability-packs/' \
+              | awk -F/ 'NF>=2 {print $2}' | sort -u)
+          fi
+          # Keep only dirs that still exist (a pack may have been deleted).
+          kept=""
+          for p in $packs; do
+            [ -d "ability-packs/$p" ] && kept="$kept $p"
+          done
+          kept=$(echo $kept | xargs -n1 2>/dev/null | sort -u | xargs || true)
+          echo "Packs to build: '${kept}'"
+          echo "packs=${kept}" >> "$GITHUB_OUTPUT"
+
+      - name: Build, version, and release each changed pack
+        if: steps.which.outputs.packs != ''
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          level="${{ github.event.inputs.bump || 'auto' }}"
+          [ "$level" = "auto" ] && level="patch"
+
+          for slug in ${{ steps.which.outputs.packs }}; do
+            pack_dir="ability-packs/$slug"
+            main="$pack_dir/$slug.php"
+            if [ ! -f "$main" ]; then
+              echo "::warning::$slug has no main file $main — skipping"
+              continue
+            fi
+
+            latest=$(git tag --list "${slug}-v*" --sort=-v:refname | head -1 || true)
+            if [ -z "$latest" ]; then
+              version="0.1.0"   # first release of this pack
+            else
+              ver=${latest#${slug}-v}
+              IFS='.' read -r MA MI PA <<< "$ver"
+              case "$level" in
+                major) MA=$((MA+1)); MI=0; PA=0 ;;
+                minor) MI=$((MI+1)); PA=0 ;;
+                *)     PA=$((PA+1)) ;;
+              esac
+              version="${MA}.${MI}.${PA}"
+            fi
+            tag="${slug}-v${version}"
+            echo "==> $slug -> $version ($tag)"
+
+            if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+              echo "::warning::tag ${tag} already exists — skipping release for $slug"
+              continue
+            fi
+
+            # Stage a clean copy, stamp the version into the header (build-only).
+            rm -rf dist && mkdir -p "dist/${slug}"
+            rsync -a --delete \
+              --exclude='coverage' --exclude='tools' --exclude='node_modules' \
+              --exclude='.git' --exclude='vendor' \
+              "$pack_dir/" "dist/${slug}/"
+            sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${version}/" "dist/${slug}/${slug}.php"
+
+            # Production composer deps if the pack declares any.
+            if [ -f "dist/${slug}/composer.json" ]; then
+              ( cd "dist/${slug}" && composer install --no-dev --prefer-dist \
+                  --optimize-autoloader --no-interaction --no-progress )
+            fi
+
+            ( cd dist && zip -rq "${slug}.zip" "${slug}" )
+
+            git tag -a "$tag" -m "$tag"
+            git push origin "$tag"
+            gh release create "$tag" "dist/${slug}.zip" \
+              --title "$tag" \
+              --notes "Standalone ability pack \`${slug}\` v${version}. Install via Agent Connector for WP → Ability Packs, or download the zip below." \
+              --latest=false
+          done
+
+      - name: Regenerate index.json manifest
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          hdr() { # hdr <Header Name> <file>
+            grep -m1 -E "^[[:space:]]*\*?[[:space:]]*$1:" "$2" 2>/dev/null \
+              | sed -E "s/^[[:space:]]*\*?[[:space:]]*$1:[[:space:]]*//; s/[[:space:]]*$//" || true
+          }
+
+          : > /tmp/entries.ndjson
+          for pack_dir in ability-packs/*/; do
+            slug=$(basename "$pack_dir")
+            main="$pack_dir/$slug.php"
+            [ -f "$main" ] || continue
+            latest=$(git tag --list "${slug}-v*" --sort=-v:refname | head -1 || true)
+            [ -n "$latest" ] || { echo "no release yet for $slug — omitting from manifest"; continue; }
+            version=${latest#${slug}-v}
+            name=$(hdr "Plugin Name" "$main")
+            desc=$(hdr "Description" "$main")
+            target=$(hdr "Agent Connector Target" "$main")
+            dl="https://github.com/${repo}/releases/download/${latest}/${slug}.zip"
+            src="https://github.com/${repo}/tree/master/ability-packs/${slug}"
+            jq -nc \
+              --arg slug "$slug" --arg target "$target" --arg name "$name" \
+              --arg version "$version" --arg desc "$desc" --arg dl "$dl" --arg src "$src" \
+              '{ability_pack_slug:$slug, target_plugin:$target, target_plugin_name:"",
+                name:$name, ability_pack_name:$name, version:$version, description:$desc,
+                download_url:$dl, source_url:$src}' >> /tmp/entries.ndjson
+          done
+
+          jq -s --arg gen "$(date -u +%FT%TZ)" '{generated_at:$gen, entries:.}' \
+            /tmp/entries.ndjson > index.json
+          echo "---- index.json ----"; cat index.json
+
+          # Publish to the stable pack-index release (create it if missing).
+          if ! gh release view pack-index >/dev/null 2>&1; then
+            gh release create pack-index index.json \
+              --title "Ability pack index" \
+              --notes "Auto-generated manifest of available ability packs. Consumed by the tracker and the Agent Connector updater. Do not edit by hand." \
+              --latest=false
+          else
+            gh release upload pack-index index.json --clobber
+          fi

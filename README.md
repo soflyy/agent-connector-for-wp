@@ -51,6 +51,26 @@ You can also push a `v*` tag manually to build a one-off zip via
 [`.github/workflows/release.yml`](.github/workflows/release.yml). Downloaded
 release zips already include `vendor/` — no `composer install` needed.
 
+## Ability pack releases
+
+The generated packs in [`ability-packs/`](ability-packs/) are released
+independently of the main plugin by
+[`.github/workflows/ability-packs-release.yml`](.github/workflows/ability-packs-release.yml).
+On any push to `master` that changes a pack, the workflow auto-increments that
+pack's version (patch by default, from its own latest tag), stamps it into the
+built zip, and publishes a per-pack GitHub Release tagged
+`<pack-slug>-vX.Y.Z` with a ready-to-install `<pack-slug>.zip`. Pack versions are
+**not** hand-managed — the main-file header stays `0.0.0-dev` and CI fills in the
+real number. Trigger a manual/forced build (or a minor/major bump) from
+**Actions → Release ability packs → Run workflow**.
+
+Every run also regenerates a single `index.json` manifest of all available packs
+(slug, version, target plugin, download URL) and publishes it as the asset of a
+stable `pack-index` release:
+`…/releases/download/pack-index/index.json`. The tracker's API and the host
+plugin's pack updater read this one manifest — nothing enumerates the releases
+list, so it scales to a very large number of packs.
+
 ## Tracker site
 
 [`agent-ready-plugins-tracker/`](agent-ready-plugins-tracker/) is a Next.js app
