@@ -344,6 +344,102 @@ final class PluginDirectory {
 	}
 
 	/**
+	 * Every installed plugin (minus the host and ability packs themselves), each
+	 * joined with its available ability pack when one exists. Drives the admin
+	 * screen so plugins without a pack are still listed.
+	 *
+	 * Each row: plugin_file, plugin_name, plugin_active, has_pack, and — when
+	 * has_pack — entry / pack_installed / pack_active (as in match_installed()).
+	 *
+	 * @return array{
+	 *     rows: array<int,array<string,mixed>>,
+	 *     stale: bool,
+	 *     error: string,
+	 *     url: string,
+	 *     total: int
+	 * }
+	 */
+	public static function installed_overview( bool $force = false ): array {
+		$result = self::get( $force );
+
+		$by_file = array();
+		foreach ( self::match_installed( $result['entries'] ) as $match ) {
+			$by_file[ $match['target_plugin_file'] ] = $match;
+		}
+
+		$rows = array();
+		foreach ( self::installed_plugins() as $file => $data ) {
+			if ( self::is_self_or_pack( $file, $data ) ) {
+				continue;
+			}
+
+			$name   = (string) ( $data['Name'] ?? $file );
+			$active = self::is_active( $file );
+
+			if ( isset( $by_file[ $file ] ) ) {
+				$row                  = $by_file[ $file ];
+				$row['has_pack']      = true;
+				$row['plugin_file']   = $file;
+				$row['plugin_name']   = $name;
+				$row['plugin_active'] = $active;
+			} else {
+				$row = array(
+					'has_pack'       => false,
+					'plugin_file'    => $file,
+					'plugin_name'    => $name,
+					'plugin_active'  => $active,
+					'entry'          => array(),
+					'pack_installed' => false,
+					'pack_active'    => false,
+				);
+			}
+
+			$rows[] = $row;
+		}
+
+		// Plugins with an available pack first, then alphabetically by name.
+		usort(
+			$rows,
+			static function ( array $a, array $b ): int {
+				if ( $a['has_pack'] !== $b['has_pack'] ) {
+					return $a['has_pack'] ? -1 : 1;
+				}
+				return strcasecmp( (string) $a['plugin_name'], (string) $b['plugin_name'] );
+			}
+		);
+
+		return array(
+			'rows'  => $rows,
+			'stale' => $result['stale'],
+			'error' => $result['error'],
+			'url'   => $result['url'],
+			'total' => count( $result['entries'] ),
+		);
+	}
+
+	/**
+	 * Whether a plugin should be hidden from the overview: the host plugin itself,
+	 * or an ability pack (carries the marker header, or follows the pack naming).
+	 *
+	 * @param string               $file Plugin file key.
+	 * @param array<string,mixed>  $data get_plugins() entry.
+	 */
+	private static function is_self_or_pack( string $file, array $data ): bool {
+		$slug = self::folder_slug( $file );
+
+		if ( 'agent-connector-for-wp' === $slug ) {
+			return true;
+		}
+
+		$marker = isset( $data['Agent Connector'] ) ? trim( (string) $data['Agent Connector'] ) : '';
+		if ( '' !== $marker ) {
+			return true;
+		}
+
+		return 0 === strpos( $slug, 'unofficial-abilities-for-' );
+	}
+
+	/**
 	 * All installed plugins, keyed by plugin file (e.g. "woocommerce/woocommerce.php").
 	 *
 	 * @return array<string,array<string,mixed>>

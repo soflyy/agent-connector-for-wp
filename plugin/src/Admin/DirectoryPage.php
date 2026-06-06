@@ -62,9 +62,9 @@ final class DirectoryPage {
 			return;
 		}
 
-		$result   = PluginDirectory::matches();
-		$matches  = $result['matches'];
-		$notice   = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$result  = PluginDirectory::installed_overview();
+		$rows    = $result['rows'];
+		$notice  = isset( $_GET['acfw_notice'] ) ? sanitize_key( wp_unslash( $_GET['acfw_notice'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Agent Connector for WP — Ability Packs', 'agent-connector-for-wp' ); ?></h1>
@@ -72,22 +72,18 @@ final class DirectoryPage {
 			<?php $this->render_notice( $notice ); ?>
 
 			<p style="max-width:50em;">
-				<?php esc_html_e( 'Some plugins on this site can be extended with a companion "ability pack" that registers AI abilities through Agent Connector. This page checks the ability-pack directory against your installed plugins and lets you install any that are available. Installed packs are kept up to date automatically.', 'agent-connector-for-wp' ); ?>
+				<?php esc_html_e( 'Plugins on this site can be extended with a companion "ability pack" that registers AI abilities through Agent Connector. This lists your installed plugins and, where one is available, lets you install it in one click. Installed packs are kept up to date automatically.', 'agent-connector-for-wp' ); ?>
 			</p>
 
 			<?php $this->render_toolbar( $result ); ?>
 
-			<?php if ( '' !== $result['error'] && empty( $matches ) ) : ?>
-				<div class="notice notice-warning inline" style="max-width:50em;">
-					<p><?php echo esc_html( $result['error'] ); ?></p>
-				</div>
-			<?php elseif ( $result['stale'] ) : ?>
+			<?php if ( '' !== $result['error'] ) : ?>
 				<div class="notice notice-warning inline" style="max-width:50em;">
 					<p><?php echo esc_html( $result['error'] ); ?></p>
 				</div>
 			<?php endif; ?>
 
-			<?php $this->render_matches_table( $matches ); ?>
+			<?php $this->render_table( $rows ); ?>
 		</div>
 		<?php
 	}
@@ -117,14 +113,14 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render the matches table (or an empty-state message).
+	 * Render the installed-plugins table (or an empty-state message).
 	 *
-	 * @param array<int,array<string,mixed>> $matches PluginDirectory matches.
+	 * @param array<int,array<string,mixed>> $rows PluginDirectory overview rows.
 	 */
-	private function render_matches_table( array $matches ): void {
-		if ( empty( $matches ) ) {
+	private function render_table( array $rows ): void {
+		if ( empty( $rows ) ) {
 			?>
-			<p><em><?php esc_html_e( 'None of your installed plugins have an ability pack in the directory yet.', 'agent-connector-for-wp' ); ?></em></p>
+			<p><em><?php esc_html_e( 'No plugins are installed on this site yet.', 'agent-connector-for-wp' ); ?></em></p>
 			<?php
 			return;
 		}
@@ -138,8 +134,8 @@ final class DirectoryPage {
 				</tr>
 			</thead>
 			<tbody>
-				<?php foreach ( $matches as $match ) : ?>
-					<?php $this->render_match_row( $match ); ?>
+				<?php foreach ( $rows as $row ) : ?>
+					<?php $this->render_row( $row ); ?>
 				<?php endforeach; ?>
 			</tbody>
 		</table>
@@ -147,12 +143,39 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render one match row.
+	 * Render one installed-plugin row — with its ability pack + actions when one
+	 * is available, or a "no pack" indicator otherwise.
 	 *
-	 * @param array<string,mixed> $match A single PluginDirectory match.
+	 * @param array<string,mixed> $row A single PluginDirectory overview row.
 	 */
-	private function render_match_row( array $match ): void {
-		$entry        = (array) $match['entry'];
+	private function render_row( array $row ): void {
+		$has_pack = ! empty( $row['has_pack'] );
+		?>
+		<tr>
+			<td>
+				<strong><?php echo esc_html( (string) $row['plugin_name'] ); ?></strong><br />
+				<code style="font-size:11px;"><?php echo esc_html( (string) $row['plugin_file'] ); ?></code>
+				<?php if ( empty( $row['plugin_active'] ) ) : ?>
+					<br /><span class="description"><?php esc_html_e( '(installed, not active)', 'agent-connector-for-wp' ); ?></span>
+				<?php endif; ?>
+			</td>
+			<?php if ( ! $has_pack ) : ?>
+				<td><span class="description">—</span></td>
+				<td><span class="description"><?php esc_html_e( 'No ability pack available yet', 'agent-connector-for-wp' ); ?></span></td>
+			<?php else : ?>
+				<?php $this->render_pack_cells( $row ); ?>
+			<?php endif; ?>
+		</tr>
+		<?php
+	}
+
+	/**
+	 * Render the "Ability pack" + "Status" cells for a row that has a pack.
+	 *
+	 * @param array<string,mixed> $row A single PluginDirectory overview row.
+	 */
+	private function render_pack_cells( array $row ): void {
+		$entry        = (array) $row['entry'];
 		$pack_name    = (string) ( $entry['ability_pack_name'] ?? '' );
 		$pack_slug    = (string) ( $entry['ability_pack_slug'] ?? '' );
 		$desc         = (string) ( $entry['description'] ?? '' );
@@ -161,45 +184,36 @@ final class DirectoryPage {
 		$download_url = (string) ( $entry['download_url'] ?? '' );
 		$can_install  = current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
 		?>
-		<tr>
-			<td>
-				<strong><?php echo esc_html( (string) $match['target_plugin_name'] ); ?></strong><br />
-				<code style="font-size:11px;"><?php echo esc_html( (string) $match['target_plugin_file'] ); ?></code>
-				<?php if ( ! $match['target_active'] ) : ?>
-					<br /><span class="description"><?php esc_html_e( '(installed, not active)', 'agent-connector-for-wp' ); ?></span>
-				<?php endif; ?>
-			</td>
-			<td>
-				<strong>
-					<?php if ( '' !== $source_url ) : ?>
-						<a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pack_name ); ?></a>
-					<?php else : ?>
-						<?php echo esc_html( $pack_name ); ?>
-					<?php endif; ?>
-				</strong>
-				<?php if ( '' !== $version ) : ?>
-					<span class="description">v<?php echo esc_html( $version ); ?></span>
-				<?php endif; ?>
-				<?php if ( '' !== $desc ) : ?>
-					<p class="description" style="margin:.3em 0 0;max-width:40em;"><?php echo esc_html( $desc ); ?></p>
-				<?php endif; ?>
-			</td>
-			<td>
-				<?php if ( $match['pack_active'] ) : ?>
-					<span style="color:#1a7f37;font-weight:600;"><?php esc_html_e( 'Installed &amp; active', 'agent-connector-for-wp' ); ?></span>
-				<?php elseif ( $match['pack_installed'] ) : ?>
-					<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'Installed, inactive', 'agent-connector-for-wp' ); ?></span>
-					<?php if ( $can_install && '' !== $pack_slug ) : ?>
-						<div style="margin-top:.4em;"><?php $this->render_action_form( self::ACTIVATE_ACTION, $pack_slug, __( 'Activate', 'agent-connector-for-wp' ), 'secondary' ); ?></div>
-					<?php endif; ?>
+		<td>
+			<strong>
+				<?php if ( '' !== $source_url ) : ?>
+					<a href="<?php echo esc_url( $source_url ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pack_name ); ?></a>
 				<?php else : ?>
-					<span style="color:#2271b1;font-weight:600;"><?php esc_html_e( 'Available to add', 'agent-connector-for-wp' ); ?></span>
-					<?php if ( $can_install && '' !== $pack_slug && '' !== $download_url ) : ?>
-						<div style="margin-top:.4em;"><?php $this->render_action_form( self::INSTALL_ACTION, $pack_slug, __( 'Install', 'agent-connector-for-wp' ), 'primary' ); ?></div>
-					<?php endif; ?>
+					<?php echo esc_html( $pack_name ); ?>
 				<?php endif; ?>
-			</td>
-		</tr>
+			</strong>
+			<?php if ( '' !== $version ) : ?>
+				<span class="description">v<?php echo esc_html( $version ); ?></span>
+			<?php endif; ?>
+			<?php if ( '' !== $desc ) : ?>
+				<p class="description" style="margin:.3em 0 0;max-width:40em;"><?php echo esc_html( $desc ); ?></p>
+			<?php endif; ?>
+		</td>
+		<td>
+			<?php if ( $row['pack_active'] ) : ?>
+				<span style="color:#1a7f37;font-weight:600;"><?php esc_html_e( 'Installed &amp; active', 'agent-connector-for-wp' ); ?></span>
+			<?php elseif ( $row['pack_installed'] ) : ?>
+				<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'Installed, inactive', 'agent-connector-for-wp' ); ?></span>
+				<?php if ( $can_install && '' !== $pack_slug ) : ?>
+					<div style="margin-top:.4em;"><?php $this->render_action_form( self::ACTIVATE_ACTION, $pack_slug, __( 'Activate', 'agent-connector-for-wp' ), 'secondary' ); ?></div>
+				<?php endif; ?>
+			<?php else : ?>
+				<span style="color:#2271b1;font-weight:600;"><?php esc_html_e( 'Available to add', 'agent-connector-for-wp' ); ?></span>
+				<?php if ( $can_install && '' !== $pack_slug && '' !== $download_url ) : ?>
+					<div style="margin-top:.4em;"><?php $this->render_action_form( self::INSTALL_ACTION, $pack_slug, __( 'Install', 'agent-connector-for-wp' ), 'primary' ); ?></div>
+				<?php endif; ?>
+			<?php endif; ?>
+		</td>
 		<?php
 	}
 
