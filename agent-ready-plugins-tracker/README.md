@@ -49,7 +49,23 @@ ability packs that target any of them:
 ```
 
 It reads the single `pack-index` `index.json` manifest (cached ~10 min) — nothing enumerates
-GitHub's releases — and is allowlisted as public in [`middleware.ts`](middleware.ts).
+GitHub's releases — and is allowlisted as public in [`middleware.ts`](middleware.ts). The
+response also carries a `statuses[]` array with each plugin's AI-support status (see below).
+
+## Admin dashboard
+
+`/admin` is a UI for managing the per-plugin AI status that powers the directory and the
+`statuses` field of the match API. It's gated by the **`ADMIN_SECRET`** (enter it at
+`/admin/login`; the admin area self-gates independently of the public site password). From it
+you can:
+
+- edit each plugin's status — level (`official` / `unofficial` / `coming_soon` / `none`),
+  official version + docs URL, official abilities, and **third-party unofficial extensions**;
+- add a plugin (a plugin row must exist before its status can be set);
+- triage pending **submissions** (mark reviewed).
+
+Writes go through server actions that re-check the admin session; the older
+`PUT /api/admin/status` (bearer-token) endpoint still works for scripted updates.
 
 ## Database
 
