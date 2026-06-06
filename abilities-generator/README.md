@@ -14,7 +14,7 @@ here.
   and surfaces gaps), designs an **agent-ergonomic** ability surface, and ships a companion
   *ability pack* plugin — verified to actually work.
 - **`../ability-packs/`** — the outputs (monorepo root). One generated ability-pack plugin
-  per target, e.g. `agent-connector-for-wp-ability-pack-contact-form-7/`.
+  per target, e.g. `unofficial-abilities-for-contact-form-7/`.
 
 The generated packs register their abilities via the **WP Abilities API**, which
 [Agent Connector for WP](../plugin/) (via `mcp-adapter`) automatically exposes as MCP
@@ -53,7 +53,7 @@ If you're an agent working in this repo's sandbox, here's the whole loop:
    `wp-mcp-generator` skill and follow `skills/wp-mcp-generator/SKILL.md`. It installs the
    target, understands it (code first, then by exercising it), designs an agent-ergonomic
    ability surface, and builds the pack under
-   `wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<slug>/`.
+   `wp/wp-content/plugins/unofficial-abilities-for-<slug>/`.
 3. **Don't stop early.** A pack is done only when its `coverage/coverage-report.md` accounts
    for every surface and task and every ability passes acceptance — verified through the real
    MCP surface (`mcp-adapter-execute-ability`) and confirmed from independent vantage points

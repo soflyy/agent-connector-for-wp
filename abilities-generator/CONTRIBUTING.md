@@ -37,18 +37,18 @@ plugin's code and exercising it. Keep it that way:
 ## Adding a generated pack
 
 1. In the sandbox, have the agent run the `wp-mcp-generator` skill against a plugin. It
-   builds the pack under `wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<slug>/`.
+   builds the pack under `wp/wp-content/plugins/unofficial-abilities-for-<slug>/`.
 2. A pack is **not done** until its `coverage/coverage-report.md` accounts for every surface
    and task (covered or explicitly excluded-with-reason) and every ability passes acceptance.
 3. Save it into the repo and commit:
    ```bash
    ./scripts/save-pack.sh <slug>
-   git add ../ability-packs/agent-connector-for-wp-ability-pack-<slug> && git commit
+   git add ../ability-packs/unofficial-abilities-for-<slug> && git commit
    ```
 
 ## Pack conventions (enforced by Agent Connector)
 
-- Folder + main file: `agent-connector-for-wp-ability-pack-<slug>`.
+- Folder + main file: `unofficial-abilities-for-<slug>`.
 - Headers: `Requires Plugins: agent-connector-for-wp`, `Agent Connector: Ability Pack`,
   `Agent Connector Target: <target-plugin-file>`.
 - Namespace abilities under your own vendor prefix (`<slug>/...`) — never

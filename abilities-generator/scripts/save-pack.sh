@@ -5,7 +5,7 @@
 #
 #   ./scripts/save-pack.sh <target-slug>      # e.g. contact-form-7
 #
-# Looks for wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<slug>.
+# Looks for wp/wp-content/plugins/unofficial-abilities-for-<slug>.
 # Override the plugins dir with WP_PLUGINS_DIR if your install differs.
 #
 # Generated packs live in the monorepo root's ability-packs/ (a sibling of this
@@ -24,7 +24,7 @@ fi
 GENERATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MONOREPO_ROOT="$(cd "${GENERATOR_DIR}/.." && pwd)"
 PLUGINS_DIR="${WP_PLUGINS_DIR:-$HOME/wp/wp-content/plugins}"
-name="agent-connector-for-wp-ability-pack-${slug}"
+name="unofficial-abilities-for-${slug}"
 src="$PLUGINS_DIR/$name"
 dst="$MONOREPO_ROOT/ability-packs/$name"
 
