@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getStatusesForSlugs } from "@/lib/db";
 
 // Public, server-to-server endpoint hit by the Agent Connector for WP plugin.
 // A site POSTs the plugins it has installed; we return the ability packs that
@@ -92,5 +93,29 @@ export async function POST(req: NextRequest) {
     return wanted.has(folderSlug(target)) || wanted.has(target);
   });
 
-  return NextResponse.json({ entries });
+  // Enrich with per-plugin AI status (official built-in / third-party unofficial
+  // extensions) from the directory DB, so the site can show the full picture —
+  // not just our own packs. Best-effort: an unconfigured/erroring DB yields [].
+  let statuses: object[] = [];
+  try {
+    const map = await getStatusesForSlugs([...wanted]);
+    statuses = Object.entries(map).map(([slug, s]) => ({
+      slug,
+      level: s.level,
+      official_since: s.officialSince ?? null,
+      official_docs_url: s.officialDocsUrl ?? null,
+      abilities_count: s.abilitiesCount ?? null,
+      unofficial_plugins: (s.unofficialPlugins ?? []).map((u) => ({
+        name: u.name,
+        plugin_url: u.pluginUrl,
+        description: u.description,
+        author: u.author,
+        author_url: u.authorUrl ?? null,
+      })),
+    }));
+  } catch {
+    statuses = [];
+  }
+
+  return NextResponse.json({ entries, statuses });
 }

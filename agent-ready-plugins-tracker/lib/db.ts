@@ -66,6 +66,21 @@ export async function getPluginWithStatus(slug: string): Promise<PluginWithStatu
   };
 }
 
+/**
+ * AI status for a set of plugin slugs, keyed by slug. Used by the ability-pack
+ * match endpoint to tell a site which of its plugins have official / third-party
+ * AI abilities. Missing slugs are simply absent from the map.
+ */
+export async function getStatusesForSlugs(slugs: string[]): Promise<Record<string, AIStatus>> {
+  const supabase = getClient();
+  if (!supabase || slugs.length === 0) return {};
+  const { data } = await supabase.from("ai_statuses").select("*").in("slug", slugs);
+  if (!data) return {};
+  const out: Record<string, AIStatus> = {};
+  for (const row of data) out[row.slug as string] = rowToStatus(row);
+  return out;
+}
+
 // ---- AI Status ----
 
 export async function setAIStatus(slug: string, status: AIStatus): Promise<void> {
