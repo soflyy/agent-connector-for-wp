@@ -2,10 +2,10 @@
 #
 # Symlink the plugin into a WordPress install for local development.
 #
-# This repo is a monorepo: the plugin lives in plugin/, the marketing site in
-# site/. WordPress expects the plugin under wp-content/plugins/, so for local
-# development we symlink plugin/ there instead of copying it. Edit files in the
-# repo; WordPress sees them live through the link.
+# This repo is a monorepo: the plugin lives in plugin/, the public tracker site
+# in agent-ready-plugins-tracker/. WordPress expects the plugin under
+# wp-content/plugins/, so for local development we symlink plugin/ there instead
+# of copying it. Edit files in the repo; WordPress sees them live through the link.
 #
 # Usage:
 #   bin/install.sh <WP_CONTENT_DIR>

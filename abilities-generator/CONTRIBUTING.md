@@ -1,14 +1,15 @@
 # Contributing
 
-Two kinds of work live here: improving the **generator** (`skills/wp-mcp-generator/`) and
-adding **generated packs** (`packs/`). Both happen inside a sandbox from
+Two kinds of work live here: improving the **generator** (`skills/wp-mcp-generator/`, in this
+`abilities-generator/` subproject) and adding **generated packs** (committed to the monorepo's
+top-level [`../ability-packs/`](../ability-packs/)). Both happen inside a sandbox from
 [create-wp-local-dev-agent-sandbox](https://github.com/soflyy/create-wp-local-dev-agent-sandbox).
 
 ## Setup
 
 ```bash
-git clone git@github.com:soflyy/mcp-for-everything-wp.git
-cd mcp-for-everything-wp
+git clone git@github.com:soflyy/agent-connector-for-wp.git
+cd agent-connector-for-wp/abilities-generator
 ./scripts/install-skill.sh        # symlinks the skill into ~/.claude/skills/
 ```
 
@@ -42,7 +43,7 @@ plugin's code and exercising it. Keep it that way:
 3. Save it into the repo and commit:
    ```bash
    ./scripts/save-pack.sh <slug>
-   git add packs/agent-connector-for-wp-ability-pack-<slug> && git commit
+   git add ../ability-packs/agent-connector-for-wp-ability-pack-<slug> && git commit
    ```
 
 ## Pack conventions (enforced by Agent Connector)

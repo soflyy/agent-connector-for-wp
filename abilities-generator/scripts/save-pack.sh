@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 #
 # save-pack.sh — copy a generated ability pack out of the live WordPress install and
-# into this repo's packs/ directory, so it can be committed.
+# into the monorepo's top-level ability-packs/ directory, so it can be committed.
 #
 #   ./scripts/save-pack.sh <target-slug>      # e.g. contact-form-7
 #
 # Looks for wp/wp-content/plugins/agent-connector-for-wp-ability-pack-<slug>.
 # Override the plugins dir with WP_PLUGINS_DIR if your install differs.
+#
+# Generated packs live in the monorepo root's ability-packs/ (a sibling of this
+# abilities-generator/ subproject), not inside the generator itself.
 
 set -euo pipefail
 
@@ -16,11 +19,14 @@ if [ -z "$slug" ]; then
 	exit 2
 fi
 
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# This script lives in abilities-generator/scripts/, so two levels up is the
+# monorepo root, where the shared ability-packs/ directory lives.
+GENERATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MONOREPO_ROOT="$(cd "${GENERATOR_DIR}/.." && pwd)"
 PLUGINS_DIR="${WP_PLUGINS_DIR:-$HOME/wp/wp-content/plugins}"
 name="agent-connector-for-wp-ability-pack-${slug}"
 src="$PLUGINS_DIR/$name"
-dst="$REPO_DIR/packs/$name"
+dst="$MONOREPO_ROOT/ability-packs/$name"
 
 if [ ! -d "$src" ]; then
 	echo "Pack not found: $src" >&2
@@ -41,4 +47,4 @@ mkdir -p "$dst"
 done
 
 echo "Saved pack -> $dst"
-echo "Review and commit it under packs/."
+echo "Review and commit it under ability-packs/."

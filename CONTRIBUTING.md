@@ -28,8 +28,9 @@ land as patch releases.
   (`Version:` header and `AGENT_CONNECTOR_FOR_WP_VERSION`) or `readme.txt`
   (`Stable tag:`). The release bot owns those and commits the bump with
   `[skip ci]`. Editing them yourself just creates conflicts.
-- **Scope:** releases fire only when `plugin/**` changes. A `site/`- or
-  root-docs-only merge won't cut a release.
+- **Scope:** releases fire only when `plugin/**` changes. A merge touching only
+  the tracker, abilities generator, ability packs, or root docs won't cut a
+  release.
 - **Need a specific bump or a re-run?** Run the **Auto release on merge**
   workflow manually (Actions → Run workflow) and pick the `bump` input, or push
   a `vX.Y.Z` tag yourself — [`release.yml`](.github/workflows/release.yml) builds
