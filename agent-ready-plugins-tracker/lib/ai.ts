@@ -2,10 +2,10 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, Output } from "ai";
 import type { z } from "zod";
 
-// GPT-5 (via the OpenAI Responses API) with the built-in web_search tool — gives
-// up-to-date, reasoned answers for the niche WP Abilities / MCP questions we ask.
-// Override the model with AI_RESEARCH_MODEL. Requires OPENAI_API_KEY.
-export const RESEARCH_MODEL = process.env.AI_RESEARCH_MODEL || "gpt-5";
+// GPT-5 with OpenAI's built-in web_search tool, routed through the Vercel AI
+// Gateway (a bare model-id string resolves via the gateway; auth is
+// AI_GATEWAY_API_KEY). Override the model with AI_RESEARCH_MODEL.
+export const RESEARCH_MODEL = process.env.AI_RESEARCH_MODEL || "openai/gpt-5";
 
 /** Everything sent to / returned from the model for one call — surfaced in admin. */
 export interface WebSearchDebug {
@@ -37,13 +37,13 @@ export async function webSearchObject<T>(opts: {
   const model = opts.model || RESEARCH_MODEL;
   const debug: WebSearchDebug = { model, prompt: opts.prompt };
 
-  if (!process.env.OPENAI_API_KEY) {
-    return { ok: false, error: "OPENAI_API_KEY is not set", debug };
+  if (!process.env.AI_GATEWAY_API_KEY) {
+    return { ok: false, error: "AI_GATEWAY_API_KEY is not set", debug };
   }
 
   try {
     const result = await generateText({
-      model: openai.responses(model),
+      model, // bare id ("openai/gpt-5") → resolved via the Vercel AI Gateway
       tools: { web_search: openai.tools.webSearch({}) },
       prompt: opts.prompt,
       experimental_output: Output.object({ schema: opts.schema }),
