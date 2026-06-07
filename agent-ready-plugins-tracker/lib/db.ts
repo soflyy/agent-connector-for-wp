@@ -31,6 +31,15 @@ export async function upsertPlugin(plugin: Plugin): Promise<void> {
   if (error) throw error;
 }
 
+export async function deletePlugin(slug: string): Promise<void> {
+  const supabase = getClient();
+  if (!supabase) throw new Error("Supabase not configured");
+  // ai_statuses.slug references plugins(slug) on delete cascade, so the row in
+  // ai_statuses is removed automatically.
+  const { error } = await supabase.from("plugins").delete().eq("slug", slug);
+  if (error) throw error;
+}
+
 // ---- Plugins + AI status joined ----
 
 export async function getAllPluginsWithStatus(): Promise<PluginWithStatus[]> {

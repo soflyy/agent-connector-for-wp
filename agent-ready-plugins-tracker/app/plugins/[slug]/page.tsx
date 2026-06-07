@@ -1,16 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPluginWithStatus, getAllPlugins } from "@/lib/db";
+import { getPluginWithStatus } from "@/lib/db";
 import { StatusBadge } from "@/components/StatusBadge";
 import { CATEGORY_LABELS } from "@/lib/types";
 
-export const revalidate = 3600;
-
-export async function generateStaticParams() {
-  const plugins = await getAllPlugins();
-  return plugins.map((p) => ({ slug: p.slug }));
-}
+// Always render from the live database — no static/ISR snapshot.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
