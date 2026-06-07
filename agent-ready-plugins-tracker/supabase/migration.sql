@@ -31,3 +31,20 @@ create table if not exists ai_statuses (
   auto_checked_at     timestamptz,                  -- last AI check time
   suggestion          jsonb                         -- latest AI result (kept even when not applied)
 );
+
+-- Auto-reload PostgREST's schema cache whenever the schema changes (DDL), so new
+-- tables/columns/relationships are picked up immediately — no manual "Reload schema
+-- cache" needed after a migration. (PostgREST listens on the `pgrst` channel.)
+create or replace function public.pgrst_reload_on_ddl()
+  returns event_trigger language plpgsql as $$
+begin
+  notify pgrst, 'reload schema';
+end;
+$$;
+
+drop event trigger if exists pgrst_reload_on_ddl;
+create event trigger pgrst_reload_on_ddl on ddl_command_end
+  execute function public.pgrst_reload_on_ddl();
+
+-- Reload once now so the changes above are picked up immediately.
+notify pgrst, 'reload schema';
