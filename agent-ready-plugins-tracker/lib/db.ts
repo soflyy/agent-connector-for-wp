@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { AIStatus, Plugin, PluginWithStatus } from "./types";
+import type { AISuggestion, AIStatus, Plugin, PluginWithStatus } from "./types";
 
 function getClient() {
   const url = process.env.SUPABASE_URL;
@@ -86,8 +86,67 @@ export async function getStatusesForSlugs(slugs: string[]): Promise<Record<strin
 export async function setAIStatus(slug: string, status: AIStatus): Promise<void> {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase.from("ai_statuses").upsert(statusToRow(slug, status));
+  // A manual save marks the row as human-curated so the AI job won't overwrite it.
+  const { error } = await supabase.from("ai_statuses").upsert(statusToRow(slug, { ...status, source: "manual" }));
   if (error) throw error;
+}
+
+/**
+ * Plugins to AI-check, least-recently-checked first (never-checked first), capped.
+ * Returns minimal {slug, name} for the research step.
+ */
+export async function getPluginsToCheck(limit: number): Promise<Array<{ slug: string; name: string }>> {
+  const supabase = getClient();
+  if (!supabase) return [];
+  const { data } = await supabase.from("plugins").select("slug, name, ai_statuses(auto_checked_at)");
+  if (!data) return [];
+  const checkedAt = (row: { ai_statuses?: unknown }): string => {
+    const s = row.ai_statuses;
+    const rec = Array.isArray(s) ? s[0] : s;
+    return (rec as { auto_checked_at?: string } | null)?.auto_checked_at ?? "";
+  };
+  return [...data]
+    .sort((a, b) => checkedAt(a).localeCompare(checkedAt(b))) // "" (never) sorts first
+    .slice(0, limit)
+    .map((r) => ({ slug: r.slug as string, name: r.name as string }));
+}
+
+/**
+ * Apply an AI research result. Always records auto_checked_at + the suggestion.
+ * Overwrites the live status UNLESS it was manually curated (source = "manual"),
+ * in which case the live fields are left intact and the suggestion is kept for review.
+ * Returns whether the live status was applied.
+ */
+export async function applyAiResult(slug: string, suggestion: AISuggestion): Promise<{ applied: boolean }> {
+  const supabase = getClient();
+  if (!supabase) throw new Error("Supabase not configured");
+
+  const { data: current } = await supabase.from("ai_statuses").select("source").eq("slug", slug).maybeSingle();
+  const locked = current?.source === "manual";
+
+  const payload: Record<string, unknown> = {
+    slug,
+    auto_checked_at: suggestion.checkedAt,
+    suggestion,
+  };
+  if (!locked) {
+    payload.level = suggestion.level;
+    payload.official_since = suggestion.officialSince ?? null;
+    payload.official_docs_url = suggestion.officialDocsUrl ?? null;
+    payload.abilities_count = suggestion.abilitiesCount ?? null;
+    payload.abilities = suggestion.abilities ?? null;
+    payload.unofficial_plugins = suggestion.unofficialPlugins ?? [];
+    payload.notes = suggestion.notes ?? null;
+    payload.sources = suggestion.sources ?? null;
+    payload.confidence = suggestion.confidence ?? null;
+    payload.source = "ai";
+    payload.last_verified = suggestion.checkedAt.slice(0, 10);
+    payload.updated_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase.from("ai_statuses").upsert(payload);
+  if (error) throw error;
+  return { applied: !locked };
 }
 
 // ---- Row converters ----
@@ -134,9 +193,15 @@ function rowToStatus(row: any): AIStatus {
     unofficialPlugins: row.unofficial_plugins ?? [],
     notes: row.notes ?? undefined,
     lastVerified: row.last_verified ?? "unknown",
+    sources: row.sources ?? undefined,
+    confidence: row.confidence ?? undefined,
+    source: row.source ?? undefined,
+    autoCheckedAt: row.auto_checked_at ?? undefined,
+    suggestion: row.suggestion ?? null,
   };
 }
 
+// The live status fields written by a manual admin save (marks source = manual).
 function statusToRow(slug: string, status: AIStatus) {
   return {
     slug,
@@ -148,6 +213,9 @@ function statusToRow(slug: string, status: AIStatus) {
     unofficial_plugins: status.unofficialPlugins,
     notes: status.notes ?? null,
     last_verified: status.lastVerified,
+    sources: status.sources ?? null,
+    confidence: status.confidence ?? null,
+    source: status.source ?? "manual",
     updated_at: new Date().toISOString(),
   };
 }

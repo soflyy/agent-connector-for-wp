@@ -23,5 +23,11 @@ create table if not exists ai_statuses (
   unofficial_plugins  jsonb not null default '[]'::jsonb,
   notes               text,
   last_verified       text,
-  updated_at          timestamptz not null default now()
+  updated_at          timestamptz not null default now(),
+  -- AI research check (see migration-ai-check.sql for existing databases):
+  sources             text[],                       -- source URLs backing the status
+  confidence          text,                         -- 'high' | 'medium' | 'low'
+  source              text not null default 'ai',   -- 'manual' (curated) | 'ai'
+  auto_checked_at     timestamptz,                  -- last AI check time
+  suggestion          jsonb                         -- latest AI result (kept even when not applied)
 );

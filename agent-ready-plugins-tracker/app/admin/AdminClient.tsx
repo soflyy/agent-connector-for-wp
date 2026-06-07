@@ -8,6 +8,77 @@ import { addPluginAction } from "./actions";
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
 
+async function postAiCheck(body: object): Promise<{ ok: boolean; message: string }> {
+  try {
+    const res = await fetch("/api/admin/ai-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, message: data?.error || `HTTP ${res.status}` };
+    if (typeof data.checked === "number") {
+      const applied = (data.results || []).filter((r: { applied?: boolean }) => r.applied).length;
+      const failed = (data.results || []).filter((r: { ok?: boolean }) => r.ok === false).length;
+      return { ok: true, message: `Checked ${data.checked}; applied ${applied}${failed ? `; ${failed} failed` : ""}.` };
+    }
+    if (data.ok === false) return { ok: false, message: data.error || "Check failed." };
+    return { ok: true, message: `${data.level ?? "done"}${data.applied === false ? " (kept manual edit)" : ""}.` };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Request failed" };
+  }
+}
+
+export function AiCheckButton({ slug }: { slug: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setMsg("");
+          const r = await postAiCheck({ slug });
+          setMsg(r.message);
+          if (r.ok) router.refresh();
+          setBusy(false);
+        }}
+        className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
+      >
+        {busy ? "Checking…" : "Re-check (AI)"}
+      </button>
+      {msg && <span className="text-xs text-slate-500">{msg}</span>}
+    </span>
+  );
+}
+
+export function AiCheckAllButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setMsg("");
+          const r = await postAiCheck({ all: true });
+          setMsg(r.message);
+          if (r.ok) router.refresh();
+          setBusy(false);
+        }}
+        className="rounded-lg bg-wp-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wp-blue-dark disabled:opacity-60"
+      >
+        {busy ? "Checking…" : "Run AI check now"}
+      </button>
+      {msg && <span className="text-sm text-slate-600">{msg}</span>}
+    </div>
+  );
+}
+
 export function LogoutButton() {
   const router = useRouter();
   return (

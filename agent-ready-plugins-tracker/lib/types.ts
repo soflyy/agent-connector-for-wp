@@ -41,6 +41,9 @@ export interface UnofficialPlugin {
   authorUrl?: string;
 }
 
+/** Who last set the live status: a human admin, or the AI research job. */
+export type AIStatusSource = "manual" | "ai";
+
 export interface AIStatus {
   level: AIStatusLevel;
   /** Plugin version that added official AI abilities */
@@ -55,6 +58,30 @@ export interface AIStatus {
   notes?: string;
   /** ISO 8601 date this status was last verified */
   lastVerified: string;
+  /** Source-evidence URLs backing this status (from the AI check). */
+  sources?: string[];
+  /** AI's confidence in this status: "high" | "medium" | "low". */
+  confidence?: string;
+  /** Whether the live status was last set manually or by the AI job. */
+  source?: AIStatusSource;
+  /** ISO timestamp of the most recent AI check (regardless of whether applied). */
+  autoCheckedAt?: string;
+  /** Latest AI result, kept even when not applied (manual-locked plugins). */
+  suggestion?: AISuggestion | null;
+}
+
+/** A structured AI research result for a plugin's AI-ability status. */
+export interface AISuggestion {
+  level: AIStatusLevel;
+  officialSince?: string;
+  officialDocsUrl?: string;
+  abilitiesCount?: number;
+  abilities?: string[];
+  unofficialPlugins: UnofficialPlugin[];
+  notes?: string;
+  sources: string[];
+  confidence: string;
+  checkedAt: string;
 }
 
 export interface Plugin {
