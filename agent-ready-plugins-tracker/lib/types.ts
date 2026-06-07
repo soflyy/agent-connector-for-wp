@@ -17,10 +17,8 @@ export interface Plugin {
   link?: string;
   /** Whether the plugin ships its own (official) AI abilities. */
   includesAbilities: boolean;
-  /** Third-party plugins that provide abilities for this plugin. */
+  /** Third-party plugins that provide abilities for this plugin (incl. our own packs). */
   thirdPartyAbilities: ThirdPartyAbility[];
-  /** URL of the Agent Connector ability pack for this plugin, if we publish one. */
-  ac4wpAbilityPackUrl?: string;
 }
 
 /** What the AI research job determines for a plugin. */

@@ -15,7 +15,6 @@ export default function StatusForm({ initial }: { initial: Plugin }) {
   const [name, setName] = useState(initial.name);
   const [link, setLink] = useState(initial.link ?? "");
   const [includesAbilities, setIncludesAbilities] = useState(initial.includesAbilities);
-  const [packUrl, setPackUrl] = useState(initial.ac4wpAbilityPackUrl ?? "");
   const [thirdParty, setThirdParty] = useState<ThirdPartyAbility[]>(initial.thirdPartyAbilities ?? []);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
@@ -47,7 +46,6 @@ export default function StatusForm({ initial }: { initial: Plugin }) {
           pluginSlug: t.pluginSlug.trim(),
           pluginLink: t.pluginLink.trim(),
         })),
-      ac4wpAbilityPackUrl: packUrl.trim() || undefined,
     };
     const res = await savePluginAction(plugin);
     setMsg(res.ok ? "Saved." : `Save failed: ${res.error}`);
@@ -87,23 +85,13 @@ export default function StatusForm({ initial }: { initial: Plugin }) {
         </label>
 
         <div>
-          <label className={labelCls}>Agent Connector ability pack URL</label>
-          <input
-            className={input}
-            value={packUrl}
-            onChange={(e) => setPackUrl(e.target.value)}
-            placeholder="https://github.com/soflyy/agent-connector-for-wp/tree/master/ability-packs/…"
-          />
-          <p className="mt-1 text-xs text-slate-400">Leave blank if there is no pack.</p>
-        </div>
-
-        <div>
           <div className="mb-2 flex items-center justify-between">
             <label className={labelCls + " mb-0"}>3rd-party abilities provided by</label>
             <button type="button" onClick={addRow} className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">
               + Add
             </button>
           </div>
+          <p className="mb-2 text-xs text-slate-400">Includes our own Agent Connector ability packs — add them here too.</p>
           <div className="space-y-3">
             {thirdParty.length === 0 && <p className="text-sm text-slate-400">None.</p>}
             {thirdParty.map((t, i) => (

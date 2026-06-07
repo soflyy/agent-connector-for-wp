@@ -64,23 +64,6 @@ export default async function PluginDetailPage({
           <dt className="text-slate-500">Includes abilities</dt>
           <dd><YesNo value={plugin.includesAbilities} /></dd>
         </div>
-        <div className="flex items-center justify-between px-4 py-3">
-          <dt className="text-slate-500">Agent Connector ability pack</dt>
-          <dd>
-            {plugin.ac4wpAbilityPackUrl ? (
-              <a
-                href={plugin.ac4wpAbilityPackUrl}
-                className="font-medium text-wp-blue hover:underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View pack →
-              </a>
-            ) : (
-              <span className="text-slate-400">No</span>
-            )}
-          </dd>
-        </div>
       </dl>
 
       <div className="mt-6">
