@@ -43,20 +43,16 @@ export default async function PluginDetailPage({
       desc: "This plugin's developers have registered first-party WordPress AI Abilities.",
     },
     unofficial: {
-      title: "Community plugin available",
-      desc: "No official AI Abilities yet, but a third-party plugin fills the gap.",
-    },
-    coming_soon: {
-      title: "AI Abilities coming soon",
-      desc: "The developer has announced AI support but hasn't shipped it yet.",
+      title: "Unofficial abilities available",
+      desc: "No official AI Abilities yet, but an unofficial ability pack fills the gap.",
     },
     none: {
-      title: "No AI integration yet",
-      desc: "This plugin hasn't shipped or announced AI Abilities. Know something? Submit an update.",
+      title: "AI ability status unknown",
+      desc: "We don't have a confirmed AI ability status for this plugin yet. Know something? Submit an update.",
     },
   };
 
-  const sh = statusHeadings[aiStatus.level];
+  const sh = statusHeadings[aiStatus.level] ?? statusHeadings.none;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
@@ -146,14 +142,6 @@ export default async function PluginDetailPage({
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {aiStatus.level === "coming_soon" && aiStatus.officialDocsUrl && (
-          <div className="rounded-lg bg-blue-50 p-4">
-            <a href={aiStatus.officialDocsUrl} className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline" target="_blank" rel="noopener noreferrer">
-              Follow the roadmap →
-            </a>
           </div>
         )}
 

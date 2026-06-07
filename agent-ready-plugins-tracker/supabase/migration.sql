@@ -15,7 +15,7 @@ create table if not exists plugins (
 
 create table if not exists ai_statuses (
   slug                text primary key references plugins(slug) on delete cascade,
-  level               text not null check (level in ('official', 'unofficial', 'coming_soon', 'none')),
+  level               text not null check (level in ('official', 'unofficial', 'none')),
   official_since      text,
   official_docs_url   text,
   abilities_count     integer,

@@ -7,10 +7,9 @@ import { PluginCard } from "./PluginCard";
 
 const STATUS_FILTERS: { value: AIStatusLevel | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "official", label: "Official AI" },
-  { value: "unofficial", label: "Unofficial Available" },
-  { value: "coming_soon", label: "Coming Soon" },
-  { value: "none", label: "Not Yet" },
+  { value: "official", label: "Official Abilities" },
+  { value: "unofficial", label: "Unofficial Abilities" },
+  { value: "none", label: "Unknown" },
 ];
 
 interface Props {
@@ -47,20 +46,21 @@ export function PluginDirectory({ plugins }: Props) {
   }, [plugins, query, statusFilter, categoryFilter]);
 
   const counts = useMemo(() => {
-    const c = { official: 0, unofficial: 0, coming_soon: 0, none: 0 };
-    plugins.forEach((p) => c[p.aiStatus.level]++);
+    const c = { official: 0, unofficial: 0, none: 0 };
+    plugins.forEach((p) => {
+      if (p.aiStatus.level in c) c[p.aiStatus.level as keyof typeof c]++;
+    });
     return c;
   }, [plugins]);
 
   return (
     <div>
       {/* Stats bar */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-3 gap-3">
         {[
-          { label: "Official AI", count: counts.official, color: "text-emerald-600" },
-          { label: "Unofficial Plugin", count: counts.unofficial, color: "text-amber-600" },
-          { label: "Coming Soon", count: counts.coming_soon, color: "text-blue-600" },
-          { label: "Not Yet", count: counts.none, color: "text-slate-500" },
+          { label: "Official Abilities", count: counts.official, color: "text-emerald-600" },
+          { label: "Unofficial Abilities", count: counts.unofficial, color: "text-amber-600" },
+          { label: "Unknown", count: counts.none, color: "text-slate-500" },
         ].map(({ label, count, color }) => (
           <div
             key={label}
@@ -131,8 +131,6 @@ export function PluginDirectory({ plugins }: Props) {
                   ? counts.official
                   : value === "unofficial"
                   ? counts.unofficial
-                  : value === "coming_soon"
-                  ? counts.coming_soon
                   : counts.none}
               </span>
             )}

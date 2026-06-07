@@ -5,8 +5,7 @@
  * Status levels:
  *   official      – Plugin ships first-party WordPress Abilities / MCP support
  *   unofficial    – A community plugin adds Abilities/MCP support for this plugin
- *   coming_soon   – Officially announced but not yet shipped
- *   none          – No known AI integration
+ *   none          – No known / confirmed AI integration (shown as "Unknown")
  *
  * CONTRIBUTING: Submit a PR to update this file, or use the /submit form.
  */
@@ -61,7 +60,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
   },
 
   "wordpress-seo": {
-    level: "coming_soon",
+    level: "unofficial",
     officialDocsUrl: "https://yoast.com/ai-seo-roadmap/",
     unofficialPlugins: [
       {
@@ -166,7 +165,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
   },
 
   "seo-by-rank-math": {
-    level: "coming_soon",
+    level: "none",
     officialDocsUrl: "https://rankmath.com/blog/ai-seo/",
     unofficialPlugins: [],
     lastVerified: TODAY,
