@@ -50,18 +50,28 @@ export async function POST(req: NextRequest) {
     return bad(urlCheck.error ?? "The plugin link doesn't resolve to a working site.");
   }
 
-  // 5. AI moderation — is this a real, listable WordPress plugin?
+  // 5. AI moderation — is this a real, listable WordPress plugin? The model also
+  //    returns the canonical name + "folder/main.php" slug read from public code.
   const verdict = await moderateSubmission({ name, slug, link });
   if (!verdict.approved) {
     return NextResponse.json({ ok: false, approved: false, error: `Not approved: ${verdict.reason}` });
   }
 
+  // Prefer the AI's canonical identity over the user's input.
+  const finalSlug = verdict.canonicalSlug && verdict.canonicalSlug.length < MAX_LEN ? verdict.canonicalSlug : slug;
+  const finalName = verdict.canonicalName && verdict.canonicalName.length < MAX_LEN ? verdict.canonicalName : name;
+
+  // If the canonical slug differs from what was submitted, re-check for a duplicate.
+  if (finalSlug !== slug && ((await pluginExists(finalSlug)) || (await getPluginByUrlSlug(folderSlug(finalSlug))))) {
+    return bad("That plugin is already in the directory.", 409);
+  }
+
   // Approved — add it. The daily AI check fills in abilities later.
   try {
-    await upsertPlugin({ slug, name, link, includesAbilities: false, thirdPartyAbilities: [] });
+    await upsertPlugin({ slug: finalSlug, name: finalName, link, includesAbilities: false, thirdPartyAbilities: [] });
   } catch {
     return bad("Approved, but saving failed — please try again.", 500);
   }
 
-  return NextResponse.json({ ok: true, approved: true, reason: verdict.reason });
+  return NextResponse.json({ ok: true, approved: true, reason: verdict.reason, name: finalName, slug: finalSlug });
 }
