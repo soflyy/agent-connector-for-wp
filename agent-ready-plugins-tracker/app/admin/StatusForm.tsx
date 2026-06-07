@@ -69,15 +69,14 @@ export default function StatusForm({
       notes: notes.trim() || undefined,
       lastVerified: initial.lastVerified ?? "",
     };
-    try {
-      await saveStatusAction(slug, status);
+    const res = await saveStatusAction(slug, status);
+    if (res.ok) {
       setMsg("Saved.");
       router.refresh();
-    } catch {
-      setMsg("Save failed.");
-    } finally {
-      setSaving(false);
+    } else {
+      setMsg(`Save failed: ${res.error}`);
     }
+    setSaving(false);
   }
 
   return (
