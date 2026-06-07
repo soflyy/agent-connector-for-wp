@@ -1,14 +1,12 @@
-import { generateObject } from "ai";
 import { z } from "zod";
-
-const MODEL = process.env.AI_RESEARCH_MODEL || "perplexity/sonar";
+import { webSearchObject } from "./ai";
 
 const schema = z.object({
   approved: z
     .boolean()
     .describe("true only if this is a real, identifiable WordPress plugin that belongs in the directory"),
   reason: z.string().describe("one short sentence explaining the decision"),
-  canonicalName: z.string().describe('the plugin\'s correct official name (empty string if unknown)'),
+  canonicalName: z.string().describe("the plugin's correct official name (empty string if unknown)"),
   canonicalSlug: z
     .string()
     .describe(
@@ -27,20 +25,16 @@ export interface ModerationResult {
 }
 
 /**
- * AI moderator for a public plugin submission. A web-capable model confirms the
- * plugin is real and, when it is, returns its canonical name + "folder/main.php"
- * slug (read from the plugin's public code, not guessed). Fails closed if the
- * gateway isn't configured or the call errors.
+ * AI moderator for a public plugin submission, using GPT-5 + web search. Confirms
+ * the plugin is real and, when it is, returns its canonical name + "folder/main.php"
+ * slug (read from the plugin's public code). Fails closed (not approved) if the
+ * model is unavailable or errors.
  */
 export async function moderateSubmission(input: {
   name: string;
   slug: string;
   link: string;
 }): Promise<ModerationResult> {
-  if (!process.env.AI_GATEWAY_API_KEY) {
-    return { approved: false, reason: "Moderation is unavailable right now — please try again later." };
-  }
-
   const prompt = `You are the moderator for a public directory of real WordPress plugins. A user submitted a plugin to be listed.
 
 Submission:
@@ -56,15 +50,14 @@ Step 2 — if (and only if) it's a real plugin, determine its CANONICAL identity
 
 Return approved, a one-sentence reason, canonicalName, and canonicalSlug.`;
 
-  try {
-    const { object } = await generateObject({ model: MODEL, schema, prompt, temperature: 0 });
-    return {
-      approved: object.approved,
-      reason: object.reason,
-      canonicalName: object.canonicalName?.trim() || undefined,
-      canonicalSlug: object.canonicalSlug?.trim() || undefined,
-    };
-  } catch {
+  const res = await webSearchObject({ prompt, schema });
+  if (!res.ok) {
     return { approved: false, reason: "Couldn't verify the submission automatically — please try again later." };
   }
+  return {
+    approved: res.object.approved,
+    reason: res.object.reason,
+    canonicalName: res.object.canonicalName?.trim() || undefined,
+    canonicalSlug: res.object.canonicalSlug?.trim() || undefined,
+  };
 }
