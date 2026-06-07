@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Plugin } from "@/lib/types";
-import { addPluginAction } from "./actions";
+import { addPluginAction, deletePluginAction } from "./actions";
 
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
@@ -76,6 +76,35 @@ export function AiCheckAllButton() {
       </button>
       {msg && <span className="text-sm text-slate-600">{msg}</span>}
     </div>
+  );
+}
+
+export function DeletePluginButton({ slug, name }: { slug: string; name: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function onDelete() {
+    if (!confirm(`Delete "${name}" (${slug})? This also removes its AI status and cannot be undone.`)) {
+      return;
+    }
+    setBusy(true);
+    const res = await deletePluginAction(slug);
+    if (res.ok) {
+      router.refresh();
+    } else {
+      alert(`Failed to delete: ${res.error}`);
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={onDelete}
+      disabled={busy}
+      className="text-red-600 hover:underline disabled:opacity-60"
+    >
+      {busy ? "Deleting…" : "Delete"}
+    </button>
   );
 }
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getAllPluginsWithStatus } from "@/lib/db";
-import { AddPluginForm, AiCheckAllButton, AiCheckButton, LogoutButton } from "./AdminClient";
+import { AddPluginForm, AiCheckAllButton, AiCheckButton, DeletePluginButton, LogoutButton } from "./AdminClient";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +69,7 @@ export default async function AdminPage() {
                       <Link href={`/admin/plugins/${p.slug}`} className="text-wp-blue hover:underline">
                         Edit
                       </Link>
+                      <DeletePluginButton slug={p.slug} name={p.name} />
                     </div>
                   </td>
                 </tr>
