@@ -44,6 +44,19 @@ export default function StatusForm({
     setUnofficial((rows) => rows.filter((_, idx) => idx !== i));
   }
 
+  function loadSuggestion() {
+    const s = initial.suggestion;
+    if (!s) return;
+    setLevel(s.level);
+    setOfficialSince(s.officialSince ?? "");
+    setOfficialDocsUrl(s.officialDocsUrl ?? "");
+    setAbilitiesCount(s.abilitiesCount != null ? String(s.abilitiesCount) : "");
+    setAbilitiesText((s.abilities ?? []).join("\n"));
+    setNotes(s.notes ?? "");
+    setUnofficial(s.unofficialPlugins ?? []);
+    setMsg("Loaded AI suggestion into the form — review and Save.");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -88,6 +101,43 @@ export default function StatusForm({
       <p className="mb-6 text-sm text-slate-500">
         <code>{slug}</code> — AI ability status
       </p>
+
+      {initial.suggestion && (
+        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <strong className="text-slate-900">AI suggestion</strong>
+            <button
+              type="button"
+              onClick={loadSuggestion}
+              className="rounded-md border border-blue-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-blue-100"
+            >
+              Load into form
+            </button>
+          </div>
+          <p className="mt-1 text-slate-600">
+            level <strong>{initial.suggestion.level}</strong> · confidence {initial.suggestion.confidence}
+            {initial.suggestion.checkedAt ? ` · checked ${initial.suggestion.checkedAt.slice(0, 10)}` : ""}
+          </p>
+          {initial.suggestion.notes && <p className="mt-1 text-slate-600">{initial.suggestion.notes}</p>}
+          {initial.suggestion.sources?.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-xs text-slate-500">
+              {initial.suggestion.sources.slice(0, 6).map((u, i) => (
+                <li key={i}>
+                  <a href={u} target="_blank" rel="noopener noreferrer" className="break-all text-wp-blue hover:underline">
+                    {u}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+          {initial.source === "manual" && (
+            <p className="mt-2 text-xs text-amber-700">
+              This status is manually curated, so the daily AI check won&apos;t overwrite it. Use “Load into form”
+              to apply the suggestion, then Save.
+            </p>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>

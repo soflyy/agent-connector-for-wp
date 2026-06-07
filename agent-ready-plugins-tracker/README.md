@@ -67,11 +67,35 @@ you can:
 Writes go through server actions that re-check the admin session; the older
 `PUT /api/admin/status` (bearer-token) endpoint still works for scripted updates.
 
+## AI status check (Vercel AI Gateway)
+
+The directory can keep itself current by researching each plugin's AI-ability status with
+live web search and writing typed results to the DB.
+
+- **How:** [`lib/ai-research.ts`](lib/ai-research.ts) calls a search-capable model through the
+  **Vercel AI Gateway** (default `perplexity/sonar` — live web search + citations) with the AI
+  SDK's `generateObject` + a Zod schema, returning `{ level, officialSince, officialDocsUrl,
+  abilities, unofficialPlugins, notes, sources, confidence }`.
+- **Apply policy:** results auto-apply to a plugin's status **except** statuses an admin edited
+  by hand (`source = manual`) — those keep the human edit, and the AI result is stored as a
+  `suggestion` you can review and "Load into form" on the edit page.
+- **Schedule:** a daily Vercel **cron** ([`vercel.json`](vercel.json)) hits
+  `GET /api/admin/ai-check` (authorized by `CRON_SECRET`) and re-checks the
+  least-recently-checked `AI_CHECK_BATCH` plugins (default 25), cycling through the whole
+  directory over days.
+- **Manual:** the admin dashboard has **Run AI check now** (batch) and per-plugin
+  **Re-check (AI)** buttons, which call `POST /api/admin/ai-check`.
+
+Required env: `AI_GATEWAY_API_KEY`, `CRON_SECRET`. Optional: `AI_RESEARCH_MODEL`,
+`AI_CHECK_BATCH`. Perplexity web search via the gateway bills ~\$5 / 1,000 searches plus tokens.
+
 ## Database
 
 Run [`supabase/migration.sql`](supabase/migration.sql) against your Supabase project to
-create the schema. Seed data lives in [`data/`](data/); the seed and admin endpoints under
-[`app/api/`](app/) are guarded by `SEED_SECRET` / `ADMIN_SECRET`.
+create the schema (existing databases: also run
+[`supabase/migration-ai-check.sql`](supabase/migration-ai-check.sql) for the AI-check columns).
+Seed data lives in [`data/`](data/); the seed and admin endpoints under [`app/api/`](app/) are
+guarded by `SEED_SECRET` / `ADMIN_SECRET`.
 
 ## Deployment (Vercel)
 
