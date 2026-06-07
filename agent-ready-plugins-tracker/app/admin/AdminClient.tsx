@@ -49,8 +49,8 @@ export function AddPluginForm() {
       categories: [],
       activeInstalls: "",
     };
-    try {
-      await addPluginAction(plugin);
+    const res = await addPluginAction(plugin);
+    if (res.ok) {
       setMsg(`Added ${plugin.slug}.`);
       setSlug("");
       setName("");
@@ -58,11 +58,10 @@ export function AddPluginForm() {
       setAuthor("");
       setWpOrgUrl("");
       router.refresh();
-    } catch {
-      setMsg("Failed to add plugin.");
-    } finally {
-      setBusy(false);
+    } else {
+      setMsg(`Failed: ${res.error}`);
     }
+    setBusy(false);
   }
 
   return (
@@ -97,12 +96,10 @@ export function SubmissionItem({ submission }: { submission: Submission }) {
         disabled={busy}
         onClick={async () => {
           setBusy(true);
-          try {
-            await reviewSubmissionAction(submission.id);
-            router.refresh();
-          } finally {
-            setBusy(false);
-          }
+          const res = await reviewSubmissionAction(submission.id);
+          if (res.ok) router.refresh();
+          else alert(res.error);
+          setBusy(false);
         }}
         className="shrink-0 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
       >
