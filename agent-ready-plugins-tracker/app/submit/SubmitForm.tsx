@@ -73,7 +73,8 @@ export default function SubmitForm() {
       });
       const data = await res.json().catch(() => ({}));
       if (data?.ok) {
-        setResult({ kind: "ok", message: data.reason || "Approved and added to the directory!" });
+        const added = data.name ? `Added “${data.name}” (${data.slug}).` : "Approved and added to the directory!";
+        setResult({ kind: "ok", message: data.reason ? `${added} ${data.reason}` : added });
         setName("");
         setSlug("");
         setLink("");
