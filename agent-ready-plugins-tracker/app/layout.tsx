@@ -28,12 +28,32 @@ export default function RootLayout({
           <p>
             WP AI Ready is a community resource.{" "}
             <a
-              href="https://github.com/your-org/wp-ai-ready"
+              href="/about"
               className="hover:text-slate-600 hover:underline"
             >
-              Contribute on GitHub
+              About
             </a>{" "}
-            · Data verified by the community
+            ·{" "}
+            <a
+              href="/contribute"
+              className="hover:text-slate-600 hover:underline"
+            >
+              Contribute
+            </a>{" "}
+            ·{" "}
+            <a
+              href="https://github.com/soflyy/agent-connector-for-wp"
+              className="hover:text-slate-600 hover:underline"
+            >
+              GitHub
+            </a>{" "}
+            ·{" "}
+            <a
+              href="/disclaimer"
+              className="hover:text-slate-600 hover:underline"
+            >
+              Disclaimer
+            </a>
           </p>
         </footer>
       </body>

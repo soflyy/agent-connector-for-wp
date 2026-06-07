@@ -18,6 +18,18 @@ export function Header() {
             Directory
           </Link>
           <Link
+            href="/about"
+            className="text-slate-600 transition-colors hover:text-slate-900"
+          >
+            About
+          </Link>
+          <Link
+            href="/contribute"
+            className="text-slate-600 transition-colors hover:text-slate-900"
+          >
+            Contribute
+          </Link>
+          <Link
             href="/submit"
             className="rounded-lg bg-wp-blue px-3.5 py-1.5 font-medium text-white transition-colors hover:bg-wp-blue-dark"
           >
