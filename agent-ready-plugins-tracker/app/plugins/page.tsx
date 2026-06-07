@@ -12,9 +12,9 @@ export const revalidate = 3600;
 export default async function PluginsPage() {
   const plugins = await getAllPluginsWithStatus();
 
-  const ORDER: Record<string, number> = { official: 0, unofficial: 1, coming_soon: 2, none: 3 };
+  const ORDER: Record<string, number> = { official: 0, unofficial: 1, none: 2 };
   plugins.sort((a, b) => {
-    const diff = ORDER[a.aiStatus.level] - ORDER[b.aiStatus.level];
+    const diff = (ORDER[a.aiStatus.level] ?? 99) - (ORDER[b.aiStatus.level] ?? 99);
     return diff !== 0 ? diff : a.name.localeCompare(b.name);
   });
 

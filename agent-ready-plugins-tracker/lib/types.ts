@@ -1,4 +1,4 @@
-export type AIStatusLevel = "official" | "unofficial" | "coming_soon" | "none";
+export type AIStatusLevel = "official" | "unofficial" | "none";
 
 export type PluginCategory =
   | "ecommerce"

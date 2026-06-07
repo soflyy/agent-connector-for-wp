@@ -8,7 +8,6 @@ export const dynamic = "force-dynamic";
 const BADGE: Record<string, string> = {
   official: "bg-green-100 text-green-800",
   unofficial: "bg-amber-100 text-amber-800",
-  coming_soon: "bg-blue-100 text-blue-800",
   none: "bg-slate-100 text-slate-500",
 };
 

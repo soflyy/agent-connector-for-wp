@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { AIStatus, AIStatusLevel, UnofficialPlugin } from "@/lib/types";
 import { saveStatusAction } from "./actions";
 
-const LEVELS: AIStatusLevel[] = ["official", "unofficial", "coming_soon", "none"];
+const LEVELS: AIStatusLevel[] = ["official", "unofficial", "none"];
 
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
