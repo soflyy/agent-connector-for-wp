@@ -7,6 +7,12 @@ import type { z } from "zod";
 // AI_GATEWAY_API_KEY). Override the model with AI_RESEARCH_MODEL.
 export const RESEARCH_MODEL = process.env.AI_RESEARCH_MODEL || "openai/gpt-5";
 
+// Keep calls fast: shallow reasoning + a small search context, with a hard
+// timeout backstop so a call can never hang for minutes. Override via env.
+const REASONING_EFFORT = process.env.AI_REASONING_EFFORT || "low";
+const SEARCH_CONTEXT_SIZE = (process.env.AI_SEARCH_CONTEXT_SIZE || "low") as "low" | "medium" | "high";
+const TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || "45000");
+
 /** Everything sent to / returned from the model for one call — surfaced in admin. */
 export interface WebSearchDebug {
   model: string;
@@ -44,9 +50,11 @@ export async function webSearchObject<T>(opts: {
   try {
     const result = await generateText({
       model, // bare id ("openai/gpt-5") → resolved via the Vercel AI Gateway
-      tools: { web_search: openai.tools.webSearch({}) },
+      tools: { web_search: openai.tools.webSearch({ searchContextSize: SEARCH_CONTEXT_SIZE }) },
       prompt: opts.prompt,
       experimental_output: Output.object({ schema: opts.schema }),
+      providerOptions: { openai: { reasoningEffort: REASONING_EFFORT } },
+      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
     });
     debug.request = result.request?.body;
     debug.rawResponse = result.response?.body;
@@ -65,6 +73,8 @@ export async function webSearchObject<T>(opts: {
     const err = e as { request?: { body?: unknown }; response?: { body?: unknown }; text?: unknown };
     debug.request = err?.request?.body ?? debug.request;
     debug.rawResponse = err?.response?.body ?? err?.text ?? null;
-    return { ok: false, error: e instanceof Error ? e.message : String(e), debug };
+    const aborted = e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
+    const message = aborted ? `Timed out after ${Math.round(TIMEOUT_MS / 1000)}s.` : e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message, debug };
   }
 }

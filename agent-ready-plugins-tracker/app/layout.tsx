@@ -24,37 +24,6 @@ export default function RootLayout({
       <body className={`${inter.className} bg-slate-50 text-slate-900`}>
         <Header />
         {children}
-        <footer className="mt-16 border-t border-slate-200 bg-white py-8 text-center text-sm text-slate-400">
-          <p>
-            Agent Ready Plugins Tracker{" "}
-            <span className="px-1">·</span>{" "}
-            <a href="/about" className="hover:text-slate-600 hover:underline">
-              About
-            </a>{" "}
-            ·{" "}
-            <a href="/updates" className="hover:text-slate-600 hover:underline">
-              Updates
-            </a>{" "}
-            ·{" "}
-            <a
-              href="/contribute"
-              className="hover:text-slate-600 hover:underline"
-            >
-              Contribute
-            </a>{" "}
-            ·{" "}
-            <a
-              href="https://github.com/soflyy/agent-connector-for-wp"
-              className="hover:text-slate-600 hover:underline"
-            >
-              GitHub
-            </a>{" "}
-            ·{" "}
-            <a href="/disclaimer" className="hover:text-slate-600 hover:underline">
-              Disclaimer
-            </a>
-          </p>
-        </footer>
       </body>
     </html>
   );
