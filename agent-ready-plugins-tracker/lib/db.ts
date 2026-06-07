@@ -34,6 +34,14 @@ export async function getPluginByUrlSlug(urlSlug: string): Promise<Plugin | null
   return data ? rowToPlugin(data) : null;
 }
 
+/** Whether a plugin with this exact slug (plugin file) already exists. */
+export async function pluginExists(slug: string): Promise<boolean> {
+  const supabase = getClient();
+  if (!supabase) return false;
+  const { data } = await supabase.from("plugins").select("slug").eq("slug", slug).maybeSingle();
+  return !!data;
+}
+
 /** Look up a plugin by its primary key (the full plugin file). */
 export async function getPlugin(slug: string): Promise<Plugin | null> {
   const supabase = getClient();
