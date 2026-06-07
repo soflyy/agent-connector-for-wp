@@ -21,7 +21,7 @@ export async function generateMetadata({
   const plugin = await getPluginWithStatus(slug);
   if (!plugin) return {};
   return {
-    title: `${plugin.name} AI Status — WP AI Ready`,
+    title: `${plugin.name} — Agent Ready Plugins Tracker`,
     description: `Does ${plugin.name} have WordPress AI Abilities or an MCP adapter? Check the latest status.`,
   };
 }
@@ -48,7 +48,7 @@ export default async function PluginDetailPage({
     },
     none: {
       title: "AI ability status unknown",
-      desc: "We don't have a confirmed AI ability status for this plugin yet. Know something? Submit an update.",
+      desc: "We don't have a confirmed AI ability status for this plugin yet.",
     },
   };
 
@@ -57,7 +57,7 @@ export default async function PluginDetailPage({
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
       <nav className="mb-6 text-sm text-slate-500">
-        <Link href="/plugins" className="hover:text-slate-700">Directory</Link>{" "}
+        <Link href="/" className="hover:text-slate-700">Directory</Link>{" "}
         / <span className="text-slate-900">{plugin.name}</span>
       </nav>
 
@@ -159,7 +159,7 @@ export default async function PluginDetailPage({
       {/* Unofficial plugins */}
       {aiStatus.unofficialPlugins.length > 0 && (
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">Community AI Plugins</h2>
+          <h2 className="mb-4 text-lg font-semibold text-slate-900">Unofficial ability packs</h2>
           <div className="space-y-4">
             {aiStatus.unofficialPlugins.map((up) => (
               <div key={up.pluginUrl} className="rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -184,10 +184,11 @@ export default async function PluginDetailPage({
 
       <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center">
         <p className="mb-3 text-slate-600">
-          Is this information outdated? Know of a community plugin or official announcement we missed?
+          Information here is AI-generated and may be out of date. Spotted
+          something wrong, or want to add an ability pack for this plugin?
         </p>
-        <Link href={`/submit?plugin=${slug}`} className="inline-block rounded-lg bg-wp-blue px-5 py-2.5 font-medium text-white transition-colors hover:bg-wp-blue-dark">
-          Submit an update
+        <Link href="/contribute" className="inline-block rounded-lg bg-wp-blue px-5 py-2.5 font-medium text-white transition-colors hover:bg-wp-blue-dark">
+          How to contribute
         </Link>
       </div>
     </main>

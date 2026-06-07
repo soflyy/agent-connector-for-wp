@@ -59,7 +59,7 @@ export function PluginCard({ plugin }: Props) {
         )}
         {hasUnofficial && (
           <span className="text-amber-600">
-            {aiStatus.unofficialPlugins!.length} community plugin
+            {aiStatus.unofficialPlugins!.length} unofficial pack
             {aiStatus.unofficialPlugins!.length !== 1 ? "s" : ""}
           </span>
         )}

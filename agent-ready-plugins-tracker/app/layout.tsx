@@ -6,12 +6,12 @@ import { Header } from "@/components/Header";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "WP AI Ready — WordPress Plugin AI Directory",
+  title: "Agent Ready Plugins Tracker",
   description:
-    "Track which WordPress plugins have official AI Abilities, unofficial MCP adapters, or no AI integration yet.",
+    "Track which WordPress plugins have official AI Abilities, an unofficial auto-generated ability pack, or no AI integration yet.",
   openGraph: {
-    title: "WP AI Ready",
-    description: "Which WordPress plugins are AI ready?",
+    title: "Agent Ready Plugins Tracker",
+    description: "Which WordPress plugins can AI agents drive?",
     type: "website",
   },
 };
@@ -26,12 +26,14 @@ export default function RootLayout({
         {children}
         <footer className="mt-16 border-t border-slate-200 bg-white py-8 text-center text-sm text-slate-400">
           <p>
-            WP AI Ready is a community resource.{" "}
-            <a
-              href="/about"
-              className="hover:text-slate-600 hover:underline"
-            >
+            Agent Ready Plugins Tracker{" "}
+            <span className="px-1">·</span>{" "}
+            <a href="/about" className="hover:text-slate-600 hover:underline">
               About
+            </a>{" "}
+            ·{" "}
+            <a href="/updates" className="hover:text-slate-600 hover:underline">
+              Updates
             </a>{" "}
             ·{" "}
             <a
@@ -48,10 +50,7 @@ export default function RootLayout({
               GitHub
             </a>{" "}
             ·{" "}
-            <a
-              href="/disclaimer"
-              className="hover:text-slate-600 hover:underline"
-            >
+            <a href="/disclaimer" className="hover:text-slate-600 hover:underline">
               Disclaimer
             </a>
           </p>

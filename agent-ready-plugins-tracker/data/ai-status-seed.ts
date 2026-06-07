@@ -4,10 +4,10 @@
  *
  * Status levels:
  *   official      – Plugin ships first-party WordPress Abilities / MCP support
- *   unofficial    – A community plugin adds Abilities/MCP support for this plugin
+ *   unofficial    – An auto-generated ability pack adds Abilities/MCP support
  *   none          – No known / confirmed AI integration (shown as "Unknown")
  *
- * CONTRIBUTING: Submit a PR to update this file, or use the /submit form.
+ * CONTRIBUTING: open a PR to update this file. See /contribute.
  */
 import type { AIStatus } from "@/lib/types";
 
@@ -69,7 +69,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
           "https://github.com/wp-mcp/yoast-seo-mcp",
         description:
           "Exposes Yoast SEO's focus keywords, readability scores, and meta data as MCP tools so AI assistants can read and improve page SEO.",
-        author: "wp-mcp community",
+        author: "WP MCP",
         authorUrl: "https://github.com/wp-mcp",
       },
     ],
@@ -87,7 +87,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
           "https://github.com/wp-mcp/elementor-abilities",
         description:
           "Registers Abilities for reading and modifying Elementor page structure, sections, and widget settings via WordPress AI.",
-        author: "wp-mcp community",
+        author: "WP MCP",
         authorUrl: "https://github.com/wp-mcp",
       },
     ],
@@ -103,7 +103,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
           "https://github.com/wp-mcp/cf7-mcp-bridge",
         description:
           "Exposes Contact Form 7 form definitions and submissions as MCP tools — lets AI list forms, read submissions, and create or update form configurations.",
-        author: "wp-mcp community",
+        author: "WP MCP",
         authorUrl: "https://github.com/wp-mcp",
       },
     ],
@@ -180,7 +180,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
         pluginUrl: "https://github.com/wp-mcp/acf-abilities",
         description:
           "Register WordPress AI Abilities to read, create, and update ACF field groups and field values on posts and custom post types.",
-        author: "wp-mcp community",
+        author: "WP MCP",
         authorUrl: "https://github.com/wp-mcp",
       },
     ],
@@ -215,7 +215,7 @@ export const AI_STATUS_SEED: Record<string, AIStatus> = {
         pluginUrl: "https://github.com/wp-mcp/gravity-forms-mcp",
         description:
           "Exposes Gravity Forms as MCP tools: read form definitions, list entries, create entries, and manage form notifications via AI.",
-        author: "wp-mcp community",
+        author: "WP MCP",
         authorUrl: "https://github.com/wp-mcp",
       },
     ],
