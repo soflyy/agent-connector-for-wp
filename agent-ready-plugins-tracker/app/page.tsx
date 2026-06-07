@@ -4,9 +4,11 @@ import { getAllPluginsWithStatus } from "@/lib/db";
 // Always render from the live database — no static/ISR snapshot.
 export const dynamic = "force-dynamic";
 
-function YesNo({ value }: { value: boolean }) {
-  return value ? (
-    <span className="font-medium text-emerald-600">Yes</span>
+function Ability({ has }: { has: boolean }) {
+  return has ? (
+    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+      Yes
+    </span>
   ) : (
     <span className="text-slate-300">—</span>
   );
@@ -23,53 +25,45 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
-      <h1 className="mb-8 text-3xl font-bold text-slate-900">
+      <h1 className="mb-8 text-3xl font-bold tracking-tight text-slate-900">
         Agent Ready Plugins Tracker
       </h1>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-2 font-medium">Plugin</th>
-              <th className="px-4 py-2 font-medium">Slug</th>
-              <th className="px-4 py-2 font-medium">Official abilities</th>
-              <th className="px-4 py-2 font-medium">Unofficial abilities</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {plugins.map((p) => {
-              const hasOfficial = p.aiStatus.level === "official";
-              const hasUnofficial =
-                p.aiStatus.level === "unofficial" || p.aiStatus.unofficialPlugins.length > 0;
-              return (
-                <tr key={p.slug} className="hover:bg-slate-50">
-                  <td className="px-4 py-2">
-                    <Link href={`/plugins/${p.slug}`} className="font-medium text-slate-900 hover:text-wp-blue hover:underline">
-                      {p.name}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2">
-                    <code className="text-xs text-slate-400">{p.slug}</code>
-                  </td>
-                  <td className="px-4 py-2">
-                    <YesNo value={hasOfficial} />
-                  </td>
-                  <td className="px-4 py-2">
-                    <YesNo value={hasUnofficial} />
-                  </td>
-                </tr>
-              );
-            })}
-            {plugins.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
-                  No plugins tracked yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        {/* Header */}
+        <div className="grid grid-cols-[1fr_7rem_7rem] items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+          <div>Plugin</div>
+          <div className="text-center">Official</div>
+          <div className="text-center">Unofficial</div>
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-slate-100">
+          {plugins.map((p) => {
+            const hasOfficial = p.aiStatus.level === "official";
+            const hasUnofficial =
+              p.aiStatus.level === "unofficial" || p.aiStatus.unofficialPlugins.length > 0;
+            return (
+              <Link
+                key={p.slug}
+                href={`/plugins/${p.slug}`}
+                className="grid grid-cols-[1fr_7rem_7rem] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50"
+              >
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-slate-900">{p.name}</div>
+                  <code className="text-xs text-slate-400">{p.slug}</code>
+                </div>
+                <div className="text-center"><Ability has={hasOfficial} /></div>
+                <div className="text-center"><Ability has={hasUnofficial} /></div>
+              </Link>
+            );
+          })}
+          {plugins.length === 0 && (
+            <p className="px-5 py-10 text-center text-sm text-slate-400">
+              No plugins tracked yet.
+            </p>
+          )}
+        </div>
       </div>
     </main>
   );
