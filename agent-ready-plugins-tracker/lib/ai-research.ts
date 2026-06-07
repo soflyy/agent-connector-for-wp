@@ -9,11 +9,11 @@ const MODEL = process.env.AI_RESEARCH_MODEL || "perplexity/sonar";
 
 const schema = z.object({
   level: z
-    .enum(["official", "unofficial", "coming_soon", "none"])
+    .enum(["official", "unofficial", "none"])
     .describe(
       "official = the plugin ships its own AI abilities (e.g. via the WordPress Abilities API / MCP). " +
         "unofficial = no first-party support, but a third-party plugin/extension adds AI abilities or an MCP server for it. " +
-        "coming_soon = official support publicly announced but not yet shipped. none = no known AI ability support."
+        "none = no known AI ability support (use this also if official support is only announced/not yet shipped)."
     ),
   officialSince: z.string().optional().describe("Plugin version that introduced official AI abilities, if official."),
   officialDocsUrl: z.string().optional().describe("URL to official docs/announcement/roadmap."),
@@ -48,10 +48,9 @@ export async function researchPluginStatus(slug: string, name: string): Promise<
   const prompt = `You are researching whether the WordPress plugin "${name}" (wordpress.org slug "${slug}") supports AI "abilities" as of today.
 
 Determine, using current web sources:
-- Does the plugin ship FIRST-PARTY AI abilities (e.g. via the WordPress Abilities API introduced in WP 6.9, the WordPress MCP Adapter, or its own MCP server)? If so, which version added them, link the docs, and list the abilities.
-- Is there official support only ANNOUNCED but not yet released (coming_soon)?
-- Otherwise, are there THIRD-PARTY/unofficial plugins or MCP servers that add AI abilities for this plugin? List each with its URL and author.
-- If you find nothing credible, use level "none".
+- Does the plugin ship FIRST-PARTY AI abilities (e.g. via the WordPress Abilities API introduced in WP 6.9, the WordPress MCP Adapter, or its own MCP server)? If so, which version added them, link the docs, and list the abilities (level "official").
+- Otherwise, are there THIRD-PARTY/unofficial plugins or MCP servers that add AI abilities for this plugin? List each with its URL and author (level "unofficial").
+- If you find nothing credible (or official support is only announced, not yet shipped), use level "none".
 
 Be conservative: only claim "official" with a credible first-party source. Always include the source URLs you relied on, and a confidence level.`;
 
