@@ -1,24 +1,27 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-auth";
-import { getAllPluginsWithStatus } from "@/lib/db";
+import { getAllPlugins } from "@/lib/db";
 import { AddPluginForm, AiCheckAllButton, AiCheckButton, DeletePluginButton, LogoutButton } from "./AdminClient";
 
 export const dynamic = "force-dynamic";
 
-const BADGE: Record<string, string> = {
-  official: "bg-green-100 text-green-800",
-  unofficial: "bg-amber-100 text-amber-800",
-  none: "bg-slate-100 text-slate-500",
-};
+function YesNo({ on }: { on: boolean }) {
+  return on ? (
+    <span className="font-medium text-emerald-600">Yes</span>
+  ) : (
+    <span className="text-slate-300">—</span>
+  );
+}
 
 export default async function AdminPage() {
   await requireAdmin();
-  const plugins = await getAllPluginsWithStatus();
+  const plugins = await getAllPlugins();
+  plugins.sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Admin — AI statuses</h1>
+        <h1 className="text-2xl font-bold text-slate-900">Admin — plugins</h1>
         <LogoutButton />
       </div>
 
@@ -30,18 +33,18 @@ export default async function AdminPage() {
           <AiCheckAllButton />
         </div>
         <p className="mb-3 text-sm text-slate-500">
-          The AI check researches each plugin&apos;s current AI-ability status via web search and writes the
-          result here. It runs daily (least-recently-checked first) and overwrites everything except statuses
-          you&apos;ve edited by hand (those keep your edits; the AI result is saved as a suggestion).
+          The AI check researches each plugin via web search and sets two things — whether the plugin ships
+          official abilities, and which third-party plugins provide abilities for it. It runs daily
+          (least-recently-checked first). The ability-pack link is curated by hand and never overwritten.
         </p>
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
                 <th className="px-4 py-2 font-medium">Plugin</th>
-                <th className="px-4 py-2 font-medium">Level</th>
-                <th className="px-4 py-2 font-medium">Source</th>
-                <th className="px-4 py-2 font-medium">Checked</th>
+                <th className="px-4 py-2 font-medium">Official</th>
+                <th className="px-4 py-2 font-medium">3rd-party</th>
+                <th className="px-4 py-2 font-medium">AC4WP pack</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -52,21 +55,13 @@ export default async function AdminPage() {
                     <span className="font-medium text-slate-900">{p.name}</span>{" "}
                     <code className="text-xs text-slate-400">{p.slug}</code>
                   </td>
-                  <td className="px-4 py-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGE[p.aiStatus.level] ?? BADGE.none}`}>
-                      {p.aiStatus.level}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">
-                    {p.aiStatus.source === "manual" ? "✎ manual" : p.aiStatus.source === "ai" ? "AI" : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-slate-500">
-                    {p.aiStatus.autoCheckedAt ? p.aiStatus.autoCheckedAt.slice(0, 10) : "never"}
-                  </td>
+                  <td className="px-4 py-2"><YesNo on={p.includesAbilities} /></td>
+                  <td className="px-4 py-2 text-slate-500">{p.thirdPartyAbilities.length || "—"}</td>
+                  <td className="px-4 py-2"><YesNo on={!!p.ac4wpAbilityPackUrl} /></td>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-3">
                       <AiCheckButton slug={p.slug} />
-                      <Link href={`/admin/plugins/${p.slug}`} className="text-wp-blue hover:underline">
+                      <Link href={`/admin/plugins/${p.urlSlug}`} className="text-wp-blue hover:underline">
                         Edit
                       </Link>
                       <DeletePluginButton slug={p.slug} name={p.name} />
@@ -89,7 +84,8 @@ export default async function AdminPage() {
       <section className="mb-10">
         <h2 className="mb-3 text-lg font-semibold text-slate-900">Add a plugin</h2>
         <p className="mb-3 text-sm text-slate-500">
-          A plugin must exist before you can set its AI status. Add it here, then click Edit above.
+          Add a plugin by its file (e.g. <code>woocommerce/woocommerce.php</code>), then click Edit to fill in
+          the rest — or run the AI check to populate it automatically.
         </p>
         <AddPluginForm />
       </section>

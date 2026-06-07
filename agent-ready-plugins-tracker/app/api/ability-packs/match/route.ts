@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStatusesForSlugs } from "@/lib/db";
+import { getTrackedUrlSlugs } from "@/lib/db";
 
 // Public, server-to-server endpoint hit by the Agent Connector for WP plugin.
 // A site POSTs the plugins it has installed; we return the ability packs that
@@ -93,29 +93,16 @@ export async function POST(req: NextRequest) {
     return wanted.has(folderSlug(target)) || wanted.has(target);
   });
 
-  // Enrich with per-plugin AI status (official built-in / third-party unofficial
-  // extensions) from the directory DB, so the site can show the full picture —
-  // not just our own packs. Best-effort: an unconfigured/erroring DB yields [].
-  let statuses: object[] = [];
+  // Which of the installed plugins exist in the directory (by URL slug). The WP
+  // plugin uses this to decide which rows link out to a directory detail page —
+  // it no longer renders status data itself. Best-effort: an unconfigured/erroring
+  // DB yields []. Returns URL slugs ("woocommerce"), not full plugin files.
+  let tracked: string[] = [];
   try {
-    const map = await getStatusesForSlugs([...wanted]);
-    statuses = Object.entries(map).map(([slug, s]) => ({
-      slug,
-      level: s.level,
-      official_since: s.officialSince ?? null,
-      official_docs_url: s.officialDocsUrl ?? null,
-      abilities_count: s.abilitiesCount ?? null,
-      unofficial_plugins: (s.unofficialPlugins ?? []).map((u) => ({
-        name: u.name,
-        plugin_url: u.pluginUrl,
-        description: u.description,
-        author: u.author,
-        author_url: u.authorUrl ?? null,
-      })),
-    }));
+    tracked = await getTrackedUrlSlugs([...wanted]);
   } catch {
-    statuses = [];
+    tracked = [];
   }
 
-  return NextResponse.json({ entries, statuses });
+  return NextResponse.json({ entries, tracked });
 }

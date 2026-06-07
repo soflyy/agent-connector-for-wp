@@ -1,103 +1,32 @@
-export type AIStatusLevel = "official" | "unofficial" | "none";
-
-export type PluginCategory =
-  | "ecommerce"
-  | "seo"
-  | "security"
-  | "forms"
-  | "page-builder"
-  | "performance"
-  | "marketing"
-  | "analytics"
-  | "backup"
-  | "membership"
-  | "content"
-  | "social"
-  | "media"
-  | "other";
-
-export const CATEGORY_LABELS: Record<PluginCategory, string> = {
-  ecommerce: "E-Commerce",
-  seo: "SEO",
-  security: "Security",
-  forms: "Forms",
-  "page-builder": "Page Builder",
-  performance: "Performance",
-  marketing: "Marketing",
-  analytics: "Analytics",
-  backup: "Backup",
-  membership: "Membership",
-  content: "Content",
-  social: "Social",
-  media: "Media",
-  other: "Other",
-};
-
-export interface UnofficialPlugin {
-  name: string;
-  pluginUrl: string;
-  description: string;
-  author: string;
-  authorUrl?: string;
-}
-
-/** Who last set the live status: a human admin, or the AI research job. */
-export type AIStatusSource = "manual" | "ai";
-
-export interface AIStatus {
-  level: AIStatusLevel;
-  /** Plugin version that added official AI abilities */
-  officialSince?: string;
-  /** Link to official docs, changelog, or announcement */
-  officialDocsUrl?: string;
-  /** Number of abilities registered */
-  abilitiesCount?: number;
-  /** Abilities this plugin exposes (e.g. "search_products", "create_order") */
-  abilities?: string[];
-  unofficialPlugins: UnofficialPlugin[];
-  notes?: string;
-  /** ISO 8601 date this status was last verified */
-  lastVerified: string;
-  /** Source-evidence URLs backing this status (from the AI check). */
-  sources?: string[];
-  /** AI's confidence in this status: "high" | "medium" | "low". */
-  confidence?: string;
-  /** Whether the live status was last set manually or by the AI job. */
-  source?: AIStatusSource;
-  /** ISO timestamp of the most recent AI check (regardless of whether applied). */
-  autoCheckedAt?: string;
-  /** Latest AI result, kept even when not applied (manual-locked plugins). */
-  suggestion?: AISuggestion | null;
-}
-
-/** A structured AI research result for a plugin's AI-ability status. */
-export interface AISuggestion {
-  level: AIStatusLevel;
-  officialSince?: string;
-  officialDocsUrl?: string;
-  abilitiesCount?: number;
-  abilities?: string[];
-  unofficialPlugins: UnofficialPlugin[];
-  notes?: string;
-  sources: string[];
-  confidence: string;
-  checkedAt: string;
+/** A third-party plugin that provides AI abilities for another plugin. */
+export interface ThirdPartyAbility {
+  pluginName: string;
+  /** wordpress.org slug or plugin folder of the third-party plugin. */
+  pluginSlug: string;
+  /** URL to that plugin (.org page or commercial page). */
+  pluginLink: string;
 }
 
 export interface Plugin {
+  /** WP plugin file: "woocommerce/woocommerce.php". Primary identifier. */
   slug: string;
+  /** URL-safe slug derived from `slug` ("woocommerce"). Present on reads. */
+  urlSlug?: string;
   name: string;
-  tagline: string;
-  wpOrgUrl?: string;
-  repoUrl?: string;
-  isPremium: boolean;
-  categories: PluginCategory[];
-  /** e.g. "5+ million" */
-  activeInstalls: string;
-  author: string;
-  authorUrl?: string;
+  /** .org page or commercial plugin page. */
+  link?: string;
+  /** Whether the plugin ships its own (official) AI abilities. */
+  includesAbilities: boolean;
+  /** Third-party plugins that provide abilities for this plugin. */
+  thirdPartyAbilities: ThirdPartyAbility[];
+  /** URL of the Agent Connector ability pack for this plugin, if we publish one. */
+  ac4wpAbilityPackUrl?: string;
 }
 
-export interface PluginWithStatus extends Plugin {
-  aiStatus: AIStatus;
+/** What the AI research job determines for a plugin. */
+export interface AIResearchResult {
+  /** Whether the plugin now ships its own official AI abilities. */
+  pluginIncludesOfficialAbilities: boolean;
+  /** Third-party plugins providing abilities for it. */
+  thirdPartyAbilitiesProvidedBy: ThirdPartyAbility[];
 }

@@ -107,7 +107,7 @@ final class DirectoryPage {
 		$result = PluginDirectory::installed_overview();
 		?>
 		<p style="max-width:52em;">
-			<?php esc_html_e( 'Your active plugins and the AI abilities available for each — official (built into the plugin), third-party extensions, and the optional unofficial ability pack we generate. Installing our pack is always optional.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Your active plugins, with links to the public directory for each plugin’s official and third-party AI ability details, plus the optional unofficial ability pack we generate. Installing our pack is always optional.', 'agent-connector-for-wp' ); ?>
 		</p>
 
 		<?php $this->render_toolbar( $result ); ?>
@@ -163,7 +163,8 @@ final class DirectoryPage {
 			<thead>
 				<tr>
 					<th scope="col"><?php esc_html_e( 'Active plugin', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Available AI abilities', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Official Abilities', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( '3rd Party Abilities', 'agent-connector-for-wp' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Unofficial ability pack', 'agent-connector-for-wp' ); ?></th>
 				</tr>
 			</thead>
@@ -177,93 +178,41 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render one active-plugin row: the plugin, the AI abilities available for it
-	 * (official / third-party), and our optional ability pack with its actions.
+	 * Render one active-plugin row: the plugin, "See Details" links to its public
+	 * directory page for official and third-party abilities, and our optional
+	 * ability pack with its actions.
 	 *
 	 * @param array<string,mixed> $row A single PluginDirectory overview row.
 	 */
 	private function render_row( array $row ): void {
+		$tracked = ! empty( $row['tracked'] );
+		$url     = (string) ( $row['plugin_page_url'] ?? '' );
 		?>
 		<tr>
 			<td>
 				<strong><?php echo esc_html( (string) $row['plugin_name'] ); ?></strong><br />
 				<code style="font-size:11px;"><?php echo esc_html( (string) $row['plugin_file'] ); ?></code>
 			</td>
-			<td><?php $this->render_availability_cell( (array) ( $row['ai_status'] ?? array() ) ); ?></td>
+			<td><?php $this->render_see_details_cell( $tracked, $url ); ?></td>
+			<td><?php $this->render_see_details_cell( $tracked, $url ); ?></td>
 			<td><?php $this->render_pack_cell( $row ); ?></td>
 		</tr>
 		<?php
 	}
 
 	/**
-	 * The "Available AI abilities" cell — official built-in support and/or
-	 * third-party unofficial extensions, from the directory. Informational only.
+	 * A "See Details" cell: links to the plugin's public directory page where the
+	 * ability data lives, or "—" when the plugin isn't tracked there.
 	 *
-	 * @param array<string,mixed> $ai Normalized ai_status for the plugin.
+	 * @param bool   $tracked Whether the plugin exists in the public directory.
+	 * @param string $url     The directory detail-page URL.
 	 */
-	private function render_availability_cell( array $ai ): void {
-		$level      = (string) ( $ai['level'] ?? '' );
-		$docs       = (string) ( $ai['official_docs_url'] ?? '' );
-		$since      = (string) ( $ai['official_since'] ?? '' );
-		$count      = (int) ( $ai['abilities_count'] ?? 0 );
-		$unofficial = isset( $ai['unofficial_plugins'] ) && is_array( $ai['unofficial_plugins'] ) ? $ai['unofficial_plugins'] : array();
-
-		$shown = false;
-
-		if ( 'official' === $level ) {
-			$shown = true;
-			echo '<span style="color:#1a7f37;font-weight:600;">' . esc_html__( 'Official — built in', 'agent-connector-for-wp' ) . '</span>';
-			$bits = array();
-			if ( '' !== $since ) {
-				/* translators: %s: plugin version. */
-				$bits[] = sprintf( esc_html__( 'since v%s', 'agent-connector-for-wp' ), esc_html( $since ) );
-			}
-			if ( $count > 0 ) {
-				/* translators: %d: number of abilities. */
-				$bits[] = esc_html( sprintf( _n( '%d ability', '%d abilities', $count, 'agent-connector-for-wp' ), $count ) );
-			}
-			if ( $bits ) {
-				echo ' <span class="description">(' . implode( ', ', $bits ) . ')</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-			}
-			if ( '' !== $docs ) {
-				echo '<br /><a href="' . esc_url( $docs ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Documentation', 'agent-connector-for-wp' ) . '</a>';
-			}
-		} elseif ( 'coming_soon' === $level ) {
-			$shown = true;
-			echo '<span style="color:#996800;font-weight:600;">' . esc_html__( 'Official support coming soon', 'agent-connector-for-wp' ) . '</span>';
-			if ( '' !== $docs ) {
-				echo ' — <a href="' . esc_url( $docs ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'roadmap', 'agent-connector-for-wp' ) . '</a>';
-			}
+	private function render_see_details_cell( bool $tracked, string $url ): void {
+		if ( ! $tracked || '' === $url ) {
+			echo '<span class="description">&mdash;</span>';
+			return;
 		}
-
-		if ( ! empty( $unofficial ) ) {
-			$shown = true;
-			echo '<p class="description" style="margin:.4em 0 0;"><strong>' . esc_html__( 'Third-party extensions:', 'agent-connector-for-wp' ) . '</strong></p><ul style="margin:.2em 0 0 1.2em;list-style:disc;">';
-			foreach ( $unofficial as $u ) {
-				$name   = (string) ( $u['name'] ?? '' );
-				$purl   = (string) ( $u['plugin_url'] ?? '' );
-				$author = (string) ( $u['author'] ?? '' );
-				if ( '' === $name ) {
-					continue;
-				}
-				echo '<li>';
-				if ( '' !== $purl ) {
-					echo '<a href="' . esc_url( $purl ) . '" target="_blank" rel="noopener noreferrer">' . esc_html( $name ) . '</a>';
-				} else {
-					echo esc_html( $name );
-				}
-				if ( '' !== $author ) {
-					/* translators: %s: extension author. */
-					echo ' <span class="description">' . esc_html( sprintf( __( 'by %s', 'agent-connector-for-wp' ), $author ) ) . '</span>';
-				}
-				echo '</li>';
-			}
-			echo '</ul>';
-		}
-
-		if ( ! $shown ) {
-			echo '<span class="description">' . esc_html__( 'Unknown', 'agent-connector-for-wp' ) . '</span>';
-		}
+		echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'See Details', 'agent-connector-for-wp' ) . ' &rarr;</a>';
 	}
 
 	/**

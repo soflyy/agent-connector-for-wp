@@ -1,21 +1,25 @@
-import { researchPluginStatus } from "./ai-research";
+import { researchPlugin } from "./ai-research";
 import { applyAiResult, getPluginsToCheck, getPlugin } from "./db";
 
 export interface CheckOutcome {
   slug: string;
   ok: boolean;
-  applied?: boolean;
-  level?: string;
-  confidence?: string;
+  includesAbilities?: boolean;
+  thirdPartyCount?: number;
   error?: string;
 }
 
-/** Research one plugin and apply the result (respecting manual locks). */
+/** Research one plugin and apply the result. */
 export async function checkOne(slug: string, name: string): Promise<CheckOutcome> {
   try {
-    const suggestion = await researchPluginStatus(slug, name);
-    const { applied } = await applyAiResult(slug, suggestion);
-    return { slug, ok: true, applied, level: suggestion.level, confidence: suggestion.confidence };
+    const result = await researchPlugin(slug, name);
+    await applyAiResult(slug, result);
+    return {
+      slug,
+      ok: true,
+      includesAbilities: result.pluginIncludesOfficialAbilities,
+      thirdPartyCount: result.thirdPartyAbilitiesProvidedBy.length,
+    };
   } catch (e) {
     return { slug, ok: false, error: e instanceof Error ? e.message : String(e) };
   }

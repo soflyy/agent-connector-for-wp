@@ -18,12 +18,12 @@ async function postAiCheck(body: object): Promise<{ ok: boolean; message: string
     const data = await res.json();
     if (!res.ok) return { ok: false, message: data?.error || `HTTP ${res.status}` };
     if (typeof data.checked === "number") {
-      const applied = (data.results || []).filter((r: { applied?: boolean }) => r.applied).length;
       const failed = (data.results || []).filter((r: { ok?: boolean }) => r.ok === false).length;
-      return { ok: true, message: `Checked ${data.checked}; applied ${applied}${failed ? `; ${failed} failed` : ""}.` };
+      return { ok: true, message: `Checked ${data.checked}${failed ? `; ${failed} failed` : ""}.` };
     }
     if (data.ok === false) return { ok: false, message: data.error || "Check failed." };
-    return { ok: true, message: `${data.level ?? "done"}${data.applied === false ? " (kept manual edit)" : ""}.` };
+    const official = data.includesAbilities ? "official" : "no official";
+    return { ok: true, message: `${official}, ${data.thirdPartyCount ?? 0} third-party.` };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Request failed" };
   }
@@ -84,9 +84,7 @@ export function DeletePluginButton({ slug, name }: { slug: string; name: string 
   const [busy, setBusy] = useState(false);
 
   async function onDelete() {
-    if (!confirm(`Delete "${name}" (${slug})? This also removes its AI status and cannot be undone.`)) {
-      return;
-    }
+    if (!confirm(`Delete "${name}" (${slug})? This cannot be undone.`)) return;
     setBusy(true);
     const res = await deletePluginAction(slug);
     if (res.ok) {
@@ -98,11 +96,7 @@ export function DeletePluginButton({ slug, name }: { slug: string; name: string 
   }
 
   return (
-    <button
-      onClick={onDelete}
-      disabled={busy}
-      className="text-red-600 hover:underline disabled:opacity-60"
-    >
+    <button onClick={onDelete} disabled={busy} className="text-red-600 hover:underline disabled:opacity-60">
       {busy ? "Deleting…" : "Delete"}
     </button>
   );
@@ -128,9 +122,7 @@ export function AddPluginForm() {
   const router = useRouter();
   const [slug, setSlug] = useState("");
   const [name, setName] = useState("");
-  const [tagline, setTagline] = useState("");
-  const [author, setAuthor] = useState("");
-  const [wpOrgUrl, setWpOrgUrl] = useState("");
+  const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
@@ -142,21 +134,16 @@ export function AddPluginForm() {
     const plugin: Plugin = {
       slug: slug.trim(),
       name: name.trim(),
-      tagline: tagline.trim(),
-      author: author.trim(),
-      wpOrgUrl: wpOrgUrl.trim() || undefined,
-      isPremium: false,
-      categories: [],
-      activeInstalls: "",
+      link: link.trim() || undefined,
+      includesAbilities: false,
+      thirdPartyAbilities: [],
     };
     const res = await addPluginAction(plugin);
     if (res.ok) {
       setMsg(`Added ${plugin.slug}.`);
       setSlug("");
       setName("");
-      setTagline("");
-      setAuthor("");
-      setWpOrgUrl("");
+      setLink("");
       router.refresh();
     } else {
       setMsg(`Failed: ${res.error}`);
@@ -166,11 +153,9 @@ export function AddPluginForm() {
 
   return (
     <form onSubmit={submit} className="grid grid-cols-2 gap-3">
-      <input className={input} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug (e.g. gravityforms) *" />
+      <input className={input} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug — e.g. woocommerce/woocommerce.php *" />
       <input className={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name *" />
-      <input className={input} value={tagline} onChange={(e) => setTagline(e.target.value)} placeholder="Tagline" />
-      <input className={input} value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author" />
-      <input className={input} value={wpOrgUrl} onChange={(e) => setWpOrgUrl(e.target.value)} placeholder="wordpress.org URL" />
+      <input className={input} value={link} onChange={(e) => setLink(e.target.value)} placeholder="Plugin link (.org or commercial)" />
       <div className="flex items-center gap-3">
         <button type="submit" disabled={busy} className="rounded-lg bg-wp-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wp-blue-dark disabled:opacity-60">
           {busy ? "Adding…" : "Add plugin"}

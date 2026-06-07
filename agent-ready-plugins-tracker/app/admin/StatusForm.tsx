@@ -3,92 +3,55 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { AIStatus, AIStatusLevel, UnofficialPlugin } from "@/lib/types";
-import { saveStatusAction } from "./actions";
-
-const LEVELS: AIStatusLevel[] = ["official", "unofficial", "none"];
+import type { Plugin, ThirdPartyAbility } from "@/lib/types";
+import { savePluginAction } from "./actions";
 
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
 const labelCls = "mb-1 block text-sm font-medium text-slate-700";
 
-export default function StatusForm({
-  slug,
-  name,
-  initial,
-}: {
-  slug: string;
-  name: string;
-  initial: AIStatus;
-}) {
+export default function StatusForm({ initial }: { initial: Plugin }) {
   const router = useRouter();
-  const [level, setLevel] = useState<AIStatusLevel>(initial.level ?? "none");
-  const [officialSince, setOfficialSince] = useState(initial.officialSince ?? "");
-  const [officialDocsUrl, setOfficialDocsUrl] = useState(initial.officialDocsUrl ?? "");
-  const [abilitiesCount, setAbilitiesCount] = useState(
-    initial.abilitiesCount != null ? String(initial.abilitiesCount) : ""
-  );
-  const [abilitiesText, setAbilitiesText] = useState((initial.abilities ?? []).join("\n"));
-  const [notes, setNotes] = useState(initial.notes ?? "");
-  const [unofficial, setUnofficial] = useState<UnofficialPlugin[]>(initial.unofficialPlugins ?? []);
+  const [name, setName] = useState(initial.name);
+  const [link, setLink] = useState(initial.link ?? "");
+  const [includesAbilities, setIncludesAbilities] = useState(initial.includesAbilities);
+  const [packUrl, setPackUrl] = useState(initial.ac4wpAbilityPackUrl ?? "");
+  const [thirdParty, setThirdParty] = useState<ThirdPartyAbility[]>(initial.thirdPartyAbilities ?? []);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
-  function setRow(i: number, patch: Partial<UnofficialPlugin>) {
-    setUnofficial((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  function setRow(i: number, patch: Partial<ThirdPartyAbility>) {
+    setThirdParty((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
   function addRow() {
-    setUnofficial((rows) => [...rows, { name: "", pluginUrl: "", description: "", author: "" }]);
+    setThirdParty((rows) => [...rows, { pluginName: "", pluginSlug: "", pluginLink: "" }]);
   }
   function removeRow(i: number) {
-    setUnofficial((rows) => rows.filter((_, idx) => idx !== i));
-  }
-
-  function loadSuggestion() {
-    const s = initial.suggestion;
-    if (!s) return;
-    setLevel(s.level);
-    setOfficialSince(s.officialSince ?? "");
-    setOfficialDocsUrl(s.officialDocsUrl ?? "");
-    setAbilitiesCount(s.abilitiesCount != null ? String(s.abilitiesCount) : "");
-    setAbilitiesText((s.abilities ?? []).join("\n"));
-    setNotes(s.notes ?? "");
-    setUnofficial(s.unofficialPlugins ?? []);
-    setMsg("Loaded AI suggestion into the form — review and Save.");
+    setThirdParty((rows) => rows.filter((_, idx) => idx !== i));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMsg("");
-    const status: AIStatus = {
-      level,
-      officialSince: officialSince.trim() || undefined,
-      officialDocsUrl: officialDocsUrl.trim() || undefined,
-      abilitiesCount: abilitiesCount.trim() ? Number(abilitiesCount) : undefined,
-      abilities: abilitiesText
-        .split(/[\n,]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-      unofficialPlugins: unofficial
-        .filter((u) => u.name.trim())
-        .map((u) => ({
-          name: u.name.trim(),
-          pluginUrl: u.pluginUrl.trim(),
-          description: u.description.trim(),
-          author: u.author.trim(),
-          authorUrl: u.authorUrl?.trim() || undefined,
+    const plugin: Plugin = {
+      slug: initial.slug,
+      urlSlug: initial.urlSlug,
+      name: name.trim(),
+      link: link.trim() || undefined,
+      includesAbilities,
+      thirdPartyAbilities: thirdParty
+        .filter((t) => t.pluginName.trim())
+        .map((t) => ({
+          pluginName: t.pluginName.trim(),
+          pluginSlug: t.pluginSlug.trim(),
+          pluginLink: t.pluginLink.trim(),
         })),
-      notes: notes.trim() || undefined,
-      lastVerified: initial.lastVerified ?? "",
+      ac4wpAbilityPackUrl: packUrl.trim() || undefined,
     };
-    const res = await saveStatusAction(slug, status);
-    if (res.ok) {
-      setMsg("Saved.");
-      router.refresh();
-    } else {
-      setMsg(`Save failed: ${res.error}`);
-    }
+    const res = await savePluginAction(plugin);
+    setMsg(res.ok ? "Saved." : `Save failed: ${res.error}`);
+    if (res.ok) router.refresh();
     setSaving(false);
   }
 
@@ -97,103 +60,59 @@ export default function StatusForm({
       <Link href="/admin" className="text-sm text-wp-blue hover:underline">
         ← Back to dashboard
       </Link>
-      <h1 className="mt-2 text-2xl font-bold text-slate-900">{name}</h1>
+      <h1 className="mt-2 text-2xl font-bold text-slate-900">{initial.name}</h1>
       <p className="mb-6 text-sm text-slate-500">
-        <code>{slug}</code> — AI ability status
+        <code>{initial.slug}</code>
       </p>
-
-      {initial.suggestion && (
-        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm">
-          <div className="flex items-center justify-between">
-            <strong className="text-slate-900">AI suggestion</strong>
-            <button
-              type="button"
-              onClick={loadSuggestion}
-              className="rounded-md border border-blue-300 bg-white px-2.5 py-1 text-xs font-medium hover:bg-blue-100"
-            >
-              Load into form
-            </button>
-          </div>
-          <p className="mt-1 text-slate-600">
-            level <strong>{initial.suggestion.level}</strong> · confidence {initial.suggestion.confidence}
-            {initial.suggestion.checkedAt ? ` · checked ${initial.suggestion.checkedAt.slice(0, 10)}` : ""}
-          </p>
-          {initial.suggestion.notes && <p className="mt-1 text-slate-600">{initial.suggestion.notes}</p>}
-          {initial.suggestion.sources?.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-xs text-slate-500">
-              {initial.suggestion.sources.slice(0, 6).map((u, i) => (
-                <li key={i}>
-                  <a href={u} target="_blank" rel="noopener noreferrer" className="break-all text-wp-blue hover:underline">
-                    {u}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-          {initial.source === "manual" && (
-            <p className="mt-2 text-xs text-amber-700">
-              This status is manually curated, so the daily AI check won&apos;t overwrite it. Use “Load into form”
-              to apply the suggestion, then Save.
-            </p>
-          )}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className={labelCls}>Level</label>
-          <select
-            value={level}
-            onChange={(e) => setLevel(e.target.value as AIStatusLevel)}
+          <label className={labelCls}>Name</label>
+          <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+
+        <div>
+          <label className={labelCls}>Plugin link (.org or commercial page)</label>
+          <input className={input} value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://…" />
+        </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={includesAbilities}
+            onChange={(e) => setIncludesAbilities(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-wp-blue focus:ring-wp-blue"
+          />
+          Plugin includes its own (official) abilities
+        </label>
+
+        <div>
+          <label className={labelCls}>Agent Connector ability pack URL</label>
+          <input
             className={input}
-          >
-            {LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={labelCls}>Official since (version)</label>
-            <input className={input} value={officialSince} onChange={(e) => setOfficialSince(e.target.value)} placeholder="9.4" />
-          </div>
-          <div>
-            <label className={labelCls}>Abilities count</label>
-            <input className={input} type="number" min="0" value={abilitiesCount} onChange={(e) => setAbilitiesCount(e.target.value)} />
-          </div>
-        </div>
-
-        <div>
-          <label className={labelCls}>Official docs / roadmap URL</label>
-          <input className={input} value={officialDocsUrl} onChange={(e) => setOfficialDocsUrl(e.target.value)} placeholder="https://…" />
-        </div>
-
-        <div>
-          <label className={labelCls}>Official abilities (one per line or comma-separated)</label>
-          <textarea className={input} rows={4} value={abilitiesText} onChange={(e) => setAbilitiesText(e.target.value)} />
+            value={packUrl}
+            onChange={(e) => setPackUrl(e.target.value)}
+            placeholder="https://github.com/soflyy/agent-connector-for-wp/tree/master/ability-packs/…"
+          />
+          <p className="mt-1 text-xs text-slate-400">Leave blank if there is no pack.</p>
         </div>
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className={labelCls + " mb-0"}>Third-party unofficial extensions</label>
+            <label className={labelCls + " mb-0"}>3rd-party abilities provided by</label>
             <button type="button" onClick={addRow} className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50">
               + Add
             </button>
           </div>
           <div className="space-y-3">
-            {unofficial.length === 0 && <p className="text-sm text-slate-400">None.</p>}
-            {unofficial.map((u, i) => (
+            {thirdParty.length === 0 && <p className="text-sm text-slate-400">None.</p>}
+            {thirdParty.map((t, i) => (
               <div key={i} className="rounded-lg border border-slate-200 p-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <input className={input} value={u.name} onChange={(e) => setRow(i, { name: e.target.value })} placeholder="Name *" />
-                  <input className={input} value={u.pluginUrl} onChange={(e) => setRow(i, { pluginUrl: e.target.value })} placeholder="Plugin URL" />
-                  <input className={input} value={u.author} onChange={(e) => setRow(i, { author: e.target.value })} placeholder="Author" />
-                  <input className={input} value={u.authorUrl ?? ""} onChange={(e) => setRow(i, { authorUrl: e.target.value })} placeholder="Author URL" />
+                <div className="grid grid-cols-3 gap-3">
+                  <input className={input} value={t.pluginName} onChange={(e) => setRow(i, { pluginName: e.target.value })} placeholder="Plugin name *" />
+                  <input className={input} value={t.pluginSlug} onChange={(e) => setRow(i, { pluginSlug: e.target.value })} placeholder="Slug" />
+                  <input className={input} value={t.pluginLink} onChange={(e) => setRow(i, { pluginLink: e.target.value })} placeholder="Link" />
                 </div>
-                <textarea className={input + " mt-3"} rows={2} value={u.description} onChange={(e) => setRow(i, { description: e.target.value })} placeholder="Description" />
                 <button type="button" onClick={() => removeRow(i)} className="mt-2 text-xs text-red-600 hover:underline">
                   Remove
                 </button>
@@ -202,14 +121,9 @@ export default function StatusForm({
           </div>
         </div>
 
-        <div>
-          <label className={labelCls}>Notes</label>
-          <textarea className={input} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </div>
-
         <div className="flex items-center gap-3">
           <button type="submit" disabled={saving} className="rounded-lg bg-wp-blue px-5 py-2.5 font-semibold text-white hover:bg-wp-blue-dark disabled:opacity-60">
-            {saving ? "Saving…" : "Save status"}
+            {saving ? "Saving…" : "Save plugin"}
           </button>
           {msg && <span className="text-sm text-slate-600">{msg}</span>}
         </div>

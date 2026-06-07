@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { AISuggestion, AIStatus, Plugin, PluginWithStatus } from "./types";
+import type { AIResearchResult, Plugin, ThirdPartyAbility } from "./types";
 
 function getClient() {
   const url = process.env.SUPABASE_URL;
@@ -8,7 +8,16 @@ function getClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ---- Plugins ----
+/** Reduce a plugin file or slug to its URL-safe folder slug.
+ *  "woocommerce/woocommerce.php" -> "woocommerce"; "hello.php" -> "hello". */
+export function folderSlug(value: string): string {
+  const v = (value || "").trim();
+  if (!v) return "";
+  if (v.includes("/")) return v.slice(0, v.indexOf("/"));
+  return v.replace(/\.php$/, "");
+}
+
+// ---- Reads ----
 
 export async function getAllPlugins(): Promise<Plugin[]> {
   const supabase = getClient();
@@ -17,12 +26,37 @@ export async function getAllPlugins(): Promise<Plugin[]> {
   return data?.map(rowToPlugin) ?? [];
 }
 
+/** Look up a plugin by its URL slug ("woocommerce"). */
+export async function getPluginByUrlSlug(urlSlug: string): Promise<Plugin | null> {
+  const supabase = getClient();
+  if (!supabase) return null;
+  const { data } = await supabase.from("plugins").select("*").eq("url_slug", urlSlug).maybeSingle();
+  return data ? rowToPlugin(data) : null;
+}
+
+/** Look up a plugin by its primary key (the full plugin file). */
 export async function getPlugin(slug: string): Promise<Plugin | null> {
   const supabase = getClient();
   if (!supabase) return null;
-  const { data } = await supabase.from("plugins").select("*").eq("slug", slug).single();
+  const { data } = await supabase.from("plugins").select("*").eq("slug", slug).maybeSingle();
   return data ? rowToPlugin(data) : null;
 }
+
+/**
+ * Given a set of installed plugin slugs (folder or file form), return the URL
+ * slugs of those that exist in the directory. Used by the ability-pack match
+ * endpoint so the WordPress plugin knows which plugins have a directory page.
+ */
+export async function getTrackedUrlSlugs(slugs: string[]): Promise<string[]> {
+  const supabase = getClient();
+  if (!supabase || slugs.length === 0) return [];
+  const wanted = [...new Set(slugs.map(folderSlug).filter(Boolean))];
+  if (wanted.length === 0) return [];
+  const { data } = await supabase.from("plugins").select("url_slug").in("url_slug", wanted);
+  return (data ?? []).map((r) => r.url_slug as string);
+}
+
+// ---- Writes ----
 
 export async function upsertPlugin(plugin: Plugin): Promise<void> {
   const supabase = getClient();
@@ -34,71 +68,11 @@ export async function upsertPlugin(plugin: Plugin): Promise<void> {
 export async function deletePlugin(slug: string): Promise<void> {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase not configured");
-  // ai_statuses.slug references plugins(slug) on delete cascade, so the row in
-  // ai_statuses is removed automatically.
   const { error } = await supabase.from("plugins").delete().eq("slug", slug);
   if (error) throw error;
 }
 
-// ---- Plugins + AI status joined ----
-
-export async function getAllPluginsWithStatus(): Promise<PluginWithStatus[]> {
-  const supabase = getClient();
-  if (!supabase) return [];
-  const { data } = await supabase
-    .from("plugins")
-    .select("*, ai_statuses(*)")
-    .order("name");
-  if (!data) return [];
-  return data.map((row) => ({
-    ...rowToPlugin(row),
-    aiStatus: row.ai_statuses
-      ? rowToStatus(row.ai_statuses)
-      : { level: "none" as const, unofficialPlugins: [], lastVerified: "unknown" },
-  }));
-}
-
-export async function getPluginWithStatus(slug: string): Promise<PluginWithStatus | null> {
-  const supabase = getClient();
-  if (!supabase) return null;
-  const { data } = await supabase
-    .from("plugins")
-    .select("*, ai_statuses(*)")
-    .eq("slug", slug)
-    .single();
-  if (!data) return null;
-  return {
-    ...rowToPlugin(data),
-    aiStatus: data.ai_statuses
-      ? rowToStatus(data.ai_statuses)
-      : { level: "none" as const, unofficialPlugins: [], lastVerified: "unknown" },
-  };
-}
-
-/**
- * AI status for a set of plugin slugs, keyed by slug. Used by the ability-pack
- * match endpoint to tell a site which of its plugins have official / third-party
- * AI abilities. Missing slugs are simply absent from the map.
- */
-export async function getStatusesForSlugs(slugs: string[]): Promise<Record<string, AIStatus>> {
-  const supabase = getClient();
-  if (!supabase || slugs.length === 0) return {};
-  const { data } = await supabase.from("ai_statuses").select("*").in("slug", slugs);
-  if (!data) return {};
-  const out: Record<string, AIStatus> = {};
-  for (const row of data) out[row.slug as string] = rowToStatus(row);
-  return out;
-}
-
-// ---- AI Status ----
-
-export async function setAIStatus(slug: string, status: AIStatus): Promise<void> {
-  const supabase = getClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  // A manual save marks the row as human-curated so the AI job won't overwrite it.
-  const { error } = await supabase.from("ai_statuses").upsert(statusToRow(slug, { ...status, source: "manual" }));
-  if (error) throw error;
-}
+// ---- AI research ----
 
 /**
  * Plugins to AI-check, least-recently-checked first (never-checked first), capped.
@@ -107,55 +81,32 @@ export async function setAIStatus(slug: string, status: AIStatus): Promise<void>
 export async function getPluginsToCheck(limit: number): Promise<Array<{ slug: string; name: string }>> {
   const supabase = getClient();
   if (!supabase) return [];
-  const { data } = await supabase.from("plugins").select("slug, name, ai_statuses(auto_checked_at)");
-  if (!data) return [];
-  const checkedAt = (row: { ai_statuses?: unknown }): string => {
-    const s = row.ai_statuses;
-    const rec = Array.isArray(s) ? s[0] : s;
-    return (rec as { auto_checked_at?: string } | null)?.auto_checked_at ?? "";
-  };
-  return [...data]
-    .sort((a, b) => checkedAt(a).localeCompare(checkedAt(b))) // "" (never) sorts first
-    .slice(0, limit)
-    .map((r) => ({ slug: r.slug as string, name: r.name as string }));
+  const { data } = await supabase
+    .from("plugins")
+    .select("slug, name, ai_checked_at")
+    .order("ai_checked_at", { ascending: true, nullsFirst: true })
+    .limit(limit);
+  return (data ?? []).map((r) => ({ slug: r.slug as string, name: r.name as string }));
 }
 
 /**
- * Apply an AI research result. Always records auto_checked_at + the suggestion.
- * Overwrites the live status UNLESS it was manually curated (source = "manual"),
- * in which case the live fields are left intact and the suggestion is kept for review.
- * Returns whether the live status was applied.
+ * Apply an AI research result: overwrite the two AI-determined fields
+ * (includes_abilities, third_party_abilities) and stamp the check time.
+ * The ability-pack link is curated separately and left untouched.
  */
-export async function applyAiResult(slug: string, suggestion: AISuggestion): Promise<{ applied: boolean }> {
+export async function applyAiResult(slug: string, result: AIResearchResult): Promise<void> {
   const supabase = getClient();
   if (!supabase) throw new Error("Supabase not configured");
-
-  const { data: current } = await supabase.from("ai_statuses").select("source").eq("slug", slug).maybeSingle();
-  const locked = current?.source === "manual";
-
-  const payload: Record<string, unknown> = {
-    slug,
-    auto_checked_at: suggestion.checkedAt,
-    suggestion,
-  };
-  if (!locked) {
-    payload.level = suggestion.level;
-    payload.official_since = suggestion.officialSince ?? null;
-    payload.official_docs_url = suggestion.officialDocsUrl ?? null;
-    payload.abilities_count = suggestion.abilitiesCount ?? null;
-    payload.abilities = suggestion.abilities ?? null;
-    payload.unofficial_plugins = suggestion.unofficialPlugins ?? [];
-    payload.notes = suggestion.notes ?? null;
-    payload.sources = suggestion.sources ?? null;
-    payload.confidence = suggestion.confidence ?? null;
-    payload.source = "ai";
-    payload.last_verified = suggestion.checkedAt.slice(0, 10);
-    payload.updated_at = new Date().toISOString();
-  }
-
-  const { error } = await supabase.from("ai_statuses").upsert(payload);
+  const { error } = await supabase
+    .from("plugins")
+    .update({
+      includes_abilities: result.pluginIncludesOfficialAbilities,
+      third_party_abilities: result.thirdPartyAbilitiesProvidedBy,
+      ai_checked_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("slug", slug);
   if (error) throw error;
-  return { applied: !locked };
 }
 
 // ---- Row converters ----
@@ -164,15 +115,12 @@ export async function applyAiResult(slug: string, suggestion: AISuggestion): Pro
 function rowToPlugin(row: any): Plugin {
   return {
     slug: row.slug,
+    urlSlug: row.url_slug ?? folderSlug(row.slug),
     name: row.name,
-    tagline: row.tagline,
-    wpOrgUrl: row.wp_org_url ?? undefined,
-    repoUrl: row.repo_url ?? undefined,
-    isPremium: row.is_premium,
-    categories: row.categories ?? [],
-    activeInstalls: row.active_installs,
-    author: row.author,
-    authorUrl: row.author_url ?? undefined,
+    link: row.link ?? undefined,
+    includesAbilities: !!row.includes_abilities,
+    thirdPartyAbilities: normalizeThirdParty(row.third_party_abilities),
+    ac4wpAbilityPackUrl: row.ac4wp_ability_pack_url ?? undefined,
   };
 }
 
@@ -180,51 +128,23 @@ function pluginToRow(p: Plugin) {
   return {
     slug: p.slug,
     name: p.name,
-    tagline: p.tagline,
-    wp_org_url: p.wpOrgUrl ?? null,
-    repo_url: p.repoUrl ?? null,
-    is_premium: p.isPremium,
-    categories: p.categories,
-    active_installs: p.activeInstalls,
-    author: p.author,
-    author_url: p.authorUrl ?? null,
+    link: p.link ?? null,
+    includes_abilities: p.includesAbilities,
+    third_party_abilities: p.thirdPartyAbilities ?? [],
+    ac4wp_ability_pack_url: p.ac4wpAbilityPackUrl ?? null,
+    updated_at: new Date().toISOString(),
   };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function rowToStatus(row: any): AIStatus {
-  return {
-    level: row.level,
-    officialSince: row.official_since ?? undefined,
-    officialDocsUrl: row.official_docs_url ?? undefined,
-    abilitiesCount: row.abilities_count ?? undefined,
-    abilities: row.abilities ?? undefined,
-    unofficialPlugins: row.unofficial_plugins ?? [],
-    notes: row.notes ?? undefined,
-    lastVerified: row.last_verified ?? "unknown",
-    sources: row.sources ?? undefined,
-    confidence: row.confidence ?? undefined,
-    source: row.source ?? undefined,
-    autoCheckedAt: row.auto_checked_at ?? undefined,
-    suggestion: row.suggestion ?? null,
-  };
-}
-
-// The live status fields written by a manual admin save (marks source = manual).
-function statusToRow(slug: string, status: AIStatus) {
-  return {
-    slug,
-    level: status.level,
-    official_since: status.officialSince ?? null,
-    official_docs_url: status.officialDocsUrl ?? null,
-    abilities_count: status.abilitiesCount ?? null,
-    abilities: status.abilities ?? null,
-    unofficial_plugins: status.unofficialPlugins,
-    notes: status.notes ?? null,
-    last_verified: status.lastVerified,
-    sources: status.sources ?? null,
-    confidence: status.confidence ?? null,
-    source: status.source ?? "manual",
-    updated_at: new Date().toISOString(),
-  };
+function normalizeThirdParty(value: any): ThirdPartyAbility[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((u) => u && typeof u === "object")
+    .map((u) => ({
+      pluginName: String(u.pluginName ?? ""),
+      pluginSlug: String(u.pluginSlug ?? ""),
+      pluginLink: String(u.pluginLink ?? ""),
+    }))
+    .filter((u) => u.pluginName);
 }

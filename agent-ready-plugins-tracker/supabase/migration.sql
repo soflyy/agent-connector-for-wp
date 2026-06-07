@@ -1,36 +1,36 @@
--- Run this once in your Supabase SQL editor (Dashboard → SQL Editor → New query)
+-- Run this once in your Supabase SQL editor (Dashboard → SQL Editor → New query).
+--
+-- Simplified model: a single `plugins` table. A plugin is identified by its WP
+-- plugin file ("folder/main-file.php"), and we track only: whether it ships its
+-- own abilities, which third-party plugins provide abilities for it, and whether
+-- we publish an Agent Connector ability pack for it.
+
+-- Destructive: this redesign changes the `plugins` shape (and the slug now stores
+-- the full plugin file). Old rows can't be migrated cleanly, so we recreate both
+-- tables from scratch. Re-add plugins via the admin UI or the AI check afterwards.
+drop table if exists ai_statuses;
+drop table if exists plugins;
 
 create table if not exists plugins (
-  slug             text primary key,
-  name             text not null,
-  tagline          text not null,
-  wp_org_url       text,
-  repo_url         text,
-  is_premium       boolean not null default false,
-  categories       text[] not null default '{}',
-  active_installs  text not null default '',
-  author           text not null default '',
-  author_url       text
+  slug                    text primary key,                       -- "woocommerce/woocommerce.php"
+  name                    text not null,
+  link                    text,                                   -- .org page or commercial plugin page
+  includes_abilities      boolean not null default false,         -- plugin ships its own (official) abilities
+  third_party_abilities   jsonb   not null default '[]'::jsonb,   -- [{ name, slug, link }]
+  ac4wp_ability_pack_url  text,                                   -- null = no pack; else the pack's URL
+  ai_checked_at           timestamptz,                            -- last AI research time (least-recent checked first)
+  updated_at              timestamptz not null default now(),
+  -- URL-safe slug derived from the plugin file, used for /plugins/<url_slug>:
+  --   "woocommerce/woocommerce.php" -> "woocommerce"; "hello.php" -> "hello".
+  url_slug text generated always as (
+    case
+      when position('/' in slug) > 0 then split_part(slug, '/', 1)
+      else regexp_replace(slug, '\.php$', '')
+    end
+  ) stored
 );
 
-create table if not exists ai_statuses (
-  slug                text primary key references plugins(slug) on delete cascade,
-  level               text not null check (level in ('official', 'unofficial', 'none')),
-  official_since      text,
-  official_docs_url   text,
-  abilities_count     integer,
-  abilities           text[],
-  unofficial_plugins  jsonb not null default '[]'::jsonb,
-  notes               text,
-  last_verified       text,
-  updated_at          timestamptz not null default now(),
-  -- AI research check (see migration-ai-check.sql for existing databases):
-  sources             text[],                       -- source URLs backing the status
-  confidence          text,                         -- 'high' | 'medium' | 'low'
-  source              text not null default 'ai',   -- 'manual' (curated) | 'ai'
-  auto_checked_at     timestamptz,                  -- last AI check time
-  suggestion          jsonb                         -- latest AI result (kept even when not applied)
-);
+create index if not exists plugins_url_slug_idx on plugins (url_slug);
 
 -- Auto-reload PostgREST's schema cache whenever the schema changes (DDL), so new
 -- tables/columns/relationships are picked up immediately — no manual "Reload schema
