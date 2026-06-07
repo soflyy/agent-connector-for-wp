@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setAIStatus, getSubmissions } from "@/lib/db";
+import { setAIStatus } from "@/lib/db";
 import type { AIStatus } from "@/lib/types";
 
 function isAuthorized(req: NextRequest): boolean {
@@ -19,13 +19,4 @@ export async function PUT(req: NextRequest) {
   }
   await setAIStatus(slug, status);
   return NextResponse.json({ ok: true, slug });
-}
-
-// GET /api/admin/status — list pending submissions
-export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const submissions = await getSubmissions();
-  return NextResponse.json({ submissions });
 }

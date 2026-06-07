@@ -101,14 +101,3 @@ export interface Plugin {
 export interface PluginWithStatus extends Plugin {
   aiStatus: AIStatus;
 }
-
-export interface Submission {
-  id: string;
-  pluginSlug: string;
-  type: "new_unofficial" | "status_correction" | "new_official";
-  submittedAt: string;
-  submitterEmail?: string;
-  data: Partial<AIStatus> & { unofficialPlugin?: UnofficialPlugin };
-  notes?: string;
-  reviewed: boolean;
-}

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import type { AISuggestion, AIStatus, Plugin, PluginWithStatus, Submission } from "./types";
+import type { AISuggestion, AIStatus, Plugin, PluginWithStatus } from "./types";
 
 function getClient() {
   const url = process.env.SUPABASE_URL;
@@ -147,32 +147,6 @@ export async function applyAiResult(slug: string, suggestion: AISuggestion): Pro
   const { error } = await supabase.from("ai_statuses").upsert(payload);
   if (error) throw error;
   return { applied: !locked };
-}
-
-// ---- Submissions ----
-
-export async function addSubmission(submission: Submission): Promise<void> {
-  const supabase = getClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase.from("submissions").insert(submission);
-  if (error) throw error;
-}
-
-export async function getSubmissions(): Promise<Submission[]> {
-  const supabase = getClient();
-  if (!supabase) return [];
-  const { data } = await supabase
-    .from("submissions")
-    .select("*")
-    .order("submitted_at", { ascending: false });
-  return data ?? [];
-}
-
-export async function markSubmissionReviewed(id: string): Promise<void> {
-  const supabase = getClient();
-  if (!supabase) throw new Error("Supabase not configured");
-  const { error } = await supabase.from("submissions").update({ reviewed: true }).eq("id", id);
-  if (error) throw error;
 }
 
 // ---- Row converters ----

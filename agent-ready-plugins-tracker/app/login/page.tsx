@@ -73,9 +73,11 @@ export default function LoginPage() {
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-wp-blue text-sm font-bold text-white">
-            AI
+            AR
           </span>
-          <span className="font-semibold text-slate-900">WP AI Ready</span>
+          <span className="font-semibold text-slate-900">
+            Agent Ready Plugins Tracker
+          </span>
         </div>
         <h1 className="mb-1 text-xl font-bold text-slate-900">Private access</h1>
         <p className="mb-6 text-sm text-slate-500">

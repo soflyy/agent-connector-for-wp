@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Disclaimer — WP AI Ready",
+  title: "Disclaimer — Agent Ready Plugins Tracker",
   description:
-    "WP AI Ready is largely AI-generated — the code, the ability packs, and the plugin information. AI can make mistakes; verify before you rely on anything.",
+    "Agent Ready Plugins Tracker is largely AI-generated — the code, the ability packs, and the plugin information. AI can make mistakes; verify before you rely on anything.",
 };
 
 const REPO = "https://github.com/soflyy/agent-connector-for-wp";
@@ -13,7 +13,7 @@ export default function DisclaimerPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-10">
-        <Link href="/plugins" className="text-sm text-wp-blue hover:underline">
+        <Link href="/" className="text-sm text-wp-blue hover:underline">
           ← Back to directory
         </Link>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
@@ -88,11 +88,8 @@ export default function DisclaimerPage() {
           </h2>
           <p className="leading-relaxed">
             Because this is AI-generated, errors are expected — and corrections
-            are welcome. If a plugin's status or details are inaccurate, please{" "}
-            <Link href="/submit" className="text-wp-blue hover:underline">
-              submit an update
-            </Link>{" "}
-            or open an issue or PR on{" "}
+            are welcome. If a plugin's status or details are inaccurate, open an
+            issue or PR on{" "}
             <a href={REPO} className="text-wp-blue hover:underline">
               GitHub
             </a>

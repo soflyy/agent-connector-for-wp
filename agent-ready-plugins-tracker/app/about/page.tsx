@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "About — WP AI Ready",
+  title: "About — Agent Ready Plugins Tracker",
   description:
-    "What WP AI Ready is, why it exists, and the goal: a world where every WordPress plugin ships official AI Abilities and this directory is no longer needed.",
+    "What Agent Ready Plugins Tracker is, why it exists, and the goal: a world where every WordPress plugin ships official AI Abilities and this directory is no longer needed.",
 };
 
 const REPO = "https://github.com/soflyy/agent-connector-for-wp";
@@ -13,15 +13,15 @@ export default function AboutPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-10">
-        <Link href="/plugins" className="text-sm text-wp-blue hover:underline">
+        <Link href="/" className="text-sm text-wp-blue hover:underline">
           ← Back to directory
         </Link>
         <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
-          About WP AI Ready
+          About
         </h1>
         <p className="mt-3 text-lg text-slate-600">
-          A community directory tracking which WordPress plugins can be driven by
-          AI agents — and a project quietly working to make itself obsolete.
+          A directory tracking which WordPress plugins AI agents can drive — and
+          a project working to make itself obsolete.
         </p>
       </div>
 
@@ -31,13 +31,13 @@ export default function AboutPage() {
             What this directory is
           </h2>
           <p className="leading-relaxed">
-            WP AI Ready tracks the AI-readiness of WordPress plugins. For each
-            plugin we record whether it exposes{" "}
+            Agent Ready Plugins Tracker records the AI-readiness of WordPress
+            plugins. For each plugin we track whether it exposes{" "}
             <strong>WordPress AI Abilities</strong> — structured actions an AI
-            agent can invoke over MCP — and, crucially, whether those abilities
-            are <strong>official</strong> (shipped by the plugin's own
-            developers) or <strong>unofficial</strong> (provided by a third
-            party on the plugin's behalf).
+            agent can invoke over MCP — and whether those abilities are{" "}
+            <strong>official</strong> (shipped by the plugin's own developers) or{" "}
+            <strong>unofficial</strong> (an auto-generated pack provided on the
+            plugin's behalf).
           </p>
           <p className="mt-3 leading-relaxed">
             The unofficial abilities are{" "}
@@ -66,12 +66,12 @@ export default function AboutPage() {
             </a>{" "}
             plugin, and this very directory should all be{" "}
             <strong>deprecated</strong>. Success for this project looks like
-            shutting it down because it's no longer needed — every plugin AI
+            shutting it down because it's no longer needed — every plugin agent
             ready out of the box, and nothing here left to track.
           </p>
           <p className="mt-3 leading-relaxed">
             Until then, this directory is the honest scoreboard: it shows where
-            official support exists, where the community has filled the gap, and
+            official support exists, where an unofficial pack fills the gap, and
             where there's still work to do.
           </p>
         </section>
@@ -86,10 +86,7 @@ export default function AboutPage() {
             monorepo:
           </p>
           <p className="mt-3">
-            <a
-              href={REPO}
-              className="font-medium text-wp-blue hover:underline"
-            >
+            <a href={REPO} className="font-medium text-wp-blue hover:underline">
               github.com/soflyy/agent-connector-for-wp
             </a>
           </p>
@@ -99,19 +96,6 @@ export default function AboutPage() {
               Contribute
             </Link>{" "}
             page for what we're looking for and how to help.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-xl font-semibold text-slate-900">Donations</h2>
-          <p className="leading-relaxed">
-            We are <strong>not</strong> currently taking donations. If the
-            server and AI generation costs ever get out of control we may start,
-            but for now the best way to support the project is to{" "}
-            <Link href="/contribute" className="text-wp-blue hover:underline">
-              contribute
-            </Link>
-            .
           </p>
         </section>
 
