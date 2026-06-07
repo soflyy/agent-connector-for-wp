@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/admin-auth";
-import { deletePlugin, setAIStatus, upsertPlugin } from "@/lib/db";
-import type { AIStatus, Plugin } from "@/lib/types";
+import { deletePlugin, upsertPlugin } from "@/lib/db";
+import type { Plugin } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -14,12 +14,12 @@ function toMessage(e: unknown): string {
   return typeof e === "string" ? e : "Unknown error";
 }
 
-export async function saveStatusAction(slug: string, status: AIStatus): Promise<ActionResult> {
+export async function savePluginAction(plugin: Plugin): Promise<ActionResult> {
   if (!(await isAdmin())) return { ok: false, error: "Not signed in as admin (try /admin/login again)." };
   try {
-    await setAIStatus(slug, { ...status, lastVerified: new Date().toISOString().slice(0, 10) });
+    await upsertPlugin(plugin);
     revalidatePath("/admin");
-    revalidatePath(`/admin/plugins/${slug}`);
+    revalidatePath(`/admin/plugins/${plugin.urlSlug ?? ""}`);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: toMessage(e) };

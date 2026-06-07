@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
-import { getPluginWithStatus } from "@/lib/db";
+import { getPluginByUrlSlug } from "@/lib/db";
 import StatusForm from "../../StatusForm";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,8 @@ export default async function EditPluginPage({
 }) {
   await requireAdmin();
   const { slug } = await params;
-  const plugin = await getPluginWithStatus(slug);
+  const plugin = await getPluginByUrlSlug(slug);
   if (!plugin) notFound();
 
-  return <StatusForm slug={slug} name={plugin.name} initial={plugin.aiStatus} />;
+  return <StatusForm initial={plugin} />;
 }

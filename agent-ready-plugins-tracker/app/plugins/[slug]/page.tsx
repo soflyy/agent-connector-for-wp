@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPluginWithStatus } from "@/lib/db";
+import { getPluginByUrlSlug } from "@/lib/db";
 
 // Always render from the live database — no static/ISR snapshot.
 export const dynamic = "force-dynamic";
@@ -12,11 +12,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const plugin = await getPluginWithStatus(slug);
+  const plugin = await getPluginByUrlSlug(slug);
   if (!plugin) return {};
   return {
     title: `${plugin.name} — Agent Ready Plugins Tracker`,
-    description: `Does ${plugin.name} have WordPress AI Abilities or an MCP adapter? Check the latest status.`,
+    description: `AI-ability status for the ${plugin.name} WordPress plugin.`,
   };
 }
 
@@ -24,7 +24,7 @@ function YesNo({ value }: { value: boolean }) {
   return value ? (
     <span className="font-medium text-emerald-600">Yes</span>
   ) : (
-    <span className="text-slate-300">—</span>
+    <span className="text-slate-400">No</span>
   );
 }
 
@@ -34,13 +34,8 @@ export default async function PluginDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const plugin = await getPluginWithStatus(slug);
+  const plugin = await getPluginByUrlSlug(slug);
   if (!plugin) notFound();
-
-  const { aiStatus } = plugin;
-  const hasOfficial = aiStatus.level === "official";
-  const hasUnofficial =
-    aiStatus.level === "unofficial" || aiStatus.unofficialPlugins.length > 0;
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -51,59 +46,70 @@ export default async function PluginDetailPage({
 
       <h1 className="text-2xl font-bold text-slate-900">{plugin.name}</h1>
       <code className="text-xs text-slate-400">{plugin.slug}</code>
+      {plugin.link && (
+        <div className="mt-2">
+          <a
+            href={plugin.link}
+            className="text-sm font-medium text-wp-blue hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Plugin page →
+          </a>
+        </div>
+      )}
 
       <dl className="mt-6 divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 text-sm">
         <div className="flex items-center justify-between px-4 py-3">
-          <dt className="text-slate-500">Official abilities</dt>
-          <dd><YesNo value={hasOfficial} /></dd>
+          <dt className="text-slate-500">Includes abilities</dt>
+          <dd><YesNo value={plugin.includesAbilities} /></dd>
         </div>
         <div className="flex items-center justify-between px-4 py-3">
-          <dt className="text-slate-500">Unofficial abilities</dt>
-          <dd><YesNo value={hasUnofficial} /></dd>
+          <dt className="text-slate-500">Agent Connector ability pack</dt>
+          <dd>
+            {plugin.ac4wpAbilityPackUrl ? (
+              <a
+                href={plugin.ac4wpAbilityPackUrl}
+                className="font-medium text-wp-blue hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View pack →
+              </a>
+            ) : (
+              <span className="text-slate-400">No</span>
+            )}
+          </dd>
         </div>
       </dl>
 
-      {/* Official ability details */}
-      {hasOfficial && (aiStatus.officialDocsUrl || (aiStatus.abilities?.length ?? 0) > 0) && (
-        <div className="mt-6 space-y-3">
-          {aiStatus.officialDocsUrl && (
-            <a
-              href={aiStatus.officialDocsUrl}
-              className="inline-block text-sm font-medium text-wp-blue hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Official docs →
-            </a>
-          )}
-          {aiStatus.abilities && aiStatus.abilities.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {aiStatus.abilities.map((ability) => (
-                <code key={ability} className="rounded bg-slate-100 px-2 py-1 text-xs font-mono text-slate-700">
-                  {ability}
-                </code>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Unofficial ability packs */}
-      {aiStatus.unofficialPlugins.length > 0 && (
-        <div className="mt-6 space-y-2">
-          {aiStatus.unofficialPlugins.map((up) => (
-            <a
-              key={up.pluginUrl}
-              href={up.pluginUrl}
-              className="block text-sm font-medium text-wp-blue hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {up.name} →
-            </a>
-          ))}
-        </div>
-      )}
+      <div className="mt-6">
+        <h2 className="mb-2 text-sm font-medium text-slate-700">3rd-party abilities provided by</h2>
+        {plugin.thirdPartyAbilities.length === 0 ? (
+          <p className="text-sm text-slate-400">None.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 text-sm">
+            {plugin.thirdPartyAbilities.map((t, i) => (
+              <li key={i} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="truncate text-slate-900">{t.pluginName}</div>
+                  {t.pluginSlug && <code className="text-xs text-slate-400">{t.pluginSlug}</code>}
+                </div>
+                {t.pluginLink && (
+                  <a
+                    href={t.pluginLink}
+                    className="shrink-0 font-medium text-wp-blue hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View →
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </main>
   );
 }
