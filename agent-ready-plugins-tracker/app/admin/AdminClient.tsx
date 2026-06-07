@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { Plugin, Submission } from "@/lib/types";
-import { addPluginAction, reviewSubmissionAction } from "./actions";
+import type { Plugin } from "@/lib/types";
+import { addPluginAction } from "./actions";
 
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
@@ -78,33 +78,5 @@ export function AddPluginForm() {
         {msg && <span className="text-sm text-slate-600">{msg}</span>}
       </div>
     </form>
-  );
-}
-
-export function SubmissionItem({ submission }: { submission: Submission }) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  return (
-    <li className="flex items-start justify-between gap-4 rounded-lg border border-slate-200 p-3">
-      <div className="text-sm">
-        <span className="font-medium text-slate-900">{submission.pluginSlug}</span>{" "}
-        <span className="text-slate-500">· {submission.type}</span>
-        {submission.notes && <p className="mt-1 text-slate-600">{submission.notes}</p>}
-        {submission.submitterEmail && <p className="mt-0.5 text-xs text-slate-400">{submission.submitterEmail}</p>}
-      </div>
-      <button
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          const res = await reviewSubmissionAction(submission.id);
-          if (res.ok) router.refresh();
-          else alert(res.error);
-          setBusy(false);
-        }}
-        className="shrink-0 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
-      >
-        {busy ? "…" : "Mark reviewed"}
-      </button>
-    </li>
   );
 }

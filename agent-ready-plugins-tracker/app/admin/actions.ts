@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { isAdmin } from "@/lib/admin-auth";
-import { setAIStatus, upsertPlugin, markSubmissionReviewed } from "@/lib/db";
+import { setAIStatus, upsertPlugin } from "@/lib/db";
 import type { AIStatus, Plugin } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -30,17 +30,6 @@ export async function addPluginAction(plugin: Plugin): Promise<ActionResult> {
   if (!(await isAdmin())) return { ok: false, error: "Not signed in as admin (try /admin/login again)." };
   try {
     await upsertPlugin(plugin);
-    revalidatePath("/admin");
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: toMessage(e) };
-  }
-}
-
-export async function reviewSubmissionAction(id: string): Promise<ActionResult> {
-  if (!(await isAdmin())) return { ok: false, error: "Not signed in as admin (try /admin/login again)." };
-  try {
-    await markSubmissionReviewed(id);
     revalidatePath("/admin");
     return { ok: true };
   } catch (e) {

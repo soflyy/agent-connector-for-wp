@@ -25,17 +25,3 @@ create table if not exists ai_statuses (
   last_verified       text,
   updated_at          timestamptz not null default now()
 );
-
-create table if not exists submissions (
-  id               text primary key,
-  plugin_slug      text not null references plugins(slug),
-  type             text not null check (type in ('new_unofficial', 'status_correction', 'new_official')),
-  submitted_at     timestamptz not null default now(),
-  submitter_email  text,
-  notes            text,
-  data             jsonb not null default '{}'::jsonb,
-  reviewed         boolean not null default false
-);
-
-create index if not exists submissions_plugin_slug_idx on submissions (plugin_slug);
-create index if not exists submissions_reviewed_idx on submissions (reviewed) where reviewed = false;

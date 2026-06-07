@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-auth";
-import { getAllPluginsWithStatus, getSubmissions } from "@/lib/db";
-import { AddPluginForm, LogoutButton, SubmissionItem } from "./AdminClient";
+import { getAllPluginsWithStatus } from "@/lib/db";
+import { AddPluginForm, LogoutButton } from "./AdminClient";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,6 @@ const BADGE: Record<string, string> = {
 export default async function AdminPage() {
   await requireAdmin();
   const plugins = await getAllPluginsWithStatus();
-  const submissions = await getSubmissions();
-  const pending = submissions.filter((s) => !s.reviewed);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -76,21 +74,6 @@ export default async function AdminPage() {
           A plugin must exist before you can set its AI status. Add it here, then click Edit above.
         </p>
         <AddPluginForm />
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-slate-900">
-          Pending submissions <span className="text-sm font-normal text-slate-400">({pending.length})</span>
-        </h2>
-        {pending.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing pending.</p>
-        ) : (
-          <ul className="space-y-2">
-            {pending.map((s) => (
-              <SubmissionItem key={s.id} submission={s} />
-            ))}
-          </ul>
-        )}
       </section>
     </div>
   );
