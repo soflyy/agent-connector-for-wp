@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.68",
     "@supabase/supabase-js": "^2.107.0",
     "ai": "^6.0.197",
     "autoprefixer": "^10.5.0",

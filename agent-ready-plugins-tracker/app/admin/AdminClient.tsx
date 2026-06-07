@@ -10,11 +10,11 @@ const input =
 
 interface AiDebug {
   model?: string;
-  temperature?: number;
   prompt?: string;
   request?: unknown;
   rawResponse?: unknown;
   object?: unknown;
+  sources?: unknown;
   usage?: unknown;
   finishReason?: string;
   warnings?: unknown;
@@ -85,8 +85,6 @@ function DebugModal({ slug, data, onClose }: { slug: string; data: CheckData; on
 
         <p className="mt-4 text-sm text-slate-600">
           <span className="font-medium">Model:</span> <code>{d.model ?? "—"}</code>
-          {" · "}
-          <span className="font-medium">temperature:</span> {String(d.temperature ?? "—")}
           {d.finishReason ? <> {" · "} <span className="font-medium">finish:</span> {d.finishReason}</> : null}
         </p>
 
@@ -94,6 +92,7 @@ function DebugModal({ slug, data, onClose }: { slug: string; data: CheckData; on
         <DebugSection title="Request sent to provider" value={d.request} />
         <DebugSection title="Raw response from provider" value={d.rawResponse} />
         <DebugSection title="Parsed object" value={d.object} />
+        <DebugSection title="Sources (web search)" value={d.sources} />
         <DebugSection title="Usage" value={d.usage} />
         {d.warnings ? <DebugSection title="Warnings" value={d.warnings} /> : null}
       </div>
