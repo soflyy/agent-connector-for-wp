@@ -24,7 +24,6 @@ export async function PUT(req: NextRequest) {
     link: plugin.link,
     includesAbilities: !!plugin.includesAbilities,
     thirdPartyAbilities: plugin.thirdPartyAbilities ?? [],
-    ac4wpAbilityPackUrl: plugin.ac4wpAbilityPackUrl,
   });
   return NextResponse.json({ ok: true, slug: plugin.slug });
 }

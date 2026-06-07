@@ -26,11 +26,10 @@ export default async function HomePage() {
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         {/* Header */}
-        <div className="grid grid-cols-[1fr_6rem_6rem_6rem] items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+        <div className="grid grid-cols-[1fr_7rem_7rem] items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-xs font-medium uppercase tracking-wide text-slate-500">
           <div>Plugin</div>
           <div className="text-center">Official</div>
           <div className="text-center">3rd-party</div>
-          <div className="text-center">AC4WP pack</div>
         </div>
 
         {/* Rows */}
@@ -39,7 +38,7 @@ export default async function HomePage() {
             <Link
               key={p.slug}
               href={`/plugins/${p.urlSlug}`}
-              className="grid grid-cols-[1fr_6rem_6rem_6rem] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50"
+              className="grid grid-cols-[1fr_7rem_7rem] items-center gap-4 px-5 py-3.5 transition-colors hover:bg-slate-50"
             >
               <div className="min-w-0">
                 <div className="truncate font-medium text-slate-900">{p.name}</div>
@@ -47,7 +46,6 @@ export default async function HomePage() {
               </div>
               <div className="text-center"><Yes on={p.includesAbilities} /></div>
               <div className="text-center"><Yes on={p.thirdPartyAbilities.length > 0} /></div>
-              <div className="text-center"><Yes on={!!p.ac4wpAbilityPackUrl} /></div>
             </Link>
           ))}
           {plugins.length === 0 && (

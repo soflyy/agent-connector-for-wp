@@ -44,7 +44,6 @@ export default async function AdminPage() {
                 <th className="px-4 py-2 font-medium">Plugin</th>
                 <th className="px-4 py-2 font-medium">Official</th>
                 <th className="px-4 py-2 font-medium">3rd-party</th>
-                <th className="px-4 py-2 font-medium">AC4WP pack</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -57,7 +56,6 @@ export default async function AdminPage() {
                   </td>
                   <td className="px-4 py-2"><YesNo on={p.includesAbilities} /></td>
                   <td className="px-4 py-2 text-slate-500">{p.thirdPartyAbilities.length || "—"}</td>
-                  <td className="px-4 py-2"><YesNo on={!!p.ac4wpAbilityPackUrl} /></td>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-3">
                       <AiCheckButton slug={p.slug} />
@@ -71,7 +69,7 @@ export default async function AdminPage() {
               ))}
               {plugins.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
                     No plugins yet. Add one below.
                   </td>
                 </tr>

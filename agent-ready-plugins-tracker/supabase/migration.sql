@@ -2,8 +2,8 @@
 --
 -- Simplified model: a single `plugins` table. A plugin is identified by its WP
 -- plugin file ("folder/main-file.php"), and we track only: whether it ships its
--- own abilities, which third-party plugins provide abilities for it, and whether
--- we publish an Agent Connector ability pack for it.
+-- own abilities, and which third-party plugins provide abilities for it (our own
+-- Agent Connector ability packs are just entries in that list).
 
 -- Destructive: this redesign changes the `plugins` shape (and the slug now stores
 -- the full plugin file). Old rows can't be migrated cleanly, so we recreate both
@@ -16,8 +16,7 @@ create table if not exists plugins (
   name                    text not null,
   link                    text,                                   -- .org page or commercial plugin page
   includes_abilities      boolean not null default false,         -- plugin ships its own (official) abilities
-  third_party_abilities   jsonb   not null default '[]'::jsonb,   -- [{ name, slug, link }]
-  ac4wp_ability_pack_url  text,                                   -- null = no pack; else the pack's URL
+  third_party_abilities   jsonb   not null default '[]'::jsonb,   -- [{ pluginName, pluginSlug, pluginLink }] (incl. our packs)
   ai_checked_at           timestamptz,                            -- last AI research time (least-recent checked first)
   updated_at              timestamptz not null default now(),
   -- URL-safe slug derived from the plugin file, used for /plugins/<url_slug>:

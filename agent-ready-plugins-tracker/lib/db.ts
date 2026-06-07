@@ -120,7 +120,6 @@ function rowToPlugin(row: any): Plugin {
     link: row.link ?? undefined,
     includesAbilities: !!row.includes_abilities,
     thirdPartyAbilities: normalizeThirdParty(row.third_party_abilities),
-    ac4wpAbilityPackUrl: row.ac4wp_ability_pack_url ?? undefined,
   };
 }
 
@@ -131,7 +130,6 @@ function pluginToRow(p: Plugin) {
     link: p.link ?? null,
     includes_abilities: p.includesAbilities,
     third_party_abilities: p.thirdPartyAbilities ?? [],
-    ac4wp_ability_pack_url: p.ac4wpAbilityPackUrl ?? null,
     updated_at: new Date().toISOString(),
   };
 }
