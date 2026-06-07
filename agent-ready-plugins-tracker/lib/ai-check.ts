@@ -1,4 +1,4 @@
-import { researchPlugin } from "./ai-research";
+import { researchPlugin, type ResearchDebug } from "./ai-research";
 import { applyAiResult, getPluginsToCheck, getPlugin } from "./db";
 
 export interface CheckOutcome {
@@ -7,22 +7,28 @@ export interface CheckOutcome {
   includesAbilities?: boolean;
   thirdPartyCount?: number;
   error?: string;
+  /** Full prompt / params / raw request + response for the admin UI. */
+  debug?: ResearchDebug;
 }
 
 /** Research one plugin and apply the result. */
 export async function checkOne(slug: string, name: string): Promise<CheckOutcome> {
-  try {
-    const result = await researchPlugin(slug, name);
-    await applyAiResult(slug, result);
-    return {
-      slug,
-      ok: true,
-      includesAbilities: result.pluginIncludesOfficialAbilities,
-      thirdPartyCount: result.thirdPartyAbilitiesProvidedBy.length,
-    };
-  } catch (e) {
-    return { slug, ok: false, error: e instanceof Error ? e.message : String(e) };
+  const outcome = await researchPlugin(slug, name);
+  if (!outcome.ok) {
+    return { slug, ok: false, error: outcome.error, debug: outcome.debug };
   }
+  try {
+    await applyAiResult(slug, outcome.result);
+  } catch (e) {
+    return { slug, ok: false, error: e instanceof Error ? e.message : String(e), debug: outcome.debug };
+  }
+  return {
+    slug,
+    ok: true,
+    includesAbilities: outcome.result.pluginIncludesOfficialAbilities,
+    thirdPartyCount: outcome.result.thirdPartyAbilitiesProvidedBy.length,
+    debug: outcome.debug,
+  };
 }
 
 /** Look up a plugin's name and check it. */
@@ -41,7 +47,9 @@ export async function runBatch(limit: number): Promise<CheckOutcome[]> {
   async function worker() {
     while (next < targets.length) {
       const t = targets[next++];
-      out.push(await checkOne(t.slug, t.name));
+      // Drop the verbose debug payload from batch results to keep them small.
+      const { debug: _debug, ...rest } = await checkOne(t.slug, t.name);
+      out.push(rest);
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));

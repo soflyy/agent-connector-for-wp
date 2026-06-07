@@ -8,49 +8,125 @@ import { addPluginAction, deletePluginAction } from "./actions";
 const input =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-wp-blue focus:outline-none focus:ring-1 focus:ring-wp-blue";
 
-async function postAiCheck(body: object): Promise<{ ok: boolean; message: string }> {
+interface AiDebug {
+  model?: string;
+  temperature?: number;
+  prompt?: string;
+  request?: unknown;
+  rawResponse?: unknown;
+  object?: unknown;
+  usage?: unknown;
+  finishReason?: string;
+  warnings?: unknown;
+}
+interface CheckData {
+  ok?: boolean;
+  error?: string;
+  includesAbilities?: boolean;
+  thirdPartyCount?: number;
+  debug?: AiDebug;
+}
+
+async function callAiCheck(body: object): Promise<{ httpOk: boolean; data: CheckData }> {
+  const res = await fetch("/api/admin/ai-check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  return { httpOk: res.ok, data };
+}
+
+function pretty(v: unknown): string {
+  if (v === undefined || v === null) return "—";
+  if (typeof v === "string") return v;
   try {
-    const res = await fetch("/api/admin/ai-check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) return { ok: false, message: data?.error || `HTTP ${res.status}` };
-    if (typeof data.checked === "number") {
-      const failed = (data.results || []).filter((r: { ok?: boolean }) => r.ok === false).length;
-      return { ok: true, message: `Checked ${data.checked}${failed ? `; ${failed} failed` : ""}.` };
-    }
-    if (data.ok === false) return { ok: false, message: data.error || "Check failed." };
-    const official = data.includesAbilities ? "official" : "no official";
-    return { ok: true, message: `${official}, ${data.thirdPartyCount ?? 0} third-party.` };
-  } catch (e) {
-    return { ok: false, message: e instanceof Error ? e.message : "Request failed" };
+    return JSON.stringify(v, null, 2);
+  } catch {
+    return String(v);
   }
+}
+
+function DebugSection({ title, value }: { title: string; value: unknown }) {
+  return (
+    <div className="mt-4">
+      <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h4>
+      <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-xs font-mono text-slate-700">
+        {pretty(value)}
+      </pre>
+    </div>
+  );
+}
+
+function DebugModal({ slug, data, onClose }: { slug: string; data: CheckData; onClose: () => void }) {
+  const d = data.debug ?? {};
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div className="my-8 w-full max-w-3xl rounded-xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">
+            AI re-check — <code className="text-sm text-slate-500">{slug}</code>
+          </h3>
+          <button onClick={onClose} className="rounded-md border border-slate-300 px-3 py-1 text-sm font-medium hover:bg-slate-50">
+            Close
+          </button>
+        </div>
+
+        {data.ok === false ? (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">Error: {data.error || "unknown"}</p>
+        ) : (
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            Applied: {data.includesAbilities ? "official abilities" : "no official abilities"}, {data.thirdPartyCount ?? 0} third-party.
+          </p>
+        )}
+
+        <p className="mt-4 text-sm text-slate-600">
+          <span className="font-medium">Model:</span> <code>{d.model ?? "—"}</code>
+          {" · "}
+          <span className="font-medium">temperature:</span> {String(d.temperature ?? "—")}
+          {d.finishReason ? <> {" · "} <span className="font-medium">finish:</span> {d.finishReason}</> : null}
+        </p>
+
+        <DebugSection title="Prompt" value={d.prompt} />
+        <DebugSection title="Request sent to provider" value={d.request} />
+        <DebugSection title="Raw response from provider" value={d.rawResponse} />
+        <DebugSection title="Parsed object" value={d.object} />
+        <DebugSection title="Usage" value={d.usage} />
+        {d.warnings ? <DebugSection title="Warnings" value={d.warnings} /> : null}
+      </div>
+    </div>
+  );
 }
 
 export function AiCheckButton({ slug }: { slug: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [result, setResult] = useState<CheckData | null>(null);
   return (
-    <span className="inline-flex items-center gap-2">
+    <>
       <button
         disabled={busy}
         onClick={async () => {
           setBusy(true);
-          setMsg("");
-          const r = await postAiCheck({ slug });
-          setMsg(r.message);
-          if (r.ok) router.refresh();
+          try {
+            const { httpOk, data } = await callAiCheck({ slug });
+            const shaped: CheckData = httpOk ? data : { ok: false, error: data?.error || "Request failed", debug: data?.debug };
+            setResult(shaped);
+            if (httpOk && data?.ok) router.refresh();
+          } catch (e) {
+            setResult({ ok: false, error: e instanceof Error ? e.message : "Request failed" });
+          }
           setBusy(false);
         }}
         className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium hover:bg-slate-50 disabled:opacity-60"
       >
         {busy ? "Checking…" : "Re-check (AI)"}
       </button>
-      {msg && <span className="text-xs text-slate-500">{msg}</span>}
-    </span>
+      {result && <DebugModal slug={slug} data={result} onClose={() => setResult(null)} />}
+    </>
   );
 }
 
@@ -65,9 +141,19 @@ export function AiCheckAllButton() {
         onClick={async () => {
           setBusy(true);
           setMsg("");
-          const r = await postAiCheck({ all: true });
-          setMsg(r.message);
-          if (r.ok) router.refresh();
+          try {
+            const { httpOk, data } = await callAiCheck({ all: true });
+            if (!httpOk) {
+              setMsg((data as { error?: string })?.error || "Request failed");
+            } else {
+              const results = (data as unknown as { checked?: number; results?: { ok?: boolean }[] });
+              const failed = (results.results || []).filter((r) => r.ok === false).length;
+              setMsg(`Checked ${results.checked ?? 0}${failed ? `; ${failed} failed` : ""}.`);
+              router.refresh();
+            }
+          } catch (e) {
+            setMsg(e instanceof Error ? e.message : "Request failed");
+          }
           setBusy(false);
         }}
         className="rounded-lg bg-wp-blue px-4 py-2 text-sm font-semibold text-white hover:bg-wp-blue-dark disabled:opacity-60"
