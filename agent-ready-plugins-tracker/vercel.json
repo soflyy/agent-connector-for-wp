@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/admin/ai-check",
-      "schedule": "0 6 * * *"
-    }
-  ]
-}
