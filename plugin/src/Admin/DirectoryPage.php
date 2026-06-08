@@ -107,7 +107,7 @@ final class DirectoryPage {
 		$result = PluginDirectory::installed_overview();
 		?>
 		<p style="max-width:52em;">
-			<?php esc_html_e( 'Your active plugins, with links to the public directory for each plugin’s official and third-party AI ability details, plus the optional unofficial ability pack we generate. Installing our pack is always optional.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Your active plugins and, for each, the optional unofficial ability pack we generate. Installing a pack is always optional.', 'agent-connector-for-wp' ); ?>
 		</p>
 
 		<?php $this->render_toolbar( $result ); ?>
@@ -132,8 +132,8 @@ final class DirectoryPage {
 		<p class="description" style="max-width:50em;">
 			<?php
 			printf(
-				/* translators: %s: directory URL. */
-				esc_html__( 'Directory source: %s', 'agent-connector-for-wp' ),
+				/* translators: %s: ability-pack manifest URL. */
+				esc_html__( 'Pack index source: %s', 'agent-connector-for-wp' ),
 				'<code>' . esc_html( (string) $result['url'] ) . '</code>'
 			);
 			?>
@@ -163,8 +163,6 @@ final class DirectoryPage {
 			<thead>
 				<tr>
 					<th scope="col"><?php esc_html_e( 'Active plugin', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Official Abilities', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( '3rd Party Abilities', 'agent-connector-for-wp' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Unofficial ability pack', 'agent-connector-for-wp' ); ?></th>
 				</tr>
 			</thead>
@@ -178,41 +176,21 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Render one active-plugin row: the plugin, "See Details" links to its public
-	 * directory page for official and third-party abilities, and our optional
-	 * ability pack with its actions.
+	 * Render one active-plugin row: the plugin and our optional ability pack with
+	 * its actions.
 	 *
 	 * @param array<string,mixed> $row A single PluginDirectory overview row.
 	 */
 	private function render_row( array $row ): void {
-		$tracked = ! empty( $row['tracked'] );
-		$url     = (string) ( $row['plugin_page_url'] ?? '' );
 		?>
 		<tr>
 			<td>
 				<strong><?php echo esc_html( (string) $row['plugin_name'] ); ?></strong><br />
 				<code style="font-size:11px;"><?php echo esc_html( (string) $row['plugin_file'] ); ?></code>
 			</td>
-			<td><?php $this->render_see_details_cell( $tracked, $url ); ?></td>
-			<td><?php $this->render_see_details_cell( $tracked, $url ); ?></td>
 			<td><?php $this->render_pack_cell( $row ); ?></td>
 		</tr>
 		<?php
-	}
-
-	/**
-	 * A "See Details" cell: links to the plugin's public directory page where the
-	 * ability data lives, or "—" when the plugin isn't tracked there.
-	 *
-	 * @param bool   $tracked Whether the plugin exists in the public directory.
-	 * @param string $url     The directory detail-page URL.
-	 */
-	private function render_see_details_cell( bool $tracked, string $url ): void {
-		if ( ! $tracked || '' === $url ) {
-			echo '<span class="description">&mdash;</span>';
-			return;
-		}
-		echo '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'See Details', 'agent-connector-for-wp' ) . ' &rarr;</a>';
 	}
 
 	/**
