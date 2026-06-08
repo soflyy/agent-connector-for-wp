@@ -1,61 +1,32 @@
-# Ability-Pack Directory Schema
+# Ability-Pack Manifest Schema
 
-Agent Connector for WP asks a remote **match endpoint** which of the plugins
-installed on a site have a companion "ability pack" available, then lets the admin
-install/activate them and keeps them updated. By default that endpoint is the
-[agent-ready-plugins-tracker](../../agent-ready-plugins-tracker/) app, which serves
-the data from the GitHub `pack-index` manifest the release CI generates.
+Agent Connector for WP reads a published **ability-pack manifest** to learn which
+of the plugins installed on a site have a companion "ability pack" available, then
+lets the admin install/activate them and keeps them updated. By default the
+manifest is the GitHub `pack-index` release asset the release CI generates.
 
-- **Default URL:** `https://agent-ready-plugins-tracker-git-master-future-layer.vercel.app/api/ability-packs/match`
-  (the endpoint must be **publicly reachable** — disable Vercel Deployment
-  Protection for it, or point the filter below at a public domain).
-- **Override filter:** `agent_connector_for_wp_directory_url`
+- **Default URL:** `https://github.com/soflyy/agent-connector-for-wp/releases/download/pack-index/index.json`
+- **Override filter:** `agent_connector_for_wp_pack_index_url`
   ```php
-  add_filter( 'agent_connector_for_wp_directory_url', fn() => 'https://example.com/api/ability-packs/match' );
+  add_filter( 'agent_connector_for_wp_pack_index_url', fn() => 'https://example.com/pack-index.json' );
   ```
-- **Request:** `POST` (`wp_remote_post`, 5s timeout) with a JSON body listing the
-  site's installed plugins so the endpoint can return only relevant packs:
-  ```json
-  {
-    "site_url": "https://example.com",
-    "plugins": [
-      { "slug": "contact-form-7", "file": "contact-form-7/wp-contact-form-7.php", "active": true }
-    ]
-  }
-  ```
-- **Caching:** the response is cached in the
-  `agent_connector_for_wp_directory_cache` transient for 12 hours, fingerprinted by
-  the installed-plugin set (installing/removing a plugin invalidates it). On a fetch
-  failure the last cached copy is reused (flagged "stale"); with no cache at all the
-  UI shows a clean "directory unavailable" state. A manual **Refresh now** button
-  busts the cache.
+- **Request:** `GET` (`wp_remote_get`, 5s timeout). The full manifest is fetched and
+  filtered against the installed plugins locally.
+- **Caching:** the manifest is cached in the `agent_connector_for_wp_directory_cache`
+  transient for 12 hours. On a fetch failure the last cached copy is reused (flagged
+  "stale"); with no cache at all the UI shows a clean "unavailable" state. A manual
+  **Refresh now** button busts the cache.
 
 ## Response shape
 
-A JSON **object** with an `entries` array (our installable packs) and an optional
-`statuses` array (per-plugin ecosystem AI-support info). A bare array is also
-accepted and treated as `entries`.
+A JSON **object** with an `entries` array (the installable packs). A bare array is
+also accepted and treated as `entries`. Any other top-level keys are ignored.
 
 ```json
 {
-  "entries":  [ /* entry objects (our generated packs) */ ],
-  "statuses": [ /* status objects (official / third-party support per plugin) */ ]
+  "entries": [ /* entry objects (the generated packs) */ ]
 }
 ```
-
-## Status object (optional, per plugin)
-
-Drives the "Available AI abilities" column — informational only (nothing here is
-installed by the plugin). Keyed by plugin slug; entries without a `slug` are dropped.
-
-| Field                | Type   | Notes |
-| -------------------- | ------ | ----- |
-| `slug`               | string | The plugin's folder slug (join key). **Required** within a status object. |
-| `level`              | string | `official` \| `unofficial` \| `coming_soon` \| `none`. |
-| `official_since`     | string | Plugin version that added official AI abilities (when `official`). |
-| `official_docs_url`  | string | Link to official docs / roadmap. |
-| `abilities_count`    | int    | Number of official abilities, if known. |
-| `unofficial_plugins` | array  | Third-party extensions: `{ name, plugin_url, description, author, author_url }`. Rendered as informational links. |
 
 ## Entry object
 
@@ -88,7 +59,7 @@ ability pack (linked to `source_url`), and a status:
 - **Installed & active** — `ability_pack_slug` is installed and active.
 
 Install/activate require the `install_plugins`/`activate_plugins` capabilities and a
-nonce; the download URL is re-resolved server-side from this directory (never from
+nonce; the download URL is re-resolved server-side from this manifest (never from
 the browser). Once a pack is installed, the host keeps it updated by injecting its
 latest `version`/`download_url` into WordPress's normal plugin-update flow.
 
@@ -97,10 +68,10 @@ plugins (e.g. `hello.php` ⇄ `hello`).
 
 ## Companion-plugin targeting convention
 
-This directory keys each pack by the **WP plugin it extends** — the `target_plugin`
+This manifest keys each pack by the **WP plugin it extends** — the `target_plugin`
 field. That is the single join key shared with the ability-API side: a companion
 "ability pack" declares the same value in its `Agent Connector Target:` plugin
-header (see [registering-abilities.md](registering-abilities.md)). A directory
+header (see [registering-abilities.md](registering-abilities.md)). A manifest
 entry's `target_plugin` and a pack's `Agent Connector Target:` header must match
 for the pack to surface against an installed plugin.
 

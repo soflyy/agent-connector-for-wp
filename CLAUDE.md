@@ -7,7 +7,6 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 | Path | What it is | Docs |
 | --- | --- | --- |
 | `plugin/` | The WordPress plugin (PHP, Composer). | [`plugin/README.md`](plugin/README.md) |
-| `agent-ready-plugins-tracker/` | Public directory site (Next.js + Supabase), deployed to Vercel. | [`agent-ready-plugins-tracker/README.md`](agent-ready-plugins-tracker/README.md) |
 | `abilities-generator/` | The `wp-mcp-generator` skill + scripts. | [`abilities-generator/README.md`](abilities-generator/README.md) |
 | `ability-packs/` | Generated ability-pack plugins (the generator's output). | — |
 | `bin/` | Dev scripts (`install.sh` symlinks `plugin/` into a WP install). | — |
