@@ -126,6 +126,7 @@ final class ConnectionPage {
 		$prod_blocked    = Config::is_blocked_by_production();
 		$env_type        = function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown';
 		$builtin_enabled = Config::builtin_abilities_enabled();
+		$mcp_debug       = Config::mcp_debug_enabled();
 		$builtin_active  = Config::builtin_abilities_active();
 		$locked_host     = Config::locked_host();
 		$declared_host   = Config::declared_host();
@@ -233,6 +234,19 @@ final class ConnectionPage {
 								<input type="checkbox" name="acfw_builtin_abilities" value="1" <?php checked( $builtin_enabled ); ?> />
 								<?php esc_html_e( 'Expose Agent Connector\'s built-in abilities over MCP.', 'agent-connector-for-wp' ); ?>
 							</label>
+						</td>
+					</tr>
+
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Debug', 'agent-connector-for-wp' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="acfw_mcp_debug" value="1" <?php checked( $mcp_debug ); ?> />
+								<?php esc_html_e( 'Log MCP events to the database.', 'agent-connector-for-wp' ); ?>
+							</label>
+							<p class="description">
+								<?php esc_html_e( 'Records every MCP request — including the raw JSON-RPC request and response bodies — and shows them on the MCP Events page. Bodies can contain sensitive data, so leave this off unless you are debugging.', 'agent-connector-for-wp' ); ?>
+							</p>
 						</td>
 					</tr>
 
@@ -455,10 +469,12 @@ final class ConnectionPage {
 		$enable      = isset( $_POST['acfw_enabled'] ) && '1' === $_POST['acfw_enabled']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$allow_prod  = isset( $_POST['acfw_allow_production'] ) && '1' === $_POST['acfw_allow_production']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$builtin     = isset( $_POST['acfw_builtin_abilities'] ) && '1' === $_POST['acfw_builtin_abilities']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$mcp_debug   = isset( $_POST['acfw_mcp_debug'] ) && '1' === $_POST['acfw_mcp_debug']; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
 		update_option( Config::ENABLED_OPTION, $enable, true );
 		update_option( Config::PRODUCTION_OVERRIDE_OPTION, $allow_prod, true );
 		update_option( Config::BUILTIN_ABILITIES_OPTION, $builtin, true );
+		update_option( Config::MCP_DEBUG_OPTION, $mcp_debug, true );
 
 		if ( $enable ) {
 			if ( ! $was_enabled ) {

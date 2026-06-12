@@ -141,6 +141,13 @@ add_action(
 		 */
 		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
 			\WP\MCP\Core\McpAdapter::instance();
+
+			// Log MCP traffic to a dedicated table and expose the "MCP
+			// Events" admin page. Attaches its handler to the adapter's
+			// default server via the mcp_adapter_default_server_config
+			// filter, so it must register before the server is created on
+			// mcp_adapter_init.
+			( new Observability\Observability() )->register();
 		}
 
 		// Security backstop: force our auth + domain-lock + audit onto EVERY
