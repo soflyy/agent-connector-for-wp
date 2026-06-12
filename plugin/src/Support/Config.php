@@ -45,6 +45,15 @@ final class Config {
 	public const BUILTIN_ABILITIES_OPTION = 'agent_connector_for_wp_builtin_abilities';
 
 	/**
+	 * Option toggling the debug log of MCP traffic (boolean). When on, every MCP
+	 * event — including raw JSON-RPC request/response bodies — is written to the
+	 * `{prefix}acfw_mcp_events` table and surfaced on the "MCP Events" admin
+	 * page. Default OFF: bodies can contain sensitive data, so logging is a
+	 * deliberate opt-in.
+	 */
+	public const MCP_DEBUG_OPTION = 'agent_connector_for_wp_mcp_debug';
+
+	/**
 	 * Option storing the host the plugin was last enabled / reconnected on.
 	 *
 	 * This is the domain lock: abilities refuse to run if the site's declared
@@ -113,6 +122,14 @@ final class Config {
 	 */
 	public static function builtin_abilities_enabled(): bool {
 		return (bool) get_option( self::BUILTIN_ABILITIES_OPTION, false );
+	}
+
+	/**
+	 * Whether the operator opted in to MCP event logging (the Debug setting).
+	 * Default OFF — see MCP_DEBUG_OPTION.
+	 */
+	public static function mcp_debug_enabled(): bool {
+		return (bool) get_option( self::MCP_DEBUG_OPTION, false );
 	}
 
 	/**

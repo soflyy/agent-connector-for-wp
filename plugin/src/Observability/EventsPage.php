@@ -110,6 +110,21 @@ final class EventsPage {
 		echo '<div class="wrap">';
 		echo '<h1>' . esc_html__( 'MCP Events', 'agent-connector-for-wp' ) . '</h1>';
 
+		if ( ! Config::mcp_debug_enabled() ) {
+			$settings_url = add_query_arg( array( 'page' => ConnectionPage::MENU_SLUG ), admin_url( 'admin.php' ) );
+			printf(
+				'<div class="notice notice-warning inline"><p>%s</p></div>',
+				wp_kses(
+					sprintf(
+						/* translators: %s: Connection screen URL. */
+						__( 'MCP event logging is off — new events are not being recorded. Turn on the Debug setting on the <a href="%s">Connection screen</a> to start logging.', 'agent-connector-for-wp' ),
+						esc_url( $settings_url )
+					),
+					array( 'a' => array( 'href' => array() ) )
+				)
+			);
+		}
+
 		if ( isset( $_GET['cleared'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			echo '<div class="notice notice-success is-dismissible"><p>'
 				. esc_html__( 'MCP event log cleared.', 'agent-connector-for-wp' )
