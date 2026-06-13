@@ -29,9 +29,22 @@ defined( 'ABSPATH' ) || exit;
 final class Connection {
 
 	/**
-	 * A stable client name agents will use to label this server.
+	 * Fallback client name when the site name can't be slugified.
 	 */
 	public const CLIENT_NAME = 'wordpress-agent-connector-for-wp';
+
+	/**
+	 * The MCP server name agents use to label this server.
+	 *
+	 * Derived from the site name (slugified) so each connected site gets a
+	 * recognizable, distinct entry. Falls back to CLIENT_NAME when the site
+	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
+	 */
+	public static function server_name(): string {
+		$slug = sanitize_title( (string) get_bloginfo( 'name' ) );
+
+		return '' !== $slug ? $slug . '-wp' : self::CLIENT_NAME;
+	}
 
 	/**
 	 * The npm package providing the stdio proxy the agent runs locally.
@@ -97,7 +110,7 @@ final class Connection {
 	 */
 	public static function build_artifacts( string $username, string $password ): array {
 		$url     = self::endpoint_url();
-		$name    = self::CLIENT_NAME;
+		$name    = self::server_name();
 		$package = self::PROXY_PACKAGE;
 		$env     = self::proxy_env( $username, $password );
 
