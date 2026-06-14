@@ -34,8 +34,8 @@ final class ConnectionPage {
 
 	public function register_menu(): void {
 		$this->hook_suffix = (string) add_menu_page(
-			__( 'Agent Connector for WP', 'agent-connector-for-wp' ),
-			__( 'Agent Connector for WP', 'agent-connector-for-wp' ),
+			__( 'Agent Connector', 'agent-connector-for-wp' ),
+			__( 'Agent Connector', 'agent-connector-for-wp' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' ),
