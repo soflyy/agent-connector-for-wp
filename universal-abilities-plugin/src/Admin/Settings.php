@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Settings {
 
-	public const TEXT_DOMAIN = 'default-abilities-plugin';
+	public const TEXT_DOMAIN = 'universal-abilities-plugin';
 
 	/**
 	 * Option toggling the built-in abilities. Kept under the original
@@ -76,17 +76,17 @@ final class Settings {
 		$enabled = self::enabled();
 		?>
 		<tr>
-			<th scope="row"><?php esc_html_e( 'Built-in abilities', 'default-abilities-plugin' ); ?></th>
+			<th scope="row"><?php esc_html_e( 'Built-in abilities', 'universal-abilities-plugin' ); ?></th>
 			<td>
 				<?php if ( self::active() ) : ?>
-					<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'ON', 'default-abilities-plugin' ); ?></span>
-					<p class="description"><?php esc_html_e( 'Shell, PHP eval, filesystem, WP-CLI, env-inspect and admin-login abilities are exposed.', 'default-abilities-plugin' ); ?></p>
+					<span style="color:#996800;font-weight:600;"><?php esc_html_e( 'ON', 'universal-abilities-plugin' ); ?></span>
+					<p class="description"><?php esc_html_e( 'Shell, PHP eval, filesystem, WP-CLI, env-inspect and admin-login abilities are exposed.', 'universal-abilities-plugin' ); ?></p>
 				<?php elseif ( $enabled && ! $active ) : ?>
-					<span style="color:#646970;font-weight:600;"><?php esc_html_e( 'On, but inactive', 'default-abilities-plugin' ); ?></span>
-					<p class="description"><?php esc_html_e( 'Will be exposed once the MCP server is active.', 'default-abilities-plugin' ); ?></p>
+					<span style="color:#646970;font-weight:600;"><?php esc_html_e( 'On, but inactive', 'universal-abilities-plugin' ); ?></span>
+					<p class="description"><?php esc_html_e( 'Will be exposed once the MCP server is active.', 'universal-abilities-plugin' ); ?></p>
 				<?php else : ?>
-					<span style="color:#646970;font-weight:600;"><?php esc_html_e( 'Off', 'default-abilities-plugin' ); ?></span>
-					<p class="description"><?php esc_html_e( 'The built-in abilities are not exposed.', 'default-abilities-plugin' ); ?></p>
+					<span style="color:#646970;font-weight:600;"><?php esc_html_e( 'Off', 'universal-abilities-plugin' ); ?></span>
+					<p class="description"><?php esc_html_e( 'The built-in abilities are not exposed.', 'universal-abilities-plugin' ); ?></p>
 				<?php endif; ?>
 			</td>
 		</tr>
@@ -99,17 +99,17 @@ final class Settings {
 	public function render_settings_row(): void {
 		?>
 		<tr>
-			<th scope="row"><?php esc_html_e( 'Built-in abilities', 'default-abilities-plugin' ); ?></th>
+			<th scope="row"><?php esc_html_e( 'Built-in abilities', 'universal-abilities-plugin' ); ?></th>
 			<td>
 				<div class="notice notice-warning inline" style="margin:0 0 .9em;max-width:46em;">
 					<p>
-						<strong><?php esc_html_e( 'Powerful:', 'default-abilities-plugin' ); ?></strong>
-						<?php esc_html_e( "These are the Default Abilities pack's own abilities — arbitrary shell commands, PHP evaluation, filesystem read/write, WP-CLI, and a one-time admin login link. They grant admin-equivalent control of this site to anyone holding an application password. Off by default; enable only when you want an agent to have that access.", 'default-abilities-plugin' ); ?>
+						<strong><?php esc_html_e( 'Powerful:', 'universal-abilities-plugin' ); ?></strong>
+						<?php esc_html_e( "These are the Default Abilities pack's own abilities — arbitrary shell commands, PHP evaluation, filesystem read/write, WP-CLI, and a one-time admin login link. They grant admin-equivalent control of this site to anyone holding an application password. Off by default; enable only when you want an agent to have that access.", 'universal-abilities-plugin' ); ?>
 					</p>
 				</div>
 				<label>
 					<input type="checkbox" name="acfw_builtin_abilities" value="1" <?php checked( self::enabled() ); ?> />
-					<?php esc_html_e( 'Expose the built-in abilities over MCP.', 'default-abilities-plugin' ); ?>
+					<?php esc_html_e( 'Expose the built-in abilities over MCP.', 'universal-abilities-plugin' ); ?>
 				</label>
 			</td>
 		</tr>
@@ -136,7 +136,7 @@ final class Settings {
 	 */
 	public function filter_connect_heads_up( $text ): string {
 		if ( self::active() ) {
-			return __( 'Built-in abilities are on, so anyone holding this application password can run shell commands, evaluate PHP, and read/write files on this server as you. Treat it like an SSH key. The password is shown only once — copy it now.', 'default-abilities-plugin' );
+			return __( 'Built-in abilities are on, so anyone holding this application password can run shell commands, evaluate PHP, and read/write files on this server as you. Treat it like an SSH key. The password is shown only once — copy it now.', 'universal-abilities-plugin' );
 		}
 		return (string) $text;
 	}
@@ -155,7 +155,7 @@ final class Settings {
 		}
 		?>
 		<div class="notice notice-error inline" style="max-width:48em;">
-			<p><?php esc_html_e( 'Your account is not a super admin. The built-in abilities require super-admin access, so they will reject the connection. Sign in as a super admin first.', 'default-abilities-plugin' ); ?></p>
+			<p><?php esc_html_e( 'Your account is not a super admin. The built-in abilities require super-admin access, so they will reject the connection. Sign in as a super admin first.', 'universal-abilities-plugin' ); ?></p>
 		</div>
 		<?php
 	}

@@ -1,11 +1,11 @@
 name: Release Default Abilities plugin
 
-# Builds the Default Abilities companion plugin (default-abilities-plugin/) as a
+# Builds the Default Abilities companion plugin (universal-abilities-plugin/) as a
 # standalone WordPress plugin zip and publishes it as the asset of a stable,
-# non-"latest" release tagged `default-abilities-plugin`. That gives the zip a
+# non-"latest" release tagged `universal-abilities-plugin`. That gives the zip a
 # permanent URL that the main plugin's one-click installer (Connection screen)
 # downloads from:
-#   https://github.com/<owner>/<repo>/releases/download/default-abilities-plugin/default-abilities-plugin.zip
+#   https://github.com/<owner>/<repo>/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip
 #
 # The plugin ships no Composer dependencies — it reuses the main plugin's bundled
 # infrastructure at runtime — so the build is just stage + zip. The version is
@@ -14,7 +14,7 @@ on:
   push:
     branches: [master]
     paths:
-      - 'default-abilities-plugin/**'
+      - 'universal-abilities-plugin/**'
       - '.github/workflows/default-abilities-release.yml'
   workflow_dispatch:
 
@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PLUGIN_SLUG: default-abilities-plugin
+  PLUGIN_SLUG: universal-abilities-plugin
 
 jobs:
   release:
@@ -50,7 +50,7 @@ jobs:
           set -euo pipefail
           cd dist && zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
 
-      - name: Publish to the stable default-abilities-plugin release
+      - name: Publish to the stable universal-abilities-plugin release
         run: |
           set -euo pipefail
           notes="The Default Abilities pack for Agent Connector for WP. Install in one click from wp-admin → Agent Connector for WP → Connection, or download the zip below."

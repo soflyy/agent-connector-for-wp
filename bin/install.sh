@@ -3,7 +3,7 @@
 # Symlink the plugins into a WordPress install for local development.
 #
 # This repo is a monorepo: the main plugin lives in plugin/ and its Default
-# Abilities companion in default-abilities-plugin/. WordPress expects each plugin
+# Abilities companion in universal-abilities-plugin/. WordPress expects each plugin
 # under wp-content/plugins/, so for local development we symlink them there
 # instead of copying. Edit files in the repo; WordPress sees them live.
 #
@@ -23,7 +23,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # <source-subdir>/<plugin-slug>.php.
 PLUGINS=(
 	"plugin:agent-connector-for-wp"
-	"default-abilities-plugin:default-abilities-plugin"
+	"universal-abilities-plugin:universal-abilities-plugin"
 )
 
 usage() {
@@ -83,4 +83,4 @@ fi
 
 echo
 echo "Next: activate the plugins, e.g."
-echo "  wp plugin activate agent-connector-for-wp default-abilities-plugin"
+echo "  wp plugin activate agent-connector-for-wp universal-abilities-plugin"

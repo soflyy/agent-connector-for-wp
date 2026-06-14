@@ -16,7 +16,7 @@ Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. T
 
 This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. Every exposed ability is governed by its super-admin auth, domain lock, and audit log, regardless of which plugin registered it.
 
-The powerful built-in abilities live in a separate companion plugin, **Default Abilities for Agent Connector**, which you can install in one click from the Connection screen. Off by default. It adds:
+The powerful built-in abilities live in a separate companion plugin, **Universal Abilities for Agent Connector**, which you can install in one click from the Connection screen. Off by default. It adds:
 
 * **Shell execution** (`agent-connector-for-wp/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
 * **WP-CLI execution** (`agent-connector-for-wp/wp-cli`) — run a WP-CLI command (everything after `wp`) against this install; runs from the WordPress root and auto-adds --allow-root when running as root.
@@ -86,7 +86,7 @@ Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, appro
 == Changelog ==
 
 = 1.13.0 =
-* The plugin now ships no abilities of its own — it is purely the secured MCP gateway. The powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login) moved to a separate companion plugin, **Default Abilities for Agent Connector**.
+* The plugin now ships no abilities of its own — it is purely the secured MCP gateway. The powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login) moved to a separate companion plugin, **Universal Abilities for Agent Connector**.
 * One-click install: when the Default Abilities pack is not active, the Connection screen offers an **Install Default Abilities** button. The pack injects its status, opt-in toggle, and warnings back onto the Connection screen via new hooks (`agent_connector_for_wp_render_status_rows`, `agent_connector_for_wp_render_settings_rows`, `agent_connector_for_wp_settings_saved`, `agent_connector_for_wp_connect_heads_up`, `agent_connector_for_wp_render_connect_notices`).
 * Ability names, the domain lock, audit logging, and the public registration API are unchanged.
 

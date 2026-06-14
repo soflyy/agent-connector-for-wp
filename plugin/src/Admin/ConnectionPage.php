@@ -9,7 +9,6 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use WP_Application_Passwords;
@@ -30,8 +29,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Plus domain-lock status / reconnect. The optional "Built-in abilities" status,
  * toggle, and warnings are injected by the separate Default Abilities plugin
- * through the agent_connector_for_wp_render_* hooks; when that plugin is not
- * active we render a one-click install prompt in its place.
+ * through the agent_connector_for_wp_render_* hooks.
  *
  * Settings POSTs go through admin-post.php; the connection generator uses
  * admin-ajax so the secret never lands in page source.
@@ -44,19 +42,6 @@ final class ConnectionPage {
 	private const RECONNECT_ACTION = 'agent_connector_for_wp_reconnect';
 	private const AJAX_ACTION      = 'rfa_generate_connection';
 
-	/** admin-post action for the one-click Default Abilities install/activate. */
-	private const INSTALL_DEFAULT_ABILITIES_ACTION = 'agent_connector_for_wp_install_default_abilities';
-
-	/** Folder slug of the Default Abilities companion plugin. */
-	public const DEFAULT_ABILITIES_SLUG = 'default-abilities-plugin';
-
-	/**
-	 * Default download URL for the Default Abilities plugin zip — the release
-	 * asset of the agent-connector-for-wp repo. Filterable so a dev/test site can
-	 * point at a local build. Subject to the same host allowlist as ability packs.
-	 */
-	public const DEFAULT_ABILITIES_DOWNLOAD_URL = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/default-abilities-plugin/default-abilities-plugin.zip';
-
 	/**
 	 * Page hook suffix, captured at registration so assets load only here.
 	 */
@@ -67,7 +52,6 @@ final class ConnectionPage {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_' . self::SAVE_ACTION, array( $this, 'handle_save' ) );
 		add_action( 'admin_post_' . self::RECONNECT_ACTION, array( $this, 'handle_reconnect' ) );
-		add_action( 'admin_post_' . self::INSTALL_DEFAULT_ABILITIES_ACTION, array( $this, 'handle_install_default_abilities' ) );
 		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( $this, 'handle_generate' ) );
 	}
 
@@ -156,7 +140,7 @@ final class ConnectionPage {
 			<?php $this->render_status_notice( $notice ); ?>
 
 			<p style="max-width:50em;">
-				<?php esc_html_e( 'Agent Connector runs an MCP server for this site. When enabled, it exposes the abilities registered by other plugins (ability packs) over MCP.', 'agent-connector-for-wp' ); ?>
+				<?php esc_html_e( 'Agent Connector runs an MCP server for this site. When enabled, it exposes the abilities registered by other plugins over MCP.', 'agent-connector-for-wp' ); ?>
 			</p>
 
 			<h2><?php esc_html_e( 'Status', 'agent-connector-for-wp' ); ?></h2>
@@ -199,10 +183,10 @@ final class ConnectionPage {
 				</tr>
 			</table>
 
-			<h2><?php esc_html_e( 'Abilities', 'agent-connector-for-wp' ); ?></h2>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="<?php echo esc_attr( self::SAVE_ACTION ); ?>" />
 				<?php wp_nonce_field( self::SAVE_ACTION ); ?>
+				<h2><?php esc_html_e( 'Abilities', 'agent-connector-for-wp' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Enable Agent Connector', 'agent-connector-for-wp' ); ?></th>
@@ -240,19 +224,26 @@ final class ConnectionPage {
 					 * Fires inside the Abilities settings table.
 					 *
 					 * The Default Abilities plugin hooks this to render its "Built-in
-					 * abilities" warning + opt-in toggle. When nothing is hooked (the
-					 * pack is not active) we fall back to a one-click install prompt.
-					 * Each callback must echo one or more <tr>…</tr> rows.
+					 * abilities" warning + opt-in toggle. Each callback must echo one
+					 * or more <tr>…</tr> rows.
 					 *
 					 * @since 1.13.0
 					 */
-					if ( has_action( 'agent_connector_for_wp_render_settings_rows' ) ) {
-						do_action( 'agent_connector_for_wp_render_settings_rows' );
-					} else {
-						$this->render_default_abilities_install_row();
-					}
+					do_action( 'agent_connector_for_wp_render_settings_rows' );
 					?>
 
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Third-party abilities', 'agent-connector-for-wp' ); ?></th>
+						<td>
+							<p class="description" style="margin-top:.3em;max-width:46em;">
+								<?php esc_html_e( 'Always active while the plugin is enabled: every ability registered by another plugin via the WordPress Abilities API is exposed over the MCP server. There is nothing to configure here — manage those from the plugins that provide them.', 'agent-connector-for-wp' ); ?>
+							</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Debug', 'agent-connector-for-wp' ); ?></h2>
+				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Debug', 'agent-connector-for-wp' ); ?></th>
 						<td>
@@ -262,15 +253,6 @@ final class ConnectionPage {
 							</label>
 							<p class="description">
 								<?php esc_html_e( 'Records every MCP request — including the raw JSON-RPC request and response bodies — and shows them on the MCP Events page. Bodies can contain sensitive data, so leave this off unless you are debugging.', 'agent-connector-for-wp' ); ?>
-							</p>
-						</td>
-					</tr>
-
-					<tr>
-						<th scope="row"><?php esc_html_e( 'Third-party abilities', 'agent-connector-for-wp' ); ?></th>
-						<td>
-							<p class="description" style="margin-top:.3em;max-width:46em;">
-								<?php esc_html_e( 'Always active while the plugin is enabled: every ability registered by another plugin via the WordPress Abilities API is exposed over the MCP server. There is nothing to configure here — manage those from the plugins that provide them.', 'agent-connector-for-wp' ); ?>
 							</p>
 						</td>
 					</tr>
@@ -421,144 +403,6 @@ final class ConnectionPage {
 	}
 
 	/**
-	 * Fallback "Built-in abilities" row shown when the Default Abilities plugin is
-	 * not active: a one-click install (or activate, if already installed) prompt.
-	 *
-	 * Mirrors the Ability Packs install flow but lives here on the Connection
-	 * screen, per the product decision that the default pack installs from the
-	 * main screen rather than the Ability Packs directory.
-	 */
-	private function render_default_abilities_install_row(): void {
-		$installed_file = PluginDirectory::installed_file_for_slug( self::DEFAULT_ABILITIES_SLUG );
-		$can_manage     = current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
-		?>
-		<tr>
-			<th scope="row"><?php esc_html_e( 'Built-in abilities', 'agent-connector-for-wp' ); ?></th>
-			<td>
-				<div class="notice notice-warning inline" style="margin:0 0 .9em;max-width:46em;">
-					<p>
-						<strong><?php esc_html_e( 'Powerful:', 'agent-connector-for-wp' ); ?></strong>
-						<?php esc_html_e( 'The Default Abilities pack adds arbitrary shell commands, PHP evaluation, filesystem read/write, WP-CLI, and a one-time admin login link — admin-equivalent control of this site for anyone holding an application password. It is a separate plugin, off by default. Install it only when you want an agent to have that access.', 'agent-connector-for-wp' ); ?>
-					</p>
-				</div>
-				<?php
-				// A nonce-protected GET link (not a <form>): this row is rendered
-				// inside the main settings <form>, and nested forms are invalid —
-				// a submit button here would post the outer "save settings" form
-				// instead. verify() checks the nonce on GET too. WordPress core
-				// uses the same nonced-link pattern for plugin activate/install.
-				$action_url = wp_nonce_url(
-					add_query_arg( 'action', self::INSTALL_DEFAULT_ABILITIES_ACTION, admin_url( 'admin-post.php' ) ),
-					self::INSTALL_DEFAULT_ABILITIES_ACTION
-				);
-				?>
-				<?php if ( ! $can_manage ) : ?>
-					<p class="description"><?php esc_html_e( 'This site cannot install or activate plugins, so the Default Abilities pack must be added manually.', 'agent-connector-for-wp' ); ?></p>
-				<?php elseif ( null !== $installed_file ) : ?>
-					<p class="description" style="margin:0 0 .4em;"><?php esc_html_e( 'The Default Abilities pack is installed but not active.', 'agent-connector-for-wp' ); ?></p>
-					<a class="button button-primary" href="<?php echo esc_url( $action_url ); ?>"><?php esc_html_e( 'Activate Default Abilities', 'agent-connector-for-wp' ); ?></a>
-				<?php else : ?>
-					<a class="button button-primary" href="<?php echo esc_url( $action_url ); ?>"><?php esc_html_e( 'Install Default Abilities', 'agent-connector-for-wp' ); ?></a>
-				<?php endif; ?>
-			</td>
-		</tr>
-		<?php
-	}
-
-	/**
-	 * admin-post: one-click install (download + activate) or activate the Default
-	 * Abilities plugin. The download URL is re-resolved server-side from the
-	 * trusted constant/filter and restricted to the ability-pack host allowlist.
-	 */
-	public function handle_install_default_abilities(): void {
-		$this->verify( self::INSTALL_DEFAULT_ABILITIES_ACTION );
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-
-		// Already installed → just activate it.
-		$installed_file = PluginDirectory::installed_file_for_slug( self::DEFAULT_ABILITIES_SLUG );
-		if ( null !== $installed_file ) {
-			if ( ! current_user_can( 'activate_plugins' ) ) {
-				$this->redirect( 'default_abilities_failed' );
-			}
-			$result = activate_plugin( $installed_file, '', false, true );
-			$this->redirect( is_wp_error( $result ) ? 'default_abilities_failed' : 'default_abilities_installed' );
-		}
-
-		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
-			$this->redirect( 'default_abilities_failed' );
-		}
-
-		/**
-		 * Filters the download URL for the Default Abilities plugin zip.
-		 *
-		 * @since 1.13.0
-		 *
-		 * @param string $url Default release-asset URL.
-		 */
-		$url = (string) apply_filters( 'agent_connector_for_wp_default_abilities_download_url', self::DEFAULT_ABILITIES_DOWNLOAD_URL );
-		if ( '' === $url || ! self::is_allowed_download( $url ) ) {
-			$this->redirect( 'default_abilities_failed' );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/misc.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-		if ( 'direct' !== get_filesystem_method() ) {
-			$this->redirect( 'default_abilities_fs' );
-		}
-
-		$upgrader = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
-		$result   = $upgrader->install( $url );
-
-		if ( is_wp_error( $result ) || true !== $result ) {
-			$this->redirect( 'default_abilities_failed' );
-		}
-
-		$plugin_file = (string) $upgrader->plugin_info();
-		if ( '' === $plugin_file ) {
-			$plugin_file = (string) ( PluginDirectory::installed_file_for_slug( self::DEFAULT_ABILITIES_SLUG ) ?? '' );
-		}
-
-		if ( '' !== $plugin_file ) {
-			activate_plugin( $plugin_file, '', false, true );
-		}
-
-		$this->redirect( 'default_abilities_installed' );
-	}
-
-	/**
-	 * Only allow downloading the plugin zip over https from an allowlisted host
-	 * (the GitHub release hosts by default). Shares the ability-pack filter.
-	 */
-	private static function is_allowed_download( string $url ): bool {
-		$parts = wp_parse_url( $url );
-		if ( empty( $parts['scheme'] ) || 'https' !== strtolower( (string) $parts['scheme'] ) || empty( $parts['host'] ) ) {
-			return false;
-		}
-		$host = strtolower( (string) $parts['host'] );
-
-		/** This filter is documented in src/Admin/DirectoryPage.php. */
-		$allowed = (array) apply_filters(
-			'agent_connector_for_wp_pack_download_hosts',
-			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com' )
-		);
-
-		foreach ( $allowed as $h ) {
-			$h = strtolower( (string) $h );
-			if ( '' === $h ) {
-				continue;
-			}
-			if ( $host === $h || substr( $host, -strlen( '.' . $h ) ) === '.' . $h ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
 	 * Render the post-redirect status notice.
 	 */
 	private function render_status_notice( string $notice ): void {
@@ -568,9 +412,6 @@ final class ConnectionPage {
 			'saved'        => array( 'success', __( 'Settings saved.', 'agent-connector-for-wp' ) ),
 			'prod_blocked' => array( 'warning', __( 'Saved, but Agent Connector is inactive: this is a production environment. Tick the production override to activate it.', 'agent-connector-for-wp' ) ),
 			'reconnected'  => array( 'success', __( 'Reconnected — abilities are allowed on this domain again.', 'agent-connector-for-wp' ) ),
-			'default_abilities_installed' => array( 'success', __( 'Default Abilities pack installed and activated. Enable the built-in abilities below.', 'agent-connector-for-wp' ) ),
-			'default_abilities_failed'    => array( 'error', __( 'Could not install the Default Abilities pack. Check that this site can install/activate plugins, then try again or install it manually.', 'agent-connector-for-wp' ) ),
-			'default_abilities_fs'        => array( 'error', __( 'This site cannot install plugins directly (no direct filesystem access). Install the Default Abilities pack zip manually instead.', 'agent-connector-for-wp' ) ),
 			'safe_mode_cleared'     => array( 'success', __( 'Sandbox safe mode cleared. Sandbox files will load again on the next request.', 'agent-connector-for-wp' ) ),
 			'safe_mode_clear_failed' => array( 'error', __( 'Could not clear sandbox safe mode — delete the ".crashed" marker file manually.', 'agent-connector-for-wp' ) ),
 		);

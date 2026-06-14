@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       Default Abilities for Agent Connector
+ * Plugin Name:       Universal Abilities for Agent Connector
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       The Default Abilities pack for Agent Connector for WP. Adds the powerful built-in abilities — arbitrary shell commands, PHP evaluation, filesystem read/write, WP-CLI, and a one-time admin login link — exposed over MCP. Off by default; opt in from the Agent Connector Connection screen.
  * Version:           1.0.0
@@ -11,7 +11,7 @@
  * Author URI:        https://github.com/soflyy
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       default-abilities-plugin
+ * Text Domain:       universal-abilities-plugin
  *
  * Agent Connector: Default Abilities
  *
