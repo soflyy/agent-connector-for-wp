@@ -80,7 +80,10 @@ Run this loop. Do **not** declare done until all three termination conditions ho
   settings, REST routes, AJAX actions, CPTs/taxonomies, shortcodes/blocks, cron, caps, CLI),
   *data stores* (every option key, table + schema, meta key, CPT — **with its load and save
   paths**), and *tasks* (the verbs an admin performs).
-- Then exercise it for real in Playwright (`http://wordpress/`, admin `admin`/`password`).
+- Then exercise it for real in Playwright at `http://wordpress/`. To reach wp-admin, mint a
+  one-time login URL with the `agent-connector-for-wp/create-admin-login-link` ability and open
+  it in the browser — no username/password needed, and it works whatever the site's admin
+  credentials are.
   Diff the database around each action (`tools/db-diff.sh`) to see exactly what each task
   mutates and to catch stores/actions your code read missed. Watch the save requests and
   any client-side state — that is often where a builder's true document format reveals itself.
