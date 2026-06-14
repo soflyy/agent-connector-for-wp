@@ -157,11 +157,11 @@ add_action(
 		// wp_register_ability_args filter; see Support\Governance.
 		Support\Governance::register();
 
-		// The plugin's own (built-in) abilities are opt-in and off by default;
-		// register them only when the operator has turned them on.
-		if ( Support\Config::builtin_abilities_enabled() ) {
-			( new Plugin() )->register();
-		}
+		// This plugin ships NO abilities of its own. The powerful built-in
+		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in
+		// the separate "Default Abilities for Agent Connector" plugin, which can be
+		// installed in one click from the Connection screen. Third-party ability
+		// packs register through src/api.php and are governed above.
 	}
 );
 

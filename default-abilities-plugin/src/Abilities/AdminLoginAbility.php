@@ -7,9 +7,9 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
-use AgentConnectorForWp\Services\AdminLoginLink;
+use AgentConnectorForWp\DefaultAbilities\Services\AdminLoginLink;
 use AgentConnectorForWp\Services\AuditLogger;
 use AgentConnectorForWp\Support\Config;
 use WP_Error;

@@ -1,27 +1,23 @@
 <?php
 /**
- * Ability: agent-connector-for-wp/process-exec
- *
- * For v1 this proxies shell execution. The separate ability exists so longer-
- * running command semantics (async jobs, streaming, cancellation) can evolve
- * here without changing the shell-exec contract.
+ * Ability: agent-connector-for-wp/wp-cli
  *
  * @package AgentConnectorForWp
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\Services\ShellExecutor;
+use AgentConnectorForWp\DefaultAbilities\Services\WpCliRunner;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
 
-final class ProcessExecAbility {
+final class WpCliAbility {
 
-	public const NAME = 'agent-connector-for-wp/process-exec';
+	public const NAME = 'agent-connector-for-wp/wp-cli';
 
 	public static function is_allowed(): bool {
 		return true;
@@ -32,23 +28,23 @@ final class ProcessExecAbility {
 	 */
 	public static function definition(): array {
 		return array(
-			'label'               => 'Execute Process',
-			'description'         => 'Run a longer-running command and capture its result. In v1 this behaves like shell-exec; it is the forward-looking home for async/streaming process control.',
+			'label'               => 'Run WP-CLI Command',
+			'description'         => 'Run a WP-CLI command against this WordPress install and capture stdout, stderr, and the exit code. Provide everything after `wp` (e.g. "plugin list --status=active --format=json"). Runs from the WordPress root, and adds --allow-root automatically when running as root.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
 					'command'    => array(
 						'type'        => 'string',
-						'description' => 'The command line to execute.',
+						'description' => 'The WP-CLI command to run, i.e. everything after `wp`. Example: "option get siteurl". A leading "wp " is tolerated and stripped.',
 					),
 					'cwd'        => array(
 						'type'        => 'string',
-						'description' => 'Working directory. Relative paths resolve against ABSPATH.',
+						'description' => 'Working directory. Defaults to the WordPress root (ABSPATH). Relative paths resolve against ABSPATH.',
 					),
 					'timeout_ms' => array(
 						'type'        => 'integer',
-						'description' => 'Wall-clock timeout in milliseconds.',
+						'description' => 'Wall-clock timeout in milliseconds. Defaults to the configured plugin timeout.',
 					),
 				),
 				'required'             => array( 'command' ),
@@ -95,7 +91,8 @@ final class ProcessExecAbility {
 		$command    = isset( $input['command'] ) ? (string) $input['command'] : '';
 		$cwd        = isset( $input['cwd'] ) ? (string) $input['cwd'] : null;
 		$timeout_ms = isset( $input['timeout_ms'] ) ? (int) $input['timeout_ms'] : null;
-		return ( new ShellExecutor() )->run( $command, $cwd, $timeout_ms );
+
+		return ( new WpCliRunner() )->run( $command, $cwd, $timeout_ms );
 	}
 
 	/**

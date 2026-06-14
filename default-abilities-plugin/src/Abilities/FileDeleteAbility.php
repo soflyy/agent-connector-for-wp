@@ -1,23 +1,23 @@
 <?php
 /**
- * Ability: agent-connector-for-wp/file-list
+ * Ability: agent-connector-for-wp/file-delete
  *
  * @package AgentConnectorForWp
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\Services\FileManager;
+use AgentConnectorForWp\DefaultAbilities\Services\FileManager;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
 
-final class FileListAbility {
+final class FileDeleteAbility {
 
-	public const NAME = 'agent-connector-for-wp/file-list';
+	public const NAME = 'agent-connector-for-wp/file-delete';
 
 	public static function is_allowed(): bool {
 		return true;
@@ -28,23 +28,19 @@ final class FileListAbility {
 	 */
 	public static function definition(): array {
 		return array(
-			'label'               => 'List Directory',
-			'description'         => 'List the contents of a directory, optionally recursively. Returns name, type, size, mtime, and permissions for each entry.',
+			'label'               => 'Delete File or Directory',
+			'description'         => 'Delete a file, or a directory (optionally recursively). Relative paths resolve against ABSPATH.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
 					'path'      => array(
 						'type'        => 'string',
-						'description' => 'Directory path. Relative paths resolve against ABSPATH.',
+						'description' => 'Path to delete. Relative paths resolve against ABSPATH.',
 					),
 					'recursive' => array(
 						'type'        => 'boolean',
-						'description' => 'Recurse into subdirectories. Defaults to false.',
-					),
-					'max_depth' => array(
-						'type'        => 'integer',
-						'description' => 'Maximum recursion depth when recursive is true. Defaults to 5.',
+						'description' => 'Required to delete a non-empty directory. Defaults to false.',
 					),
 				),
 				'required'             => array( 'path' ),
@@ -54,20 +50,7 @@ final class FileListAbility {
 				'type'       => 'object',
 				'properties' => array(
 					'path'    => array( 'type' => 'string' ),
-					'entries' => array(
-						'type'  => 'array',
-						'items' => array(
-							'type'       => 'object',
-							'properties' => array(
-								'path'     => array( 'type' => 'string' ),
-								'name'     => array( 'type' => 'string' ),
-								'type'     => array( 'type' => 'string', 'enum' => array( 'file', 'dir' ) ),
-								'size'     => array( 'type' => 'integer' ),
-								'modified' => array( 'type' => 'integer' ),
-								'perms'    => array( 'type' => 'string' ),
-							),
-						),
-					),
+					'deleted' => array( 'type' => 'boolean' ),
 				),
 			),
 			'execute_callback'    => AuditLogger::wrap(
@@ -80,7 +63,10 @@ final class FileListAbility {
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),
-				'annotations'  => array( 'readonly' => true ),
+				'annotations'  => array(
+					'readonly'        => false,
+					'destructiveHint' => true,
+				),
 				'show_in_rest' => true,
 			),
 		);
@@ -93,8 +79,7 @@ final class FileListAbility {
 	public static function execute( array $input ) {
 		$path      = isset( $input['path'] ) ? (string) $input['path'] : '';
 		$recursive = ! empty( $input['recursive'] );
-		$max_depth = isset( $input['max_depth'] ) ? (int) $input['max_depth'] : 5;
-		return ( new FileManager() )->list( $path, $recursive, $max_depth );
+		return ( new FileManager() )->delete( $path, $recursive );
 	}
 
 	/**

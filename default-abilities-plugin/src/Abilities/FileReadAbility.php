@@ -1,23 +1,23 @@
 <?php
 /**
- * Ability: agent-connector-for-wp/file-delete
+ * Ability: agent-connector-for-wp/file-read
  *
  * @package AgentConnectorForWp
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\Services\FileManager;
+use AgentConnectorForWp\DefaultAbilities\Services\FileManager;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
 
-final class FileDeleteAbility {
+final class FileReadAbility {
 
-	public const NAME = 'agent-connector-for-wp/file-delete';
+	public const NAME = 'agent-connector-for-wp/file-read';
 
 	public static function is_allowed(): bool {
 		return true;
@@ -28,19 +28,20 @@ final class FileDeleteAbility {
 	 */
 	public static function definition(): array {
 		return array(
-			'label'               => 'Delete File or Directory',
-			'description'         => 'Delete a file, or a directory (optionally recursively). Relative paths resolve against ABSPATH.',
+			'label'               => 'Read File',
+			'description'         => 'Read a file from the server. Relative paths resolve against the WordPress root (ABSPATH). Binary files are returned base64-encoded.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
-					'path'      => array(
+					'path'     => array(
 						'type'        => 'string',
-						'description' => 'Path to delete. Relative paths resolve against ABSPATH.',
+						'description' => 'File path. Relative paths resolve against ABSPATH.',
 					),
-					'recursive' => array(
-						'type'        => 'boolean',
-						'description' => 'Required to delete a non-empty directory. Defaults to false.',
+					'encoding' => array(
+						'type'        => 'string',
+						'enum'        => array( 'auto', 'base64' ),
+						'description' => '"auto" returns UTF-8 text or base64 for binary; "base64" always base64-encodes.',
 					),
 				),
 				'required'             => array( 'path' ),
@@ -49,8 +50,11 @@ final class FileDeleteAbility {
 			'output_schema'       => array(
 				'type'       => 'object',
 				'properties' => array(
-					'path'    => array( 'type' => 'string' ),
-					'deleted' => array( 'type' => 'boolean' ),
+					'path'      => array( 'type' => 'string' ),
+					'encoding'  => array( 'type' => 'string', 'enum' => array( 'utf8', 'base64' ) ),
+					'contents'  => array( 'type' => 'string' ),
+					'size'      => array( 'type' => 'integer' ),
+					'truncated' => array( 'type' => 'boolean' ),
 				),
 			),
 			'execute_callback'    => AuditLogger::wrap(
@@ -63,10 +67,7 @@ final class FileDeleteAbility {
 			},
 			'meta'                => array(
 				'mcp'          => array( 'public' => true ),
-				'annotations'  => array(
-					'readonly'        => false,
-					'destructiveHint' => true,
-				),
+				'annotations'  => array( 'readonly' => true ),
 				'show_in_rest' => true,
 			),
 		);
@@ -77,9 +78,9 @@ final class FileDeleteAbility {
 	 * @return array<string,mixed>|\WP_Error
 	 */
 	public static function execute( array $input ) {
-		$path      = isset( $input['path'] ) ? (string) $input['path'] : '';
-		$recursive = ! empty( $input['recursive'] );
-		return ( new FileManager() )->delete( $path, $recursive );
+		$path     = isset( $input['path'] ) ? (string) $input['path'] : '';
+		$encoding = isset( $input['encoding'] ) ? (string) $input['encoding'] : 'auto';
+		return ( new FileManager() )->read( $path, $encoding );
 	}
 
 	/**
@@ -87,9 +88,6 @@ final class FileDeleteAbility {
 	 * @return array<string,mixed>
 	 */
 	public static function summarize( array $input ): array {
-		return array(
-			'path'      => isset( $input['path'] ) ? (string) $input['path'] : '',
-			'recursive' => ! empty( $input['recursive'] ),
-		);
+		return array( 'path' => isset( $input['path'] ) ? (string) $input['path'] : '' );
 	}
 }

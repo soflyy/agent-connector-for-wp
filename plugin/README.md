@@ -1,12 +1,24 @@
 # Agent Connector for WP
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; everywhere else the Enable toggle is enough. Only turn it on where you would be comfortable handing out a root shell.
+> ⚠️ **Dangerous by design.** With the optional [Default Abilities](../default-abilities-plugin/README.md) pack installed and enabled, this stack grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; everywhere else the Enable toggle is enough. Only turn it on where you would be comfortable handing out a root shell.
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin registers additional WordPress **Abilities** and surfaces them over MCP. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes is governed by its auth (super-admin), domain lock, and audit log, no matter which plugin registered it.
 
 ## What it adds
+
+Nothing, on its own — and that is the point. The plugin is the secured MCP
+gateway; abilities come from companion plugins:
+
+- **[Default Abilities](../default-abilities-plugin/README.md)** — a separate,
+  optional companion plugin (installable in one click from the Connection
+  screen) that contributes the powerful built-in abilities below. Off by default.
+- **Ability packs** — generated plugins that expose a specific plugin's
+  functionality (WooCommerce, Contact Form 7, …) to agents.
+- **Your own** abilities, via the [public registration API](#register-your-own-abilities).
+
+The abilities the **Default Abilities** pack contributes:
 
 | Ability | Purpose |
 | --- | --- |
@@ -82,10 +94,13 @@ enabling constant.
   server for this site and exposes the abilities other plugins registered
   ("third-party abilities" — always active while enabled). Enabling also locks the
   plugin to the current domain.
-- **Built-in abilities** — a separate opt-in, **off by default**. When on, the
-  plugin also exposes its *own* powerful abilities (shell, PHP eval, filesystem,
-  WP-CLI, env-inspect, admin-login). Leave it off to expose only third-party
-  abilities.
+- **Built-in abilities** — the powerful abilities (shell, PHP eval, filesystem,
+  WP-CLI, env-inspect, admin-login) live in the separate
+  **[Default Abilities](../default-abilities-plugin/README.md)** plugin, **off by
+  default**. If it isn't installed, the Connection screen offers a one-click
+  **Install Default Abilities** button; once installed, tick its toggle (rendered
+  on the same screen) to expose them. Leave it off — or uninstalled — to expose
+  only abilities from other plugins.
 - **Production override** — required only when `wp_get_environment_type()` reports
   `production` (also the default when the environment type was never configured).
   On `local` / `development` / `staging` the master toggle alone activates the

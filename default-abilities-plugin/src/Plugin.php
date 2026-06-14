@@ -7,19 +7,19 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp;
+namespace AgentConnectorForWp\DefaultAbilities;
 
-use AgentConnectorForWp\Abilities\AdminLoginAbility;
-use AgentConnectorForWp\Abilities\EnvInspectAbility;
-use AgentConnectorForWp\Abilities\FileDeleteAbility;
-use AgentConnectorForWp\Abilities\FileListAbility;
-use AgentConnectorForWp\Abilities\FileReadAbility;
-use AgentConnectorForWp\Abilities\FileWriteAbility;
-use AgentConnectorForWp\Abilities\PhpEvalAbility;
-use AgentConnectorForWp\Abilities\ProcessExecAbility;
-use AgentConnectorForWp\Abilities\ShellAbility;
-use AgentConnectorForWp\Abilities\WpCliAbility;
-use AgentConnectorForWp\Services\AdminLoginLink;
+use AgentConnectorForWp\DefaultAbilities\Abilities\AdminLoginAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\EnvInspectAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\FileDeleteAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\FileListAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\FileReadAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\FileWriteAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\PhpEvalAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\ProcessExecAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\ShellAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\WpCliAbility;
+use AgentConnectorForWp\DefaultAbilities\Services\AdminLoginLink;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -50,9 +50,9 @@ final class Plugin {
 	);
 
 	/**
-	 * Register the plugin's own (built-in) abilities. Called only when the
-	 * built-in abilities toggle is on (see the main plugin file) — the admin
-	 * Connection screen is registered separately and always.
+	 * Register the default abilities. Called only when Agent Connector for WP is
+	 * active (its MCP server has booted) and the "Built-in abilities" toggle is on
+	 * — see Admin\Settings::active() and this pack's main plugin file.
 	 */
 	public function register(): void {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );

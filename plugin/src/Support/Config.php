@@ -37,14 +37,6 @@ final class Config {
 	public const PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
 
 	/**
-	 * Option toggling this plugin's *own* (built-in) abilities — shell, PHP eval,
-	 * filesystem, WP-CLI, env-inspect, admin-login. Default OFF: enabling the
-	 * plugin runs the MCP server and exposes third-party abilities, but the
-	 * powerful built-in ones stay hidden until the operator opts in here.
-	 */
-	public const BUILTIN_ABILITIES_OPTION = 'agent_connector_for_wp_builtin_abilities';
-
-	/**
 	 * Option toggling the debug log of MCP traffic (boolean). When on, every MCP
 	 * event — including raw JSON-RPC request/response bodies — is written to the
 	 * `{prefix}acfw_mcp_events` table and surfaced on the "MCP Events" admin
@@ -117,28 +109,11 @@ final class Config {
 	}
 
 	/**
-	 * Whether the operator opted in to the plugin's own (built-in) abilities.
-	 * Default OFF — see BUILTIN_ABILITIES_OPTION.
-	 */
-	public static function builtin_abilities_enabled(): bool {
-		return (bool) get_option( self::BUILTIN_ABILITIES_OPTION, false );
-	}
-
-	/**
 	 * Whether the operator opted in to MCP event logging (the Debug setting).
 	 * Default OFF — see MCP_DEBUG_OPTION.
 	 */
 	public static function mcp_debug_enabled(): bool {
 		return (bool) get_option( self::MCP_DEBUG_OPTION, false );
-	}
-
-	/**
-	 * Whether the built-in abilities should actually be registered: the plugin
-	 * must be active (master gate, incl. the production override) AND the
-	 * built-in toggle must be on.
-	 */
-	public static function builtin_abilities_active(): bool {
-		return self::can_boot() && self::builtin_abilities_enabled();
 	}
 
 	/**
