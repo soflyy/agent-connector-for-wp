@@ -32,17 +32,20 @@ export const api = {
   getRegisteredAbilities: () => request('/registered-abilities'),
 }
 
+// wp_localize_script serializes PHP booleans as strings ("1" / ""), so coerce them.
+const bool = (v, def = false) => v === undefined ? def : !!v
+
 export const initial = {
-  enabled: cfg.enabled ?? false,
-  active: cfg.active ?? false,
-  prodBlocked: cfg.prodBlocked ?? false,
-  mcpDebug: cfg.mcpDebug ?? false,
-  productionOverride: cfg.productionOverride ?? false,
-  isNonProd: cfg.isNonProd ?? true,
+  enabled: bool(cfg.enabled),
+  active: bool(cfg.active),
+  prodBlocked: bool(cfg.prodBlocked),
+  mcpDebug: bool(cfg.mcpDebug),
+  productionOverride: bool(cfg.productionOverride),
+  isNonProd: bool(cfg.isNonProd, true),
   lockedHost: cfg.lockedHost ?? '',
   declaredHost: cfg.declaredHost ?? '',
   envType: cfg.envType ?? 'unknown',
   serverUrl: cfg.serverUrl ?? '',
   username: cfg.username ?? '',
-  pwAvailable: cfg.pwAvailable ?? false,
+  pwAvailable: bool(cfg.pwAvailable),
 }
