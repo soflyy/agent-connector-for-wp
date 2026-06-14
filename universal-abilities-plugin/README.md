@@ -1,4 +1,4 @@
-# Default Abilities for Agent Connector
+# Universal Abilities for Agent Connector
 
 The **Default Abilities** pack for
 [Agent Connector for WP](../plugin/README.md). It contributes Agent Connector's

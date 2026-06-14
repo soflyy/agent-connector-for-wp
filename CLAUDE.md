@@ -7,15 +7,15 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 | Path | What it is | Docs |
 | --- | --- | --- |
 | `plugin/` | The main WordPress plugin (PHP, Composer). Runs the MCP server; ships no abilities of its own. | [`plugin/README.md`](plugin/README.md) |
-| `default-abilities-plugin/` | The Default Abilities companion plugin: the powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, admin login). Installed in one click from the main plugin's Connection screen. | [`default-abilities-plugin/README.md`](default-abilities-plugin/README.md) |
+| `universal-abilities-plugin/` | The Default Abilities companion plugin: the powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, admin login). Installed in one click from the main plugin's Connection screen. | [`universal-abilities-plugin/README.md`](universal-abilities-plugin/README.md) |
 | `abilities-generator/` | The `wp-mcp-generator` skill + scripts. | [`abilities-generator/README.md`](abilities-generator/README.md) |
 | `ability-packs/` | Generated ability-pack plugins (the generator's output). | — |
-| `bin/` | Dev scripts (`install.sh` symlinks `plugin/` + `default-abilities-plugin/` into a WP install). | — |
+| `bin/` | Dev scripts (`install.sh` symlinks `plugin/` + `universal-abilities-plugin/` into a WP install). | — |
 
 Each subproject has its own README/CONTRIBUTING. The PR-title release automation
-below applies **only** to `plugin/`; `default-abilities-plugin/` is published by
+below applies **only** to `plugin/`; `universal-abilities-plugin/` is published by
 its own workflow (`.github/workflows/default-abilities-release.yml`) to the
-stable `default-abilities-plugin` release on any change under that directory.
+stable `universal-abilities-plugin` release on any change under that directory.
 
 ## PR / commit titles drive releases
 
