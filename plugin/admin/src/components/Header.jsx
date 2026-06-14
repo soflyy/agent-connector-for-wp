@@ -21,6 +21,7 @@ export default function Header({ page, onNavigate, status }) {
               { id: 'connect', label: 'Connect' },
               { id: 'settings', label: 'Settings' },
               { id: 'abilities', label: 'Abilities' },
+              { id: 'log', label: 'Log' },
             ].map(({ id, label }) => (
               <button
                 key={id}
