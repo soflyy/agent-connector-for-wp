@@ -76,14 +76,11 @@ add_action(
 			return;
 		}
 
-		// Always available in admin so the operator can find (and flip) the toggle.
-		if ( is_admin() ) {
-			( new Admin\Settings() )->register();
-		}
-
-		// Register the powerful abilities only when the host MCP server is active
-		// and the operator opted in.
-		if ( Admin\Settings::active() ) {
+		// Register abilities whenever the host MCP server is active.
+		// No separate opt-in toggle: if this plugin is installed and active, the
+		// abilities are on. The operator controls exposure by activating/deactivating
+		// this plugin.
+		if ( class_exists( \AgentConnectorForWp\Support\Config::class ) && \AgentConnectorForWp\Support\Config::can_boot() ) {
 			( new Plugin() )->register();
 		}
 	},
