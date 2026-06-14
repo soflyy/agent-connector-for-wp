@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset box-sizing inside our app since WP admin uses content-box */
+#agent-connector-for-wp-app *,
+#agent-connector-for-wp-app *::before,
+#agent-connector-for-wp-app *::after {
+  box-sizing: border-box;
+}
