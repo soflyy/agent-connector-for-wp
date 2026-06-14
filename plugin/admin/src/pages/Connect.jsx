@@ -113,14 +113,6 @@ function WelcomeStep({ status, onStart }) {
             <ArrowRight className="w-4 h-4" />
           </button>
 
-          <div className="text-xs text-gray-400 space-y-0.5">
-            <div>
-              Server: <code className="font-mono">{status.serverUrl}</code>
-            </div>
-            <div>
-              Connecting as: <code className="font-mono">{status.username}</code>
-            </div>
-          </div>
         </div>
       </div>
     </div>
