@@ -112,6 +112,14 @@ add_action(
 			( new Admin\DirectoryPage() )->register();
 		}
 
+		// REST API: settings, reconnect, connection generation.
+		add_action(
+			'rest_api_init',
+			static function (): void {
+				( new Rest\SettingsController() )->register_routes();
+			}
+		);
+
 		// Keep installed ability packs updatable from GitHub in every context
 		// (admin + cron), independent of whether the plugin is switched "on".
 		( new Services\PackUpdater() )->register();
