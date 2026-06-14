@@ -1,0 +1,145 @@
+{
+  "plugin": {
+    "slug": "maintenance",
+    "version": "4.21",
+    "main_file": "maintenance/maintenance.php",
+    "notes": "WP Maintenance by WebFactory Ltd. All free-tier configuration lives in a single option, 'maintenance_options'. No REST routes, CPTs, taxonomies, shortcodes, blocks, or cron. The admin page exposes many PRO-only controls that the free save handler does not persist (see exclusions). SANDBOX NOTE: the stock plugin's front-end template (load/index.php) fatals when WordPress' WP_Filesystem cannot read the bundled includes/fonts/fonts.json via the 'direct' method (file-ownership mismatch between the CLI user and the web-server user). Setting FS_METHOD='direct' in wp-config.php makes both the front-end render and the font-list reader work; this is an environment quirk of the target plugin, not of the ability pack."
+  },
+  "surfaces": [
+    {
+      "id": "admin-page-maintenance",
+      "kind": "admin_page",
+      "ref": "includes/admin.php:7 (mtnc_admin_setup -> add_menu_page slug 'maintenance')",
+      "detail": { "capability": "manage_options", "render": "mtnc_generate_plugin_page", "metaboxes": ["Content", "Themes", "Design", "Access Settings", "Advanced Settings", "Exclude pages"] },
+      "discovered_by": ["static", "dynamic"]
+    },
+    {
+      "id": "settings-save-handler",
+      "kind": "setting",
+      "ref": "includes/admin.php:79 (mtnc_register_settings on admin_init)",
+      "detail": { "writes_option": "maintenance_options", "nonce": "mtnc_edit_post/mtnc_nonce", "post_field": "lib_options", "post_only": true, "rebuilds_whole_array": true, "drops_unknown_keys": true, "clears_cache": "MTNC::mtnc_clear_cache()" },
+      "discovered_by": ["static", "dynamic"]
+    },
+    {
+      "id": "front-template-include",
+      "kind": "hook",
+      "ref": "maintenance.php:42 + includes/functions.php:1103 (mtnc_load_maintenance_page on template_include)",
+      "detail": { "shows": "load/index.php for logged-out users when state is truthy", "preview": "?maintenance-preview", "honors": ["state", "exclude_pages", "expiry_* (PRO)", "is_down (PRO)"], "filter": "mtnc_load_maintenance_page_for_this_user" },
+      "discovered_by": ["static", "dynamic"]
+    },
+    {
+      "id": "http-503",
+      "kind": "hook",
+      "ref": "load/functions.php:416 (mtnc_get_headers_503)",
+      "detail": { "controlled_by": "503_enabled", "also_disables": "google analytics output" },
+      "discovered_by": ["static", "dynamic"]
+    },
+    {
+      "id": "front-login",
+      "kind": "other",
+      "ref": "load/functions.php:3 (mtnc_get_custom_login_code), :347 (mtnc_do_login_form)",
+      "detail": { "controlled_by": "is_login", "uses": "wp_signon", "role_gate": "roles_array (PRO; unset in free)" },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "admin-bar-status",
+      "kind": "other",
+      "ref": "includes/functions.php:1187 (mtnc_add_toolbar_items)",
+      "detail": { "shows": "Maintenance is On/Off", "reads": "state" },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "ajax-dismiss-dialog",
+      "kind": "ajax_action",
+      "ref": "includes/admin.php:34 (wp_ajax_mtnc_dismiss_dialog)",
+      "detail": { "writes": "maintenance_meta['mtnc_dismiss_dialog']", "purpose": "dismiss promo dialog (admin UI noise)" },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "ajax-dismiss-notice",
+      "kind": "ajax_action",
+      "ref": "includes/admin.php:35 (wp_ajax_mtnc_dismiss_notice)",
+      "detail": { "writes": "maintenance_meta['hide_welcome_pointer']", "purpose": "dismiss welcome pointer (admin UI noise)" },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "admin-action-install-wpfssl",
+      "kind": "other",
+      "ref": "maintenance.php:52 (admin_action_mtnc_install_wpfssl)",
+      "detail": { "purpose": "download/install/activate the WP Force SSL plugin from .org", "external_network": true },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "admin-action-install-wpcaptcha",
+      "kind": "other",
+      "ref": "maintenance.php:53 (admin_action_mtnc_install_wpcaptcha)",
+      "detail": { "purpose": "download/install/activate Advanced Google reCAPTCHA from .org", "external_network": true },
+      "discovered_by": ["static"]
+    },
+    {
+      "id": "admin-action-install-weglot",
+      "kind": "other",
+      "ref": "maintenance.php:54 (admin_action_mtnc_install_weglot)",
+      "detail": { "purpose": "download/install/activate Weglot from .org", "external_network": true },
+      "discovered_by": ["static"]
+    }
+  ],
+  "data_stores": [
+    {
+      "id": "maintenance_options",
+      "type": "option",
+      "key_or_name": "maintenance_options",
+      "schema": {
+        "state": "bool/int (1|0) — maintenance mode master switch",
+        "page_title": "string (sanitize_text_field)",
+        "heading": "string (sanitize_text_field)",
+        "description": "html (wp_kses_post)",
+        "footer_text": "string (sanitize_text_field)",
+        "show_some_love": "bool",
+        "is_login": "bool",
+        "logo": "attachment id|'' (sanitize_text_field)",
+        "retina_logo": "attachment id|''",
+        "logo_width": "int (default 220)",
+        "logo_height": "int|''",
+        "body_bg": "attachment id|'' (default = sample image)",
+        "bg_image_portrait": "attachment id|''",
+        "preloader_img": "attachment id|''",
+        "body_bg_color": "hex (default #111111)",
+        "font_color": "hex (default #ffffff)",
+        "controls_bg_color": "hex (default #111111)",
+        "body_font_family": "string (default 'Open Sans')",
+        "body_font_subset": "string (default 'Latin')",
+        "is_blur": "bool",
+        "blur_intensity": "int (default 5)",
+        "503_enabled": "bool",
+        "gg_analytics_id": "string",
+        "custom_css": "css (wp_kses_post)",
+        "exclude_pages": "map<post_type, string[] of post IDs> | '' when empty",
+        "default_settings": "bool — false once the admin has saved",
+        "expiry_date_start/expiry_date_end/expiry_time_start/expiry_time_end": "PRO — read by free template but no free UI/save",
+        "is_down": "PRO — 'open site after countdown'",
+        "roles_array": "PRO — role gate for front login",
+        "weglot": "rendered as a checkbox in free UI but NOT persisted by the free save handler"
+      },
+      "load_path": "mtnc_get_plugin_options() (includes/functions.php:46); defaults from mtnc_get_default_array() (:1284)",
+      "save_path": "mtnc_register_settings() (includes/admin.php:79) — POST-only; rebuilds the whole array and drops unknown keys. The pack therefore does load-modify-save directly on the option, mirroring the same per-field sanitization, then calls MTNC::mtnc_clear_cache()."
+    },
+    {
+      "id": "maintenance_meta",
+      "type": "option",
+      "key_or_name": "maintenance_meta",
+      "schema": { "first_version": "string", "first_install": "unix ts", "old_version": "bool", "hide_welcome_pointer": "bool", "mtnc_dismiss_dialog": "bool" },
+      "load_path": "get_option('maintenance_meta') (includes/admin.php)",
+      "save_path": "AJAX dismiss handlers — admin UI bookkeeping only, not user configuration."
+    }
+  ],
+  "tasks": [
+    { "id": "toggle-maintenance", "verb": "enable/disable maintenance mode", "description": "Close or open the site to logged-out visitors.", "surfaces": ["settings-save-handler", "front-template-include", "admin-bar-status"], "stores": ["maintenance_options"] },
+    { "id": "edit-content", "verb": "edit page text", "description": "Set page title, headline, description, footer text, footer credit link, and front-end login toggle.", "surfaces": ["admin-page-maintenance", "settings-save-handler"], "stores": ["maintenance_options"] },
+    { "id": "edit-design", "verb": "style the page", "description": "Set colors, font family/subset, background blur, logo sizing, and image slots (logo, retina logo, background, portrait background, preloader).", "surfaces": ["admin-page-maintenance", "settings-save-handler"], "stores": ["maintenance_options"] },
+    { "id": "edit-advanced", "verb": "configure advanced/SEO", "description": "Set Google Analytics ID, the 503 response, and custom CSS.", "surfaces": ["admin-page-maintenance", "settings-save-handler", "http-503"], "stores": ["maintenance_options"] },
+    { "id": "exclude-pages", "verb": "exclude pages from maintenance", "description": "Pick pages/posts that stay publicly visible while maintenance mode is on.", "surfaces": ["admin-page-maintenance", "settings-save-handler", "front-template-include"], "stores": ["maintenance_options"] },
+    { "id": "set-images", "verb": "upload/assign images", "description": "Provide a logo/background image (admin uploads via the media library).", "surfaces": ["admin-page-maintenance"], "stores": ["maintenance_options"] },
+    { "id": "preview", "verb": "preview the page", "description": "Open the maintenance page without toggling it live.", "surfaces": ["front-template-include"], "stores": ["maintenance_options"] }
+  ]
+}
