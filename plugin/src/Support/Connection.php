@@ -148,6 +148,57 @@ final class Connection {
 	}
 
 	/**
+	 * Build a .mcpb Desktop Extension ZIP for Claude Desktop.
+	 *
+	 * The file is a ZIP archive containing a single manifest.json. Credentials are
+	 * baked in so the user gets a true one-click install with no copy-paste.
+	 * Returns base64-encoded ZIP content, or empty string when ZipArchive is
+	 * unavailable (uncommon but possible on hardened servers).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function build_mcpb( string $name, array $env ): string {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return '';
+		}
+
+		$manifest = array(
+			'manifest_version' => '0.3',
+			'name'             => $name,
+			'display_name'     => (string) get_bloginfo( 'name' ),
+			'version'          => '1.0.0',
+			'description'      => 'Connect Claude Desktop to ' . home_url() . ' via MCP.',
+			'author'           => array( 'name' => (string) get_bloginfo( 'name' ) ),
+			'server'           => array(
+				'type'       => 'node',
+				'mcp_config' => array(
+					'command' => 'npx',
+					'args'    => array( '-y', self::PROXY_PACKAGE ),
+					'env'     => $env,
+				),
+			),
+			'tools_generated'  => true,
+		);
+
+		$tmp = tempnam( sys_get_temp_dir(), 'mcpb' );
+		$zip = new \ZipArchive();
+		if ( true !== $zip->open( $tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+			return '';
+		}
+
+		$zip->addFromString( 'manifest.json', (string) wp_json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+		$zip->close();
+
+		$bytes = file_get_contents( $tmp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+
+		return '' !== (string) $bytes
+			? base64_encode( (string) $bytes ) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			: '';
+	}
+
+	/**
 	 * A standard "mcpServers" JSON config block (Claude Desktop, Cursor, Windsurf…).
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
@@ -293,13 +344,26 @@ final class Connection {
 			array(
 				'id'     => 'claude-desktop',
 				'label'  => __( 'Claude Desktop', 'agent-connector-for-wp' ),
-				'blocks' => array(
+				'blocks' => array_filter(
 					array(
-						'kind'  => 'json',
-						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to claude_desktop_config.json (Settings → Developer → Edit Config), then restart Claude Desktop.', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
+						array(
+							'kind'     => 'mcpb',
+							'title'    => __( 'Desktop Extension', 'agent-connector-for-wp' ),
+							'hint'     => __( 'Download the extension file and double-click to install — no JSON editing required.', 'agent-connector-for-wp' ),
+							'filename' => $name . '.mcpb',
+							'value'    => self::build_mcpb( $name, $env ),
+						),
+						array(
+							'kind'  => 'json',
+							'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
+							'hint'  => __( 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', 'agent-connector-for-wp' ),
+							'value' => self::mcp_servers_json( $name, $env ),
+						),
 					),
+					static function ( array $block ): bool {
+						// Drop the mcpb block if ZipArchive wasn't available.
+						return '' !== (string) $block['value'];
+					}
 				),
 			),
 			array(
