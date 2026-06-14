@@ -98,31 +98,37 @@ final class Connection {
 	}
 
 	/**
-	 * Build every artifact the Connect page offers for copy-paste.
+	 * The shared inner MCP server entry: how to launch the stdio proxy.
 	 *
-	 * @return array{
-	 *     url:string,
-	 *     username:string,
-	 *     prompt:string,
-	 *     cli:string,
-	 *     json:string
-	 * }
+	 * This is the object every "mcpServers"-style client nests under the server
+	 * name, and the payload Cursor/VS Code deeplinks carry. Kept in one place so
+	 * the command/args never drift between formats.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 * @return array{command:string,args:array<int,string>,env:array<string,string>}
 	 */
-	public static function build_artifacts( string $username, string $password ): array {
-		$url     = self::endpoint_url();
-		$name    = self::server_name();
-		$package = self::PROXY_PACKAGE;
-		$env     = self::proxy_env( $username, $password );
+	private static function server_entry( array $env ): array {
+		return array(
+			'command' => 'npx',
+			'args'    => array( '-y', self::PROXY_PACKAGE ),
+			'env'     => $env,
+		);
+	}
 
-		// 1) A natural-language prompt the user can paste into any coding agent.
-		$prompt = implode(
+	/**
+	 * A natural-language prompt any coding agent can act on to self-configure.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function agent_prompt( string $name, array $env ): string {
+		return implode(
 			"\n",
 			array(
 				'Please configure a new MCP (Model Context Protocol) server for me, then connect to it.',
 				'',
 				'- Name: ' . $name,
 				'- Transport: stdio, via Automattic\'s mcp-wordpress-remote proxy run with npx',
-				'- Command: npx -y ' . $package,
+				'- Command: npx -y ' . self::PROXY_PACKAGE,
 				'- Environment variables:',
 				'    WP_API_URL=' . $env['WP_API_URL'],
 				'    WP_API_USERNAME=' . $env['WP_API_USERNAME'],
@@ -139,39 +145,231 @@ final class Connection {
 				'browser into wp-admin once, without a username or password.',
 			)
 		);
+	}
 
-		// 2) A ready-to-run Claude Code CLI command (stdio server with env vars).
-		$cli_parts = array( 'claude', 'mcp', 'add', escapeshellarg( $name ) );
-		foreach ( $env as $key => $value ) {
-			$cli_parts[] = '--env';
-			$cli_parts[] = escapeshellarg( $key . '=' . $value );
-		}
-		$cli_parts[] = '--';
-		$cli_parts[] = 'npx';
-		$cli_parts[] = '-y';
-		$cli_parts[] = escapeshellarg( $package );
-		$cli         = implode( ' ', $cli_parts );
-
-		// 3) A standard mcpServers JSON config block.
-		$json = (string) wp_json_encode(
+	/**
+	 * A standard "mcpServers" JSON config block (Claude Desktop, Cursor, Windsurf…).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function mcp_servers_json( string $name, array $env ): string {
+		return (string) wp_json_encode(
 			array(
 				'mcpServers' => array(
-					$name => array(
-						'command' => 'npx',
-						'args'    => array( '-y', $package ),
-						'env'     => $env,
-					),
+					$name => self::server_entry( $env ),
 				),
 			),
 			JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+		);
+	}
+
+	/**
+	 * A ready-to-run `claude mcp add` command (stdio server with env vars).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function claude_code_cli( string $name, array $env ): string {
+		$parts = array( 'claude', 'mcp', 'add', escapeshellarg( $name ) );
+		foreach ( $env as $key => $value ) {
+			$parts[] = '--env';
+			$parts[] = escapeshellarg( $key . '=' . $value );
+		}
+		$parts[] = '--';
+		$parts[] = 'npx';
+		$parts[] = '-y';
+		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+
+		return implode( ' ', $parts );
+	}
+
+	/**
+	 * A `gemini mcp add` command. Env flags (`-e KEY=VAL`) precede the name.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function gemini_cli( string $name, array $env ): string {
+		$parts = array( 'gemini', 'mcp', 'add' );
+		foreach ( $env as $key => $value ) {
+			$parts[] = '-e';
+			$parts[] = escapeshellarg( $key . '=' . $value );
+		}
+		$parts[] = escapeshellarg( $name );
+		$parts[] = 'npx';
+		$parts[] = '-y';
+		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+
+		return implode( ' ', $parts );
+	}
+
+	/**
+	 * VS Code's install JSON: the server entry plus a top-level "name" key.
+	 *
+	 * Shared by both the `code --add-mcp` command and the vscode: deeplink.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function vscode_config_json( string $name, array $env ): string {
+		return (string) wp_json_encode(
+			array( 'name' => $name ) + self::server_entry( $env ),
+			JSON_UNESCAPED_SLASHES
+		);
+	}
+
+	/**
+	 * A `code --add-mcp '{…}'` command (single-quoted JSON for the shell).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function vscode_cli( string $name, array $env ): string {
+		return 'code --add-mcp ' . escapeshellarg( self::vscode_config_json( $name, $env ) );
+	}
+
+	/**
+	 * A one-click VS Code install deeplink: vscode:mcp/install?<url-encoded JSON>.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function vscode_deeplink( string $name, array $env ): string {
+		return 'vscode:mcp/install?' . rawurlencode( self::vscode_config_json( $name, $env ) );
+	}
+
+	/**
+	 * A one-click Cursor install deeplink.
+	 *
+	 * cursor://anysphere.cursor-deeplink/mcp/install?name=<name>&config=<base64 server entry>.
+	 * The config carries only the inner server entry (no name key).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function cursor_deeplink( string $name, array $env ): string {
+		$config = base64_encode( (string) wp_json_encode( self::server_entry( $env ), JSON_UNESCAPED_SLASHES ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+
+		return 'cursor://anysphere.cursor-deeplink/mcp/install?name=' . rawurlencode( $name ) . '&config=' . rawurlencode( $config );
+	}
+
+	/**
+	 * Build every artifact the Connect page offers, grouped per agent.
+	 *
+	 * Each agent has one or more "blocks"; a block is a copyable string or a
+	 * one-click deeplink. The shape is consumed verbatim by the Connect page's
+	 * inline script, which renders a selector + the chosen agent's blocks.
+	 *
+	 * @return array{
+	 *     url:string,
+	 *     username:string,
+	 *     agents:array<int,array{id:string,label:string,blocks:array<int,array<string,string>>}>
+	 * }
+	 */
+	public static function build_artifacts( string $username, string $password ): array {
+		$url  = self::endpoint_url();
+		$name = self::server_name();
+		$env  = self::proxy_env( $username, $password );
+
+		$agents = array(
+			array(
+				'id'     => 'prompt',
+				'label'  => __( 'Any agent (prompt)', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'text',
+						'title' => __( 'Paste into your agent', 'agent-connector-for-wp' ),
+						'hint'  => __( 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' ),
+						'value' => self::agent_prompt( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'claude-code',
+				'label'  => __( 'Claude Code', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'command',
+						'title' => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
+						'value' => self::claude_code_cli( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'claude-desktop',
+				'label'  => __( 'Claude Desktop', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'json',
+						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to claude_desktop_config.json (Settings → Developer → Edit Config), then restart Claude Desktop.', 'agent-connector-for-wp' ),
+						'value' => self::mcp_servers_json( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'cursor',
+				'label'  => __( 'Cursor', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'   => 'deeplink',
+						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
+						'hint'   => __( 'Opens Cursor and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
+						'button' => __( 'Add to Cursor', 'agent-connector-for-wp' ),
+						'value'  => self::cursor_deeplink( $name, $env ),
+					),
+					array(
+						'kind'  => 'json',
+						'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in your project).', 'agent-connector-for-wp' ),
+						'value' => self::mcp_servers_json( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'vscode',
+				'label'  => __( 'VS Code', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'   => 'deeplink',
+						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
+						'hint'   => __( 'Opens VS Code and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
+						'button' => __( 'Add to VS Code', 'agent-connector-for-wp' ),
+						'value'  => self::vscode_deeplink( $name, $env ),
+					),
+					array(
+						'kind'  => 'command',
+						'title' => __( 'Or run in your terminal', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Adds the server to your VS Code user profile via the code CLI.', 'agent-connector-for-wp' ),
+						'value' => self::vscode_cli( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'gemini',
+				'label'  => __( 'Gemini CLI', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'command',
+						'title' => __( 'Gemini CLI', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server to the Gemini CLI. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
+						'value' => self::gemini_cli( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'windsurf',
+				'label'  => __( 'Windsurf', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'json',
+						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to ~/.codeium/windsurf/mcp_config.json, then refresh MCP servers in Windsurf.', 'agent-connector-for-wp' ),
+						'value' => self::mcp_servers_json( $name, $env ),
+					),
+				),
+			),
 		);
 
 		return array(
 			'url'      => $url,
 			'username' => $username,
-			'prompt'   => $prompt,
-			'cli'      => $cli,
-			'json'     => $json,
+			'agents'   => $agents,
 		);
 	}
 }

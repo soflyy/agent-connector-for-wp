@@ -103,6 +103,7 @@ final class ConnectionPage {
 					'button'     => __( 'Generate connection', 'agent-connector-for-wp' ),
 					'copy'       => __( 'Copy', 'agent-connector-for-wp' ),
 					'copied'     => __( 'Copied!', 'agent-connector-for-wp' ),
+					'copyLink'   => __( 'Copy link', 'agent-connector-for-wp' ),
 					'failed'     => __( 'Something went wrong. Please try again.', 'agent-connector-for-wp' ),
 				),
 			)
@@ -390,47 +391,10 @@ final class ConnectionPage {
 			<p class="description" id="rfa-status" role="status" aria-live="polite"></p>
 
 			<div id="rfa-results" style="display:none;max-width:60em;">
-				<?php
-				$this->render_result_block(
-					'rfa-prompt',
-					__( 'Paste into your agent', 'agent-connector-for-wp' ),
-					__( 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' )
-				);
-				$this->render_result_block(
-					'rfa-cli',
-					__( 'Claude Code CLI', 'agent-connector-for-wp' ),
-					__( 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' )
-				);
-				$this->render_result_block(
-					'rfa-json',
-					__( 'mcpServers JSON', 'agent-connector-for-wp' ),
-					__( 'Drop this into an MCP client config file (e.g. .mcp.json). It launches the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' )
-				);
-				?>
+				<h2 class="nav-tab-wrapper" id="rfa-agent-tabs" role="tablist"></h2>
+				<div id="rfa-agent-blocks"></div>
 			</div>
 		<?php endif; ?>
-		<?php
-	}
-
-	/**
-	 * Render one labelled, copyable result block.
-	 *
-	 * @param string $id    Base element id.
-	 * @param string $title Section heading.
-	 * @param string $hint  Short description.
-	 */
-	private function render_result_block( string $id, string $title, string $hint ): void {
-		?>
-		<div class="rfa-block" style="margin-top:1.5em;">
-			<h3 style="margin-bottom:.2em;"><?php echo esc_html( $title ); ?></h3>
-			<p class="description" style="margin-top:0;"><?php echo esc_html( $hint ); ?></p>
-			<textarea id="<?php echo esc_attr( $id ); ?>" readonly rows="6" class="large-text code" style="font-family:monospace;"></textarea>
-			<p>
-				<button type="button" class="button rfa-copy" data-target="<?php echo esc_attr( $id ); ?>">
-					<?php esc_html_e( 'Copy', 'agent-connector-for-wp' ); ?>
-				</button>
-			</p>
-		</div>
 		<?php
 	}
 
@@ -546,9 +510,7 @@ final class ConnectionPage {
 		wp_send_json_success(
 			array(
 				'url'    => $artifacts['url'],
-				'prompt' => $artifacts['prompt'],
-				'cli'    => $artifacts['cli'],
-				'json'   => $artifacts['json'],
+				'agents' => $artifacts['agents'],
 			)
 		);
 	}
@@ -602,19 +564,114 @@ final class ConnectionPage {
 		return <<<'JS'
 ( function () {
 	var cfg = window.AgentConnectorForWpConnect || {};
+	var i18n = cfg.i18n || {};
 	var btn = document.getElementById( 'rfa-generate' );
 	var status = document.getElementById( 'rfa-status' );
 	var results = document.getElementById( 'rfa-results' );
+	var tabs = document.getElementById( 'rfa-agent-tabs' );
+	var blocks = document.getElementById( 'rfa-agent-blocks' );
+	var agents = [];
+	var uid = 0;
 
-	function setText( id, value ) {
-		var el = document.getElementById( id );
-		if ( el ) { el.value = value; }
+	function el( tag, props, text ) {
+		var node = document.createElement( tag );
+		if ( props ) {
+			Object.keys( props ).forEach( function ( k ) { node.setAttribute( k, props[ k ] ); } );
+		}
+		if ( text != null ) { node.textContent = text; }
+		return node;
+	}
+
+	// Copy text to the clipboard, flashing the button label on success.
+	function copyValue( value, cb ) {
+		var done = function () {
+			var original = cb.getAttribute( 'data-label' ) || cb.textContent;
+			cb.textContent = i18n.copied || 'Copied!';
+			setTimeout( function () { cb.textContent = original; }, 1500 );
+		};
+		if ( navigator.clipboard && navigator.clipboard.writeText ) {
+			navigator.clipboard.writeText( value ).then( done, function () { fallbackCopy( value, done ); } );
+		} else {
+			fallbackCopy( value, done );
+		}
+	}
+
+	function fallbackCopy( value, done ) {
+		var ta = document.createElement( 'textarea' );
+		ta.value = value;
+		ta.style.position = 'fixed';
+		ta.style.opacity = '0';
+		document.body.appendChild( ta );
+		ta.select();
+		try { document.execCommand( 'copy' ); } catch ( e ) {}
+		document.body.removeChild( ta );
+		done();
+	}
+
+	// Build the DOM for one block (textarea + copy, or a deeplink button).
+	function renderBlock( block ) {
+		var wrap = el( 'div', { 'class': 'rfa-block', 'style': 'margin-top:1.5em;' } );
+		wrap.appendChild( el( 'h3', { 'style': 'margin-bottom:.2em;' }, block.title ) );
+		if ( block.hint ) {
+			wrap.appendChild( el( 'p', { 'class': 'description', 'style': 'margin-top:0;' }, block.hint ) );
+		}
+
+		if ( block.kind === 'deeplink' ) {
+			var actions = el( 'p' );
+			var link = el( 'a', { 'class': 'button button-primary', 'href': '#' }, block.button || ( i18n.copy || 'Copy' ) );
+			link.setAttribute( 'href', block.value );
+			actions.appendChild( link );
+			actions.appendChild( document.createTextNode( ' ' ) );
+			var linkCopy = el( 'button', { 'type': 'button', 'class': 'button' }, i18n.copyLink || 'Copy link' );
+			linkCopy.setAttribute( 'data-label', i18n.copyLink || 'Copy link' );
+			linkCopy.addEventListener( 'click', function () { copyValue( block.value, linkCopy ); } );
+			actions.appendChild( linkCopy );
+			wrap.appendChild( actions );
+			return wrap;
+		}
+
+		var id = 'rfa-out-' + ( ++uid );
+		var ta = el( 'textarea', { 'id': id, 'readonly': 'readonly', 'rows': '6', 'class': 'large-text code', 'style': 'font-family:monospace;' } );
+		ta.value = block.value;
+		wrap.appendChild( ta );
+		var actions2 = el( 'p' );
+		var copy = el( 'button', { 'type': 'button', 'class': 'button' }, i18n.copy || 'Copy' );
+		copy.setAttribute( 'data-label', i18n.copy || 'Copy' );
+		copy.addEventListener( 'click', function () { copyValue( ta.value, copy ); } );
+		actions2.appendChild( copy );
+		wrap.appendChild( actions2 );
+		return wrap;
+	}
+
+	function selectAgent( index ) {
+		var tabEls = tabs.querySelectorAll( '.nav-tab' );
+		Array.prototype.forEach.call( tabEls, function ( t, i ) {
+			var active = i === index;
+			t.classList.toggle( 'nav-tab-active', active );
+			t.setAttribute( 'aria-selected', active ? 'true' : 'false' );
+		} );
+		var agent = agents[ index ];
+		blocks.innerHTML = '';
+		if ( ! agent || ! agent.blocks ) { return; }
+		agent.blocks.forEach( function ( block ) { blocks.appendChild( renderBlock( block ) ); } );
+	}
+
+	function renderTabs() {
+		tabs.innerHTML = '';
+		agents.forEach( function ( agent, i ) {
+			var tab = el( 'a', { 'class': 'nav-tab', 'href': '#', 'role': 'tab' }, agent.label );
+			tab.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				selectAgent( i );
+			} );
+			tabs.appendChild( tab );
+		} );
 	}
 
 	if ( btn ) {
 		btn.addEventListener( 'click', function () {
 			btn.disabled = true;
-			status.textContent = ( cfg.i18n && cfg.i18n.generating ) || 'Generating…';
+			status.textContent = i18n.generating || 'Generating…';
 
 			var body = new URLSearchParams();
 			body.set( 'action', cfg.action );
@@ -628,50 +685,26 @@ final class ConnectionPage {
 			} )
 			.then( function ( r ) { return r.json(); } )
 			.then( function ( res ) {
-				if ( ! res || ! res.success ) {
-					var msg = ( res && res.data && res.data.message ) || ( cfg.i18n && cfg.i18n.failed ) || 'Error';
+				if ( ! res || ! res.success || ! res.data || ! res.data.agents ) {
+					var msg = ( res && res.data && res.data.message ) || i18n.failed || 'Error';
 					status.textContent = msg;
 					btn.disabled = false;
 					return;
 				}
-				setText( 'rfa-prompt', res.data.prompt );
-				setText( 'rfa-cli', res.data.cli );
-				setText( 'rfa-json', res.data.json );
+				agents = res.data.agents;
+				renderTabs();
+				selectAgent( 0 );
 				results.style.display = 'block';
 				status.textContent = '';
-				btn.textContent = ( cfg.i18n && cfg.i18n.button ) || 'Generate connection';
+				btn.textContent = i18n.button || 'Generate connection';
 				btn.disabled = false;
 			} )
 			.catch( function () {
-				status.textContent = ( cfg.i18n && cfg.i18n.failed ) || 'Error';
+				status.textContent = i18n.failed || 'Error';
 				btn.disabled = false;
 			} );
 		} );
 	}
-
-	var copyButtons = document.querySelectorAll( '.rfa-copy' );
-	Array.prototype.forEach.call( copyButtons, function ( cb ) {
-		cb.addEventListener( 'click', function () {
-			var target = document.getElementById( cb.getAttribute( 'data-target' ) );
-			if ( ! target ) { return; }
-			var done = function () {
-				var original = cb.textContent;
-				cb.textContent = ( cfg.i18n && cfg.i18n.copied ) || 'Copied!';
-				setTimeout( function () { cb.textContent = original; }, 1500 );
-			};
-			if ( navigator.clipboard && navigator.clipboard.writeText ) {
-				navigator.clipboard.writeText( target.value ).then( done, function () {
-					target.select();
-					document.execCommand( 'copy' );
-					done();
-				} );
-			} else {
-				target.select();
-				document.execCommand( 'copy' );
-				done();
-			}
-		} );
-	} );
 } )();
 JS;
 	}
