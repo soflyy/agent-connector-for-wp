@@ -285,17 +285,6 @@ function ConnectStep({ selectedAgent, status, connection, generating, error, onG
             )}
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Need a fresh password?</span>
-            <button
-              onClick={onGenerate}
-              disabled={generating}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 font-medium"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-              Regenerate
-            </button>
-          </div>
         </div>
       )}
     </div>
