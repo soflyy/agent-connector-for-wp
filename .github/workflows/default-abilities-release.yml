@@ -1,0 +1,64 @@
+name: Release Default Abilities plugin
+
+# Builds the Default Abilities companion plugin (default-abilities-plugin/) as a
+# standalone WordPress plugin zip and publishes it as the asset of a stable,
+# non-"latest" release tagged `default-abilities-plugin`. That gives the zip a
+# permanent URL that the main plugin's one-click installer (Connection screen)
+# downloads from:
+#   https://github.com/<owner>/<repo>/releases/download/default-abilities-plugin/default-abilities-plugin.zip
+#
+# The plugin ships no Composer dependencies — it reuses the main plugin's bundled
+# infrastructure at runtime — so the build is just stage + zip. The version is
+# stamped into the built zip from the plugin header; nothing is committed back.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'default-abilities-plugin/**'
+      - '.github/workflows/default-abilities-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: default-abilities-release
+  cancel-in-progress: false
+
+env:
+  PLUGIN_SLUG: default-abilities-plugin
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage plugin files
+        run: |
+          set -euo pipefail
+          rm -rf dist && mkdir -p "dist/${PLUGIN_SLUG}"
+          rsync -a --delete \
+            --exclude='dist' --exclude='vendor' --exclude='node_modules' --exclude='.git' \
+            "${PLUGIN_SLUG}/" "dist/${PLUGIN_SLUG}/"
+
+      - name: Create zip
+        run: |
+          set -euo pipefail
+          cd dist && zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+
+      - name: Publish to the stable default-abilities-plugin release
+        run: |
+          set -euo pipefail
+          notes="The Default Abilities pack for Agent Connector for WP. Install in one click from wp-admin → Agent Connector for WP → Connection, or download the zip below."
+          if ! gh release view "${PLUGIN_SLUG}" >/dev/null 2>&1; then
+            gh release create "${PLUGIN_SLUG}" "dist/${PLUGIN_SLUG}.zip" \
+              --title "Default Abilities plugin" \
+              --notes "$notes" \
+              --latest=false
+          else
+            gh release upload "${PLUGIN_SLUG}" "dist/${PLUGIN_SLUG}.zip" --clobber
+          fi

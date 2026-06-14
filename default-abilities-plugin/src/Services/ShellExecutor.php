@@ -7,7 +7,7 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Services;
+namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Helpers;

@@ -7,10 +7,10 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\Services\ShellExecutor;
+use AgentConnectorForWp\DefaultAbilities\Services\ShellExecutor;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;

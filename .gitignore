@@ -5,6 +5,7 @@
 
 # Build artifacts
 /plugin/dist/
+/dist/
 *.zip
 
 # Runtime artifacts

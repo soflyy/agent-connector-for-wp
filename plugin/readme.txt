@@ -8,13 +8,15 @@ Stable tag: 1.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Give agents unrestricted execution capability on WordPress: shell, PHP eval, filesystem, and process execution via the WordPress MCP stack. Dev only.
+Run a secured MCP server for your site that exposes WordPress Abilities to agents. Optional Default Abilities pack adds shell, PHP eval, and filesystem. Dev only.
 
 == Description ==
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack (the WordPress AI plugin, the MCP Abilities API, and wordpress/mcp-adapter) provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin registers additional WordPress **Abilities** and exposes them over MCP. It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. It adds:
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. Every exposed ability is governed by its super-admin auth, domain lock, and audit log, regardless of which plugin registered it.
+
+The powerful built-in abilities live in a separate companion plugin, **Default Abilities for Agent Connector**, which you can install in one click from the Connection screen. Off by default. It adds:
 
 * **Shell execution** (`agent-connector-for-wp/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
 * **WP-CLI execution** (`agent-connector-for-wp/wp-cli`) — run a WP-CLI command (everything after `wp`) against this install; runs from the WordPress root and auto-adds --allow-root when running as root.
@@ -53,7 +55,7 @@ wordpress/mcp-adapter is bundled with this plugin; you do not need to install it
 Everything is configured on one screen: **Agent Connector for WP > Connection** in wp-admin (always available, even while the plugin is off). There is no enabling constant.
 
 * **Enable Agent Connector** — the master toggle. When on, the plugin runs an MCP server for this site and exposes the abilities other plugins registered ("third-party abilities", always active while enabled). Enabling also locks the plugin to the current domain (see Domain Lock).
-* **Built-in abilities** — a separate opt-in, **off by default**. When on, the plugin also exposes its own powerful abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login). Leave it off if you only want third-party abilities exposed.
+* **Built-in abilities** — provided by the separate **Default Abilities** companion plugin, **off by default**. If it isn't installed, the Connection screen shows a one-click **Install Default Abilities** button; once installed, tick its toggle (shown on the same screen) to expose the powerful abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login). Leave it off — or uninstalled — to expose only abilities from other plugins.
 * **Production override** — required only when `wp_get_environment_type()` reports `production` (also the default when the environment type is never configured). On `local`/`development`/`staging` the master toggle alone activates the plugin; on `production` you must additionally tick the override, which carries the danger warning.
 
 == Domain Lock ==
@@ -74,14 +76,19 @@ On the same **Connection** screen, once the plugin is enabled, click **Generate 
 
 Intentionally high-trust. It does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It DOES enforce:
 
-* administrator/super-admin checks (`manage_options` + `is_super_admin()`) on every built-in ability
-* explicit opt-in: off until enabled on the Connection screen, and the powerful built-in abilities are a further opt-in that is off by default
+* administrator/super-admin checks (`manage_options` + `is_super_admin()`) forced onto every ability exposed over MCP, no matter which plugin registered it
+* explicit opt-in: off until enabled on the Connection screen, and the powerful built-in abilities are a further opt-in (a separate plugin, off by default)
 * the production gate: on a production environment type, the plugin stays inactive until the operator also ticks the production override
-* the domain lock (built-in abilities refuse to run on a domain the plugin was not enabled on)
+* the domain lock (abilities refuse to run on a domain the plugin was not enabled on)
 * timeout enforcement and output caps
 * append-only audit logging of every invocation (user, ability, input summary, status, duration)
 
 == Changelog ==
+
+= 1.13.0 =
+* The plugin now ships no abilities of its own — it is purely the secured MCP gateway. The powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login) moved to a separate companion plugin, **Default Abilities for Agent Connector**.
+* One-click install: when the Default Abilities pack is not active, the Connection screen offers an **Install Default Abilities** button. The pack injects its status, opt-in toggle, and warnings back onto the Connection screen via new hooks (`agent_connector_for_wp_render_status_rows`, `agent_connector_for_wp_render_settings_rows`, `agent_connector_for_wp_settings_saved`, `agent_connector_for_wp_connect_heads_up`, `agent_connector_for_wp_render_connect_notices`).
+* Ability names, the domain lock, audit logging, and the public registration API are unchanged.
 
 = 0.1.0 =
 * Initial release: shell-exec, wp-cli, php-eval, file read/write/delete/list, env-inspect, process-exec, create-admin-login-link abilities; audit logging.

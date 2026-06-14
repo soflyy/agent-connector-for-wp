@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# Symlink the plugin into a WordPress install for local development.
+# Symlink the plugins into a WordPress install for local development.
 #
-# This repo is a monorepo: the plugin lives in plugin/. WordPress expects the
-# plugin under
-# wp-content/plugins/, so for local development we symlink plugin/ there instead
-# of copying it. Edit files in the repo; WordPress sees them live through the link.
+# This repo is a monorepo: the main plugin lives in plugin/ and its Default
+# Abilities companion in default-abilities-plugin/. WordPress expects each plugin
+# under wp-content/plugins/, so for local development we symlink them there
+# instead of copying. Edit files in the repo; WordPress sees them live.
 #
 # Usage:
 #   bin/install.sh <WP_CONTENT_DIR>
@@ -15,12 +15,16 @@
 #
 set -euo pipefail
 
-PLUGIN_SLUG="agent-connector-for-wp"
-
 # Resolve the repo root from this script's location (bin/ -> repo root).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-PLUGIN_SRC="${REPO_ROOT}/plugin"
+
+# Each entry is "<source-subdir>:<plugin-slug>". The main file is expected at
+# <source-subdir>/<plugin-slug>.php.
+PLUGINS=(
+	"plugin:agent-connector-for-wp"
+	"default-abilities-plugin:default-abilities-plugin"
+)
 
 usage() {
 	echo "Usage: bin/install.sh <WP_CONTENT_DIR>" >&2
@@ -45,31 +49,38 @@ if [ ! -d "${WP_CONTENT_DIR}/plugins" ]; then
 	exit 1
 fi
 
-if [ ! -f "${PLUGIN_SRC}/${PLUGIN_SLUG}.php" ]; then
-	echo "Error: plugin source not found at ${PLUGIN_SRC}/${PLUGIN_SLUG}.php" >&2
-	exit 1
-fi
+for entry in "${PLUGINS[@]}"; do
+	SRC_SUBDIR="${entry%%:*}"
+	PLUGIN_SLUG="${entry##*:}"
+	PLUGIN_SRC="${REPO_ROOT}/${SRC_SUBDIR}"
 
-LINK_PATH="${WP_CONTENT_DIR}/plugins/${PLUGIN_SLUG}"
+	if [ ! -f "${PLUGIN_SRC}/${PLUGIN_SLUG}.php" ]; then
+		echo "Error: plugin source not found at ${PLUGIN_SRC}/${PLUGIN_SLUG}.php" >&2
+		exit 1
+	fi
 
-# If something is already there, only replace a symlink (never a real directory).
-if [ -L "${LINK_PATH}" ]; then
-	rm "${LINK_PATH}"
-elif [ -e "${LINK_PATH}" ]; then
-	echo "Error: ${LINK_PATH} already exists and is not a symlink. Refusing to overwrite." >&2
-	echo "Move or remove it, then re-run." >&2
-	exit 1
-fi
+	LINK_PATH="${WP_CONTENT_DIR}/plugins/${PLUGIN_SLUG}"
 
-ln -s "${PLUGIN_SRC}" "${LINK_PATH}"
-echo "Linked ${LINK_PATH} -> ${PLUGIN_SRC}"
+	# If something is already there, only replace a symlink (never a real directory).
+	if [ -L "${LINK_PATH}" ]; then
+		rm "${LINK_PATH}"
+	elif [ -e "${LINK_PATH}" ]; then
+		echo "Error: ${LINK_PATH} already exists and is not a symlink. Refusing to overwrite." >&2
+		echo "Move or remove it, then re-run." >&2
+		exit 1
+	fi
 
-if [ ! -d "${PLUGIN_SRC}/vendor" ]; then
+	ln -s "${PLUGIN_SRC}" "${LINK_PATH}"
+	echo "Linked ${LINK_PATH} -> ${PLUGIN_SRC}"
+done
+
+MAIN_SRC="${REPO_ROOT}/plugin"
+if [ ! -d "${MAIN_SRC}/vendor" ]; then
 	echo
-	echo "Note: ${PLUGIN_SRC}/vendor is missing. Install dependencies with:"
-	echo "  ( cd ${PLUGIN_SRC} && composer install --no-dev )"
+	echo "Note: ${MAIN_SRC}/vendor is missing. Install dependencies with:"
+	echo "  ( cd ${MAIN_SRC} && composer install --no-dev )"
 fi
 
 echo
-echo "Next: activate the plugin, e.g."
-echo "  wp plugin activate ${PLUGIN_SLUG}"
+echo "Next: activate the plugins, e.g."
+echo "  wp plugin activate agent-connector-for-wp default-abilities-plugin"

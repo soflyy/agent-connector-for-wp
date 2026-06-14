@@ -1,23 +1,27 @@
 <?php
 /**
- * Ability: agent-connector-for-wp/wp-cli
+ * Ability: agent-connector-for-wp/process-exec
+ *
+ * For v1 this proxies shell execution. The separate ability exists so longer-
+ * running command semantics (async jobs, streaming, cancellation) can evolve
+ * here without changing the shell-exec contract.
  *
  * @package AgentConnectorForWp
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Abilities;
+namespace AgentConnectorForWp\DefaultAbilities\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\Services\WpCliRunner;
+use AgentConnectorForWp\DefaultAbilities\Services\ShellExecutor;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
 
-final class WpCliAbility {
+final class ProcessExecAbility {
 
-	public const NAME = 'agent-connector-for-wp/wp-cli';
+	public const NAME = 'agent-connector-for-wp/process-exec';
 
 	public static function is_allowed(): bool {
 		return true;
@@ -28,23 +32,23 @@ final class WpCliAbility {
 	 */
 	public static function definition(): array {
 		return array(
-			'label'               => 'Run WP-CLI Command',
-			'description'         => 'Run a WP-CLI command against this WordPress install and capture stdout, stderr, and the exit code. Provide everything after `wp` (e.g. "plugin list --status=active --format=json"). Runs from the WordPress root, and adds --allow-root automatically when running as root.',
+			'label'               => 'Execute Process',
+			'description'         => 'Run a longer-running command and capture its result. In v1 this behaves like shell-exec; it is the forward-looking home for async/streaming process control.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'properties'           => array(
 					'command'    => array(
 						'type'        => 'string',
-						'description' => 'The WP-CLI command to run, i.e. everything after `wp`. Example: "option get siteurl". A leading "wp " is tolerated and stripped.',
+						'description' => 'The command line to execute.',
 					),
 					'cwd'        => array(
 						'type'        => 'string',
-						'description' => 'Working directory. Defaults to the WordPress root (ABSPATH). Relative paths resolve against ABSPATH.',
+						'description' => 'Working directory. Relative paths resolve against ABSPATH.',
 					),
 					'timeout_ms' => array(
 						'type'        => 'integer',
-						'description' => 'Wall-clock timeout in milliseconds. Defaults to the configured plugin timeout.',
+						'description' => 'Wall-clock timeout in milliseconds.',
 					),
 				),
 				'required'             => array( 'command' ),
@@ -91,8 +95,7 @@ final class WpCliAbility {
 		$command    = isset( $input['command'] ) ? (string) $input['command'] : '';
 		$cwd        = isset( $input['cwd'] ) ? (string) $input['cwd'] : null;
 		$timeout_ms = isset( $input['timeout_ms'] ) ? (int) $input['timeout_ms'] : null;
-
-		return ( new WpCliRunner() )->run( $command, $cwd, $timeout_ms );
+		return ( new ShellExecutor() )->run( $command, $cwd, $timeout_ms );
 	}
 
 	/**
