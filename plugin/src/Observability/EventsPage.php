@@ -48,18 +48,11 @@ final class EventsPage {
 	}
 
 	/**
-	 * Register the MCP Events submenu under the Agent Connector top-level menu.
+	 * Previously registered "MCP Events" as a standalone submenu page. Removed
+	 * now that the Log tab lives inside the React SPA on the main Connection
+	 * screen, served through the REST API.
 	 */
-	public function register_menu(): void {
-		add_submenu_page(
-			ConnectionPage::MENU_SLUG,
-			__( 'MCP Events', 'agent-connector-for-wp' ),
-			__( 'MCP Events', 'agent-connector-for-wp' ),
-			Config::CAP,
-			self::PAGE_SLUG,
-			array( $this, 'render_page' )
-		);
-	}
+	public function register_menu(): void {}
 
 	/**
 	 * Handle the "Clear log" POST before any output. Runs on admin_init so the

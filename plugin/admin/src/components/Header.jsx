@@ -12,7 +12,7 @@ export default function Header({ page, onNavigate, status }) {
           {/* Brand */}
           <div className="flex items-center gap-2.5">
             <Plug className="w-5 h-5 text-indigo-400" />
-            <span className="font-semibold text-sm tracking-wide">Agent Connector for WP</span>
+            <span className="font-semibold text-sm tracking-wide">Agent Connector</span>
           </div>
 
           {/* Nav */}
@@ -21,6 +21,7 @@ export default function Header({ page, onNavigate, status }) {
               { id: 'connect', label: 'Connect' },
               { id: 'settings', label: 'Settings' },
               { id: 'abilities', label: 'Abilities' },
+              { id: 'log', label: 'Log' },
             ].map(({ id, label }) => (
               <button
                 key={id}

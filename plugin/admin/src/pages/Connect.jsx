@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download,
 } from 'lucide-react'
 import CopyButton from '../components/CopyButton'
 import { api } from '../api'
@@ -25,7 +25,39 @@ function blockIcon(kind) {
   return <MessageSquare className="w-3.5 h-3.5" />
 }
 
+function downloadMcpb(block) {
+  const bytes = atob(block.value)
+  const arr = new Uint8Array(bytes.length)
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
+  const blob = new Blob([arr], { type: 'application/octet-stream' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = block.filename || 'extension.mcpb'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 function Block({ block }) {
+  if (block.kind === 'plugin' || block.kind === 'mcpb') {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+          <Download className="w-3.5 h-3.5" />
+          {block.title}
+        </div>
+        <p className="text-sm text-gray-400">{block.hint}</p>
+        <button
+          onClick={() => downloadMcpb(block)}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Download {block.filename || 'plugin.zip'}
+        </button>
+      </div>
+    )
+  }
+
   if (block.kind === 'deeplink') {
     return (
       <div className="space-y-2">
@@ -182,10 +214,13 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
 // ─── Step 3: Instructions ─────────────────────────────────────────────────────
 
 function ConnectStep({ selectedAgent, status, connection, generating, error, onGenerate, onBack }) {
-  const [activeTab, setActiveTab] = useState(selectedAgent)
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
-  const agentList = connection?.agents || []
-  const agentData = agentList.find((a) => a.id === activeTab)
+  const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
+
+  // Generate immediately on mount (if not already done).
+  useEffect(() => {
+    if (!connection && status.pwAvailable) onGenerate()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="space-y-6">
@@ -203,54 +238,36 @@ function ConnectStep({ selectedAgent, status, connection, generating, error, onG
             Connect{' '}
             <span style={{ color: agentMeta.color }}>{agentMeta.label}</span>
           </h1>
-          <p className="text-gray-500 mt-0.5 text-sm">
-            Generate a one-time application password — it'll be wired right in.
-          </p>
         </div>
       </div>
 
-      {!connection ? (
-        /* ── Pre-generate panel ── */
-        <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="block text-xs text-gray-400 mb-1">MCP server URL</span>
-              <code className="text-gray-700 break-all">{status.serverUrl}</code>
-            </div>
-            <div>
-              <span className="block text-xs text-gray-400 mb-1">Authenticating as</span>
-              <code className="text-gray-700">{status.username}</code>
-            </div>
-          </div>
+      {!status.pwAvailable && (
+        <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          Application passwords require HTTPS (or a local environment) and are not available on this site.
+        </div>
+      )}
 
-          {!status.pwAvailable && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              Application passwords require HTTPS (or a local environment) and are not available on this site.
-            </div>
-          )}
+      {generating && (
+        <div className="flex items-center gap-3 p-6 text-sm text-gray-400">
+          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+          Generating connection…
+        </div>
+      )}
 
-          {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-          )}
-
+      {error && !generating && (
+        <div className="space-y-3">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
           <button
             onClick={onGenerate}
-            disabled={generating || !status.pwAvailable}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            {generating ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Generating…
-              </>
-            ) : (
-              'Generate connection'
-            )}
+            Retry
           </button>
         </div>
-      ) : (
-        /* ── Artifacts panel ── */
+      )}
+
+      {connection && !generating && (
         <div className="space-y-4">
           <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
             <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -260,46 +277,14 @@ function ConnectStep({ selectedAgent, status, connection, generating, error, onG
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            {/* Agent tab switcher */}
-            <div className="flex overflow-x-auto border-b border-gray-100 px-4 pt-3 gap-1">
-              {agentList.map((agent) => (
-                <button
-                  key={agent.id}
-                  onClick={() => setActiveTab(agent.id)}
-                  className={[
-                    'px-3 py-1.5 text-sm font-medium rounded-t whitespace-nowrap transition-colors -mb-px border-b-2',
-                    activeTab === agent.id
-                      ? 'text-indigo-600 border-indigo-500'
-                      : 'text-gray-500 border-transparent hover:text-gray-700',
-                  ].join(' ')}
-                >
-                  {agent.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Blocks */}
-            <div className="p-6 space-y-6">
-              {agentData?.blocks?.length ? (
-                agentData.blocks.map((block, i) => <Block key={i} block={block} />)
-              ) : (
-                <p className="text-sm text-gray-400">No configuration available for this agent.</p>
-              )}
-            </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+            {agentData?.blocks?.length ? (
+              agentData.blocks.map((block, i) => <Block key={i} block={block} />)
+            ) : (
+              <p className="text-sm text-gray-400">No configuration available for this agent.</p>
+            )}
           </div>
 
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">Need a fresh password?</span>
-            <button
-              onClick={onGenerate}
-              disabled={generating}
-              className="flex items-center gap-1.5 text-gray-500 hover:text-gray-700 font-medium"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${generating ? 'animate-spin' : ''}`} />
-              Regenerate
-            </button>
-          </div>
         </div>
       )}
     </div>

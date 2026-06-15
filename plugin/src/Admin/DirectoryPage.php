@@ -43,18 +43,11 @@ final class DirectoryPage {
 	}
 
 	/**
-	 * Add the "Abilities" submenu beneath the plugin's top-level menu.
+	 * Previously registered "Abilities" as a standalone submenu page. Removed
+	 * now that the Abilities tab lives inside the React SPA on the main Connection
+	 * screen, keeping only the admin_post action handlers for compatibility.
 	 */
-	public function register_menu(): void {
-		add_submenu_page(
-			ConnectionPage::MENU_SLUG,
-			__( 'Agent Connector — Abilities', 'agent-connector-for-wp' ),
-			__( 'Abilities', 'agent-connector-for-wp' ),
-			Config::CAP,
-			self::MENU_SLUG,
-			array( $this, 'render_page' )
-		);
-	}
+	public function register_menu(): void {}
 
 	/**
 	 * Render the Abilities screen — tabbed: Ability Packs + Registered Abilities.

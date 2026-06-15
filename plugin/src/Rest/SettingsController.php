@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Rest;
 
+use AgentConnectorForWp\Observability\EventsTable;
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
@@ -136,6 +137,41 @@ final class SettingsController extends WP_REST_Controller {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_registered_abilities' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/logs',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_logs' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'page'          => array( 'type' => 'integer', 'default' => 1, 'minimum' => 1 ),
+					'event_filter'  => array( 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ),
+					'status_filter' => array( 'type' => 'string', 'default' => '', 'sanitize_callback' => 'sanitize_text_field' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/logs/(?P<id>\d+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_log_event' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/logs/clear',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'clear_logs' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
@@ -401,6 +437,129 @@ final class SettingsController extends WP_REST_Controller {
 			}
 		}
 		return false;
+	}
+
+	public function get_logs( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+
+		EventsTable::maybe_create();
+		$table = EventsTable::name();
+
+		$per_page      = 20;
+		$page          = max( 1, (int) $request->get_param( 'page' ) );
+		$event_filter  = (string) $request->get_param( 'event_filter' );
+		$status_filter = (string) $request->get_param( 'status_filter' );
+		$offset        = ( $page - 1 ) * $per_page;
+
+		$hidden       = array( 'mcp.component.registration', 'mcp.server.created' );
+		$where        = array();
+		$where_values = array();
+
+		if ( '' !== $event_filter ) {
+			$where[]        = '`event` = %s';
+			$where_values[] = $event_filter;
+		} elseif ( ! empty( $hidden ) ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $hidden ), '%s' ) );
+			$where[]      = "`event` NOT IN ({$placeholders})";
+			foreach ( $hidden as $h ) {
+				$where_values[] = $h;
+			}
+		}
+
+		if ( '' !== $status_filter ) {
+			$where[]        = '`status` = %s';
+			$where_values[] = $status_filter;
+		}
+
+		$where_sql = empty( $where ) ? '' : 'WHERE ' . implode( ' AND ', $where );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$total = empty( $where_values )
+			? (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` {$where_sql}" )
+			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` {$where_sql}", $where_values ) );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, created_at, event, method, tool_name, prompt_name, status, duration_ms, user_id FROM `{$table}` {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
+				array_merge( $where_values, array( $per_page, $offset ) )
+			),
+			ARRAY_A
+		);
+
+		$distinct_events   = $wpdb->get_col( "SELECT DISTINCT `event` FROM `{$table}` ORDER BY `event` ASC" ) ?: array();
+		$distinct_statuses = $wpdb->get_col( "SELECT DISTINCT `status` FROM `{$table}` WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC" ) ?: array();
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+
+		return new WP_REST_Response( array(
+			'rows'              => array_map( array( $this, 'format_log_row' ), $rows ?: array() ),
+			'total'             => $total,
+			'per_page'          => $per_page,
+			'distinct_events'   => $distinct_events,
+			'distinct_statuses' => $distinct_statuses,
+			'debug_enabled'     => Config::mcp_debug_enabled(),
+		) );
+	}
+
+	public function get_log_event( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		global $wpdb;
+
+		$id    = (int) $request->get_param( 'id' );
+		$table = EventsTable::name();
+
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->prepare( "SELECT * FROM `{$table}` WHERE `id` = %d", $id ),
+			ARRAY_A
+		);
+
+		if ( ! $row ) {
+			return new WP_Error( 'not_found', __( 'Event not found.', 'agent-connector-for-wp' ), array( 'status' => 404 ) );
+		}
+
+		$tags = array();
+		if ( ! empty( $row['tags_json'] ) ) {
+			$decoded = json_decode( (string) $row['tags_json'], true );
+			if ( is_array( $decoded ) ) {
+				$tags = $decoded;
+			}
+		}
+
+		$data = $this->format_log_row( $row );
+		foreach ( array( 'server_id', 'transport', 'resource_uri', 'session_id', 'request_id', 'error_code', 'error_category', 'failure_reason', 'input_body', 'output_body' ) as $key ) {
+			$data[ $key ] = (string) ( $row[ $key ] ?? '' );
+		}
+		$data['tags'] = $tags;
+
+		return new WP_REST_Response( $data );
+	}
+
+	public function clear_logs( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+
+		EventsTable::maybe_create();
+		$table = EventsTable::name();
+		$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+
+		return new WP_REST_Response( array( 'success' => true ) );
+	}
+
+	private function format_log_row( array $row ): array {
+		$user_id    = (int) ( $row['user_id'] ?? 0 );
+		$user_login = '';
+		if ( $user_id > 0 ) {
+			$user       = get_userdata( $user_id );
+			$user_login = $user ? (string) $user->user_login : '#' . $user_id;
+		}
+		return array(
+			'id'          => (int) ( $row['id'] ?? 0 ),
+			'created_at'  => (string) ( $row['created_at'] ?? '' ),
+			'event'       => (string) ( $row['event'] ?? '' ),
+			'method'      => (string) ( $row['method'] ?? '' ),
+			'tool_name'   => (string) ( $row['tool_name'] ?? '' ),
+			'prompt_name' => (string) ( $row['prompt_name'] ?? '' ),
+			'status'      => (string) ( $row['status'] ?? '' ),
+			'duration_ms' => isset( $row['duration_ms'] ) && '' !== (string) $row['duration_ms'] ? (float) $row['duration_ms'] : null,
+			'user_login'  => $user_login,
+		);
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

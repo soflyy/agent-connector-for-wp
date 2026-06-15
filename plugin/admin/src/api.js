@@ -30,6 +30,14 @@ export const api = {
   activatePack: (pack_slug) => request('/directory/activate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
   deactivatePack: (pack_slug) => request('/directory/deactivate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
   getRegisteredAbilities: () => request('/registered-abilities'),
+  getLogs: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined && v !== '' && v !== null)
+    ).toString()
+    return request(`/logs${qs ? '?' + qs : ''}`)
+  },
+  getLogEvent: (id) => request(`/logs/${id}`),
+  clearLogs: () => request('/logs/clear', { method: 'POST' }),
 }
 
 // wp_localize_script serializes PHP booleans as strings ("1" / ""), so coerce them.
