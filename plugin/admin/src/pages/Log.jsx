@@ -225,7 +225,7 @@ export default function Log() {
         <select
           value={eventFilter}
           onChange={e => { setEventFilter(e.target.value); setPage(1) }}
-          className="text-base border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="text-base border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           <option value="">All events (excl. lifecycle)</option>
           {data?.distinct_events?.map(ev => <option key={ev} value={ev}>{ev}</option>)}
@@ -233,7 +233,7 @@ export default function Log() {
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-          className="text-base border border-gray-300 rounded-lg px-4 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="text-base border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           <option value="">All statuses</option>
           {data?.distinct_statuses?.map(s => <option key={s} value={s}>{s}</option>)}
