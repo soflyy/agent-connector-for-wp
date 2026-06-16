@@ -32,6 +32,12 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
   }
   const serverEntry = { command: 'npx', args: ['-y', PROXY_PACKAGE], env }
 
+  const codexCliCmd = [
+    'codex', 'mcp', 'add', shellArg(serverName),
+    ...Object.entries(env).flatMap(([k, v]) => ['--env', shellArg(`${k}=${v}`)]),
+    '--', 'npx', '-y', shellArg(PROXY_PACKAGE),
+  ].join(' ')
+
   const claudeCodeCmd = [
     'claude', 'mcp', 'add', shellArg(serverName),
     ...Object.entries(env).flatMap(([k, v]) => ['--env', shellArg(`${k}=${v}`)]),
@@ -98,14 +104,13 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         id: 'codex-cli',
         label: 'Codex CLI',
         blocks: [{
-          kind: 'text', title: 'config.toml',
-          hint: 'Add this entry to your Codex config file, then restart Codex CLI.',
-          value: codexToml,
+          kind: 'command', title: 'Terminal command',
+          hint: 'Run this in your terminal to add the server to Codex CLI. It writes to ~/.codex/config.toml automatically (Node.js required).',
+          value: codexCliCmd,
           steps: [
-            'Copy the config above',
-            'Open <strong>~/.codex/config.toml</strong> in any text editor',
-            'Paste the entry at the end of the file and save',
-            'Restart Codex CLI',
+            'Copy the command below',
+            'Open your terminal and paste it',
+            'Codex CLI will confirm the server was added',
           ],
         }],
       },
@@ -117,7 +122,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Add this server entry to your Codex Desktop MCP configuration.',
           value: mcpServersJson,
           steps: [
-            'Copy the JSON above',
+            'Copy the JSON below',
             'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
             'Paste the server entry and save',
             'Restart Codex Desktop',
@@ -132,8 +137,8 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Run this in your terminal to add the server to Claude Code (Node.js required).',
           value: claudeCodeCmd,
           steps: [
-            'Copy the command above',
-            'Open your terminal and paste the command',
+            'Copy the command below',
+            'Open your terminal and paste it',
             'Claude Code will confirm the server was added',
           ],
         }],
@@ -147,7 +152,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.',
             filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson,
             steps: [
-              'Download the ZIP above',
+              'Download the ZIP below',
               'Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong>',
               'Click <strong>Install</strong> and select the downloaded ZIP',
               'Restart Claude Desktop if prompted',
@@ -158,7 +163,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             hint: 'Paste this into your <code>claude_desktop_config.json</code> if you prefer manual setup.',
             value: mcpServersJson,
             steps: [
-              'Copy the JSON above',
+              'Copy the JSON below',
               'Open Claude Desktop → <strong>Settings</strong> → <strong>Developer</strong> → <strong>Edit Config</strong>',
               'Paste the server entry inside <code>mcpServers</code> and save',
               'Restart Claude Desktop',
@@ -174,7 +179,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Paste this into your agent\'s chat — it will configure and connect to the MCP server itself.',
           value: prompt,
           steps: [
-            'Copy the prompt above',
+            'Copy the prompt below',
             'Paste it into your agent\'s chat',
             'The agent will configure and connect to the MCP server',
           ],
@@ -211,7 +216,7 @@ function CodeContent({ block }) {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = Math.max(el.scrollHeight, 160) + 'px'
+    el.style.height = Math.max(el.scrollHeight, 120) + 'px'
   }, [block.value])
 
   function selectAndCopy() {
@@ -235,22 +240,22 @@ function CodeContent({ block }) {
 
       <div className="relative">
         {isCommand && (
-          <span className="absolute left-4 top-4 text-green-400 font-mono text-base select-none pointer-events-none">$&nbsp;</span>
+          <span className="absolute left-4 top-4 text-green-400 font-mono text-sm select-none pointer-events-none">$&nbsp;</span>
         )}
         <textarea
           ref={textareaRef}
           readOnly
           value={block.value}
           onClick={selectAndCopy}
-          style={{ height: 'auto', minHeight: '160px', overflow: 'hidden' }}
+          style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
           className={[
-            'w-full bg-transparent text-gray-200 text-base font-mono leading-relaxed resize-none focus:outline-none cursor-pointer p-4 pb-6',
+            'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
             isCommand ? 'pl-10' : '',
           ].join(' ')}
         />
       </div>
 
-      <div className="px-4 pb-4">
+      <div className="p-4 pt-0">
         <button
           onClick={selectAndCopy}
           className={[
@@ -279,12 +284,30 @@ function Block({ block }) {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <div className="p-6 space-y-4">
+      {/* Steps — top gray section */}
+      {block.steps?.length > 0 && (
+        <div className="bg-gray-50 px-6 py-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+          <ol className="space-y-2">
+            {block.steps.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Content — bottom white section */}
+      <div className="border-t border-gray-100 p-6 space-y-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
           {titleIcon}
           {block.title}
         </div>
-        {block.hint && <p className="text-base text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
+        {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
 
         {block.kind === 'plugin' ? (
           <button
@@ -306,22 +329,6 @@ function Block({ block }) {
           <CodeContent block={block} />
         )}
       </div>
-
-      {block.steps?.length > 0 && (
-        <div className="border-t border-gray-100 bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
-          <ol className="space-y-2">
-            {block.steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
     </div>
   )
 }
