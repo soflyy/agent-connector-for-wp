@@ -24,7 +24,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
+    <div className="bg-gray-50 font-sans" style={{ minHeight: 'calc(100vh - 32px)' }}>
       <Header page={page} onNavigate={navigate} status={status} />
       <div className="px-8 py-10">
         {page === 'connect' && (
