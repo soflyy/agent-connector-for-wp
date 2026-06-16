@@ -299,8 +299,14 @@ final class Connection {
 					array(
 						'kind'  => 'text',
 						'title' => __( 'config.toml', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this entry to ~/.codex/config.toml, then restart Codex CLI.', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this entry to your Codex config file, then restart Codex CLI.', 'agent-connector-for-wp' ),
 						'value' => self::codex_toml( $name, $env ),
+						'steps' => array(
+							__( 'Copy the config above', 'agent-connector-for-wp' ),
+							__( 'Open <strong>~/.codex/config.toml</strong> in any text editor', 'agent-connector-for-wp' ),
+							__( 'Paste the entry at the end of the file and save', 'agent-connector-for-wp' ),
+							__( 'Restart Codex CLI', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
@@ -311,8 +317,14 @@ final class Connection {
 					array(
 						'kind'  => 'json',
 						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to your Codex Desktop MCP configuration (Settings → MCP Servers), then restart.', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this server entry to your Codex Desktop MCP configuration.', 'agent-connector-for-wp' ),
 						'value' => self::mcp_servers_json( $name, $env ),
+						'steps' => array(
+							__( 'Copy the JSON above', 'agent-connector-for-wp' ),
+							__( 'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>', 'agent-connector-for-wp' ),
+							__( 'Paste the server entry and save', 'agent-connector-for-wp' ),
+							__( 'Restart Codex Desktop', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
@@ -322,9 +334,14 @@ final class Connection {
 				'blocks' => array(
 					array(
 						'kind'  => 'command',
-						'title' => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
+						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server to Claude Code (Node.js required).', 'agent-connector-for-wp' ),
 						'value' => self::claude_code_cli( $name, $env ),
+						'steps' => array(
+							__( 'Copy the command above', 'agent-connector-for-wp' ),
+							__( 'Open your terminal and paste the command', 'agent-connector-for-wp' ),
+							__( 'Claude Code will confirm the server was added', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
@@ -350,12 +367,24 @@ final class Connection {
 							'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
 							'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
 						),
+						'steps'       => array(
+							__( 'Download the ZIP above', 'agent-connector-for-wp' ),
+							__( 'Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong>', 'agent-connector-for-wp' ),
+							__( 'Click <strong>Install</strong> and select the downloaded ZIP', 'agent-connector-for-wp' ),
+							__( 'Restart Claude Desktop if prompted', 'agent-connector-for-wp' ),
+						),
 					),
 					array(
 						'kind'  => 'json',
 						'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Paste this into your <code>claude_desktop_config.json</code> if you prefer manual setup.', 'agent-connector-for-wp' ),
 						'value' => self::mcp_servers_json( $name, $env ),
+						'steps' => array(
+							__( 'Copy the JSON above', 'agent-connector-for-wp' ),
+							__( 'Open Claude Desktop → <strong>Settings</strong> → <strong>Developer</strong> → <strong>Edit Config</strong>', 'agent-connector-for-wp' ),
+							__( 'Paste the server entry inside <code>mcpServers</code> and save', 'agent-connector-for-wp' ),
+							__( 'Restart Claude Desktop', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
@@ -365,9 +394,14 @@ final class Connection {
 				'blocks' => array(
 					array(
 						'kind'  => 'text',
-						'title' => __( 'Paste into your agent', 'agent-connector-for-wp' ),
-						'hint'  => __( 'A plain-English prompt for any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' ),
+						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
+						'hint'  => __( "Paste this into your agent's chat — it will configure and connect to the MCP server itself.", 'agent-connector-for-wp' ),
 						'value' => self::agent_prompt( $name, $env ),
+						'steps' => array(
+							__( 'Copy the prompt above', 'agent-connector-for-wp' ),
+							__( "Paste it into your agent's chat", 'agent-connector-for-wp' ),
+							__( 'The agent will configure and connect to the MCP server', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),

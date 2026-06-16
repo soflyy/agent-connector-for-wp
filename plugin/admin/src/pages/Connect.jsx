@@ -97,43 +97,94 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
       {
         id: 'codex-cli',
         label: 'Codex CLI',
-        blocks: [{ kind: 'text', title: 'config.toml', hint: 'Add this entry to ~/.codex/config.toml, then restart Codex CLI.', value: codexToml }],
+        blocks: [{
+          kind: 'text', title: 'config.toml',
+          hint: 'Add this entry to your Codex config file, then restart Codex CLI.',
+          value: codexToml,
+          steps: [
+            'Copy the config above',
+            'Open <strong>~/.codex/config.toml</strong> in any text editor',
+            'Paste the entry at the end of the file and save',
+            'Restart Codex CLI',
+          ],
+        }],
       },
       {
         id: 'codex-desktop',
         label: 'Codex Desktop',
-        blocks: [{ kind: 'json', title: 'mcpServers JSON', hint: 'Add this to your Codex Desktop MCP configuration (Settings → MCP Servers), then restart.', value: mcpServersJson }],
+        blocks: [{
+          kind: 'json', title: 'mcpServers JSON',
+          hint: 'Add this server entry to your Codex Desktop MCP configuration.',
+          value: mcpServersJson,
+          steps: [
+            'Copy the JSON above',
+            'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
+            'Paste the server entry and save',
+            'Restart Codex Desktop',
+          ],
+        }],
       },
       {
         id: 'claude-code',
         label: 'Claude Code CLI',
-        blocks: [{ kind: 'command', title: 'Claude Code CLI', hint: 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', value: claudeCodeCmd }],
+        blocks: [{
+          kind: 'command', title: 'Terminal command',
+          hint: 'Run this in your terminal to add the server to Claude Code (Node.js required).',
+          value: claudeCodeCmd,
+          steps: [
+            'Copy the command above',
+            'Open your terminal and paste the command',
+            'Claude Code will confirm the server was added',
+          ],
+        }],
       },
       {
         id: 'claude-desktop',
         label: 'Claude Desktop',
         blocks: [
-          { kind: 'plugin', title: 'Claude Plugin', hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.', filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson },
-          { kind: 'json', title: 'Or add manually', hint: 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', value: mcpServersJson },
+          {
+            kind: 'plugin', title: 'Claude Plugin',
+            hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.',
+            filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson,
+            steps: [
+              'Download the ZIP above',
+              'Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong>',
+              'Click <strong>Install</strong> and select the downloaded ZIP',
+              'Restart Claude Desktop if prompted',
+            ],
+          },
+          {
+            kind: 'json', title: 'Or add manually',
+            hint: 'Paste this into your <code>claude_desktop_config.json</code> if you prefer manual setup.',
+            value: mcpServersJson,
+            steps: [
+              'Copy the JSON above',
+              'Open Claude Desktop → <strong>Settings</strong> → <strong>Developer</strong> → <strong>Edit Config</strong>',
+              'Paste the server entry inside <code>mcpServers</code> and save',
+              'Restart Claude Desktop',
+            ],
+          },
         ],
       },
       {
         id: 'other',
         label: 'Other',
-        blocks: [{ kind: 'text', title: 'Paste into your agent', hint: 'A plain-English prompt for any coding agent — it will set up the MCP server itself.', value: prompt }],
+        blocks: [{
+          kind: 'text', title: 'Agent prompt',
+          hint: 'Paste this into your agent\'s chat — it will configure and connect to the MCP server itself.',
+          value: prompt,
+          steps: [
+            'Copy the prompt above',
+            'Paste it into your agent\'s chat',
+            'The agent will configure and connect to the MCP server',
+          ],
+        }],
       },
     ],
   }
 }
 
 // ─── Block renderer ───────────────────────────────────────────────────────────
-
-function blockIcon(kind) {
-  if (kind === 'command') return <Terminal className="w-4 h-4" />
-  if (kind === 'json') return <FileCode className="w-4 h-4" />
-  if (kind === 'deeplink') return <Link className="w-4 h-4" />
-  return <MessageSquare className="w-4 h-4" />
-}
 
 async function downloadPlugin(block) {
   const name = (block.filename || 'plugin.zip').replace(/\.zip$/, '')
@@ -151,7 +202,7 @@ async function downloadPlugin(block) {
   URL.revokeObjectURL(url)
 }
 
-function CodeBlock({ block }) {
+function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
   const textareaRef = useRef(null)
   const isCommand = block.kind === 'command'
@@ -173,69 +224,69 @@ function CodeBlock({ block }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        {isCommand
-          ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-gray-800 text-gray-300 text-sm font-mono font-semibold border border-gray-700"><Terminal className="w-3.5 h-3.5" /> Terminal</span>
-          : <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-400 uppercase tracking-wider">{blockIcon(block.kind)}{block.title}</span>
-        }
+    <div className="rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
+      {isCommand && (
+        <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-800 bg-gray-900">
+          <span className="w-3 h-3 rounded-full bg-red-500/60" />
+          <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
+          <span className="w-3 h-3 rounded-full bg-green-500/60" />
+        </div>
+      )}
+
+      <div className="relative">
+        {isCommand && (
+          <span className="absolute left-4 top-4 text-green-400 font-mono text-base select-none pointer-events-none">$&nbsp;</span>
+        )}
+        <textarea
+          ref={textareaRef}
+          readOnly
+          value={block.value}
+          onClick={selectAndCopy}
+          style={{ height: 'auto', minHeight: '160px', overflow: 'hidden' }}
+          className={[
+            'w-full bg-transparent text-gray-200 text-base font-mono leading-relaxed resize-none focus:outline-none cursor-pointer p-4 pb-6',
+            isCommand ? 'pl-10' : '',
+          ].join(' ')}
+        />
       </div>
 
-      {block.hint && <p className="text-base text-gray-400">{block.hint}</p>}
-
-      <div className="rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
-        {isCommand && (
-          <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-800 bg-gray-900">
-            <span className="w-3 h-3 rounded-full bg-red-500/60" />
-            <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
-            <span className="w-3 h-3 rounded-full bg-green-500/60" />
-          </div>
-        )}
-
-        <div className="relative">
-          {isCommand && (
-            <span className="absolute left-4 top-4 text-green-400 font-mono text-base select-none pointer-events-none">$&nbsp;</span>
-          )}
-          <textarea
-            ref={textareaRef}
-            readOnly
-            value={block.value}
-            onClick={selectAndCopy}
-            style={{ height: 'auto', minHeight: '160px', overflow: 'hidden' }}
-            className={[
-              'w-full bg-transparent text-gray-200 text-base font-mono leading-relaxed resize-none focus:outline-none cursor-pointer p-4 pb-6',
-              isCommand ? 'pl-10' : '',
-            ].join(' ')}
-          />
-        </div>
-
-        <div className="px-4 pb-4">
-          <button
-            onClick={selectAndCopy}
-            className={[
-              'w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold transition-all',
-              copied ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white',
-            ].join(' ')}
-          >
-            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
+      <div className="px-4 pb-4">
+        <button
+          onClick={selectAndCopy}
+          className={[
+            'w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold transition-all',
+            copied ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white',
+          ].join(' ')}
+        >
+          {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
       </div>
     </div>
   )
 }
 
 function Block({ block }) {
-  if (block.kind === 'plugin') {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <div className="p-6 space-y-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-            <Download className="w-4 h-4" />
-            {block.title}
-          </div>
-          {block.hint && <p className="text-base text-gray-500">{block.hint}</p>}
+  const titleIcon = block.kind === 'plugin'
+    ? <Download className="w-4 h-4" />
+    : block.kind === 'command'
+    ? <Terminal className="w-4 h-4" />
+    : block.kind === 'json'
+    ? <FileCode className="w-4 h-4" />
+    : block.kind === 'deeplink'
+    ? <Link className="w-4 h-4" />
+    : <MessageSquare className="w-4 h-4" />
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="p-6 space-y-4">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+          {titleIcon}
+          {block.title}
+        </div>
+        {block.hint && <p className="text-base text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
+
+        {block.kind === 'plugin' ? (
           <button
             onClick={() => downloadPlugin(block)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
@@ -243,40 +294,36 @@ function Block({ block }) {
             <Download className="w-5 h-5" />
             Download {block.filename || 'plugin.zip'}
           </button>
-        </div>
-        <div className="border-t border-gray-100 bg-gray-50 px-6 py-5 space-y-2">
+        ) : block.kind === 'deeplink' ? (
+          <a
+            href={block.value}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
+          >
+            <ExternalLink className="w-5 h-5" />
+            {block.button || block.title}
+          </a>
+        ) : (
+          <CodeContent block={block} />
+        )}
+      </div>
+
+      {block.steps?.length > 0 && (
+        <div className="border-t border-gray-100 bg-gray-50 px-6 py-5 space-y-3">
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
-          <ol className="text-base text-gray-600 space-y-1.5 list-decimal list-inside">
-            <li>Download the ZIP above</li>
-            <li>Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong></li>
-            <li>Click <strong>Install</strong> and select the downloaded ZIP</li>
-            <li>Restart Claude Desktop if prompted</li>
+          <ol className="space-y-2">
+            {block.steps.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
+              </li>
+            ))}
           </ol>
         </div>
-      </div>
-    )
-  }
-
-  if (block.kind === 'deeplink') {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">
-          {blockIcon(block.kind)}
-          {block.title}
-        </div>
-        {block.hint && <p className="text-base text-gray-400">{block.hint}</p>}
-        <a
-          href={block.value}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
-        >
-          <ExternalLink className="w-5 h-5" />
-          {block.button || block.title}
-        </a>
-      </div>
-    )
-  }
-
-  return <CodeBlock block={block} />
+      )}
+    </div>
+  )
 }
 
 // Shared layout shell — every step uses this exact wrapper for consistent width
@@ -479,7 +526,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
       <BackLink onClick={onBack} label="Choose a different agent" />
 
       <h1 className="text-2xl font-bold text-gray-900">
-        Connect <span style={{ color: agentMeta.color }}>{agentMeta.label}</span>
+        Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
       {connection ? (
