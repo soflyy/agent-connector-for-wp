@@ -7,7 +7,7 @@ export default function Header({ page, onNavigate, status }) {
 
   return (
     <div className="bg-gray-900 text-white shadow-md">
-      <div className="max-w-6xl mx-auto px-8">
+      <div className="px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand */}
           <div className="flex items-center gap-3">
