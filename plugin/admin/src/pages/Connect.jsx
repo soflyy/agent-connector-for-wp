@@ -7,13 +7,11 @@ import {
 import { api, initial } from '../api'
 
 const AGENTS = [
-  { id: 'claude-code',    label: 'Claude Code',    icon: '⬡', color: '#d97706', desc: 'claude mcp add command' },
-  { id: 'claude-desktop', label: 'Claude Desktop', icon: '⬡', color: '#d97706', desc: 'Edit claude_desktop_config.json' },
-  { id: 'cursor',         label: 'Cursor',         icon: '↗', color: '#6366f1', desc: 'One-click install or mcp.json' },
-  { id: 'vscode',         label: 'VS Code',        icon: '❯', color: '#0ea5e9', desc: 'One-click install or code CLI' },
-  { id: 'gemini',         label: 'Gemini CLI',     icon: '✦', color: '#4285f4', desc: 'gemini mcp add command' },
-  { id: 'windsurf',       label: 'Windsurf',       icon: '◈', color: '#06b6d4', desc: 'Edit mcp_config.json' },
-  { id: 'prompt',         label: 'Any agent',      icon: '✦', color: '#6b7280', desc: 'Plain-English prompt' },
+  { id: 'codex-cli',      label: 'Codex CLI',      icon: '◆', color: '#10a37f', desc: 'Edit ~/.codex/config.toml' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',  icon: '◆', color: '#10a37f', desc: 'Edit MCP config JSON' },
+  { id: 'claude-code',    label: 'Claude Code CLI', icon: '⬡', color: '#d97706', desc: 'claude mcp add command' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  icon: '⬡', color: '#d97706', desc: 'Edit claude_desktop_config.json' },
+  { id: 'other',          label: 'Other',           icon: '✦', color: '#6b7280', desc: 'Plain-English prompt' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -83,18 +81,31 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     author: { name: siteName },
   }
 
+  const codexToml = [
+    '[[mcp_servers]]',
+    `name = ${JSON.stringify(serverName)}`,
+    `command = "npx"`,
+    `args = ["-y", ${JSON.stringify(PROXY_PACKAGE)}]`,
+    `env = { ${Object.entries(env).map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(', ')} }`,
+  ].join('\n')
+
   return {
     url: serverUrl,
     username,
     agents: [
       {
-        id: 'prompt',
-        label: 'Any agent (prompt)',
-        blocks: [{ kind: 'text', title: 'Paste into your agent', hint: 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', value: prompt }],
+        id: 'codex-cli',
+        label: 'Codex CLI',
+        blocks: [{ kind: 'text', title: 'config.toml', hint: 'Add this entry to ~/.codex/config.toml, then restart Codex CLI.', value: codexToml }],
+      },
+      {
+        id: 'codex-desktop',
+        label: 'Codex Desktop',
+        blocks: [{ kind: 'json', title: 'mcpServers JSON', hint: 'Add this to your Codex Desktop MCP configuration (Settings → MCP Servers), then restart.', value: mcpServersJson }],
       },
       {
         id: 'claude-code',
-        label: 'Claude Code',
+        label: 'Claude Code CLI',
         blocks: [{ kind: 'command', title: 'Claude Code CLI', hint: 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', value: claudeCodeCmd }],
       },
       {
@@ -106,30 +117,9 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         ],
       },
       {
-        id: 'cursor',
-        label: 'Cursor',
-        blocks: [
-          { kind: 'deeplink', title: 'One-click install', hint: 'Opens Cursor and pre-fills the server config for you to approve.', button: 'Add to Cursor', value: cursorDeeplink },
-          { kind: 'json', title: 'Or add manually', hint: 'Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in your project).', value: mcpServersJson },
-        ],
-      },
-      {
-        id: 'vscode',
-        label: 'VS Code',
-        blocks: [
-          { kind: 'deeplink', title: 'One-click install', hint: 'Opens VS Code and pre-fills the server config for you to approve.', button: 'Add to VS Code', value: vscodeDeeplink },
-          { kind: 'command', title: 'Or run in your terminal', hint: 'Adds the server to your VS Code user profile via the code CLI.', value: vscodeCLI },
-        ],
-      },
-      {
-        id: 'gemini',
-        label: 'Gemini CLI',
-        blocks: [{ kind: 'command', title: 'Gemini CLI', hint: 'Run this in your terminal to add the server to the Gemini CLI. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', value: geminiCmd }],
-      },
-      {
-        id: 'windsurf',
-        label: 'Windsurf',
-        blocks: [{ kind: 'json', title: 'mcpServers JSON', hint: 'Add this to ~/.codeium/windsurf/mcp_config.json, then refresh MCP servers in Windsurf.', value: mcpServersJson }],
+        id: 'other',
+        label: 'Other',
+        blocks: [{ kind: 'text', title: 'Paste into your agent', hint: 'A plain-English prompt for any coding agent — it will set up the MCP server itself.', value: prompt }],
       },
     ],
   }
@@ -605,7 +595,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
 export default function Connect({ status }) {
   const [step, setStep] = useState('welcome')
-  const [selectedAgent, setSelectedAgent] = useState('claude-code')
+  const [selectedAgent, setSelectedAgent] = useState('codex-cli')
 
   if (step === 'welcome') {
     return <WelcomeStep status={status} onStart={() => setStep('pick')} />

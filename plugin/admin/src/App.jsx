@@ -26,7 +26,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       <Header page={page} onNavigate={navigate} status={status} />
-      <div className="max-w-4xl mx-auto px-8 py-10">
+      <div className="max-w-6xl mx-auto px-8 py-10">
         {page === 'connect' && (
           <Connect status={status} onStatusChange={setStatus} />
         )}

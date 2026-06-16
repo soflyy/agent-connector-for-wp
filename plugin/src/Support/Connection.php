@@ -183,6 +183,32 @@ final class Connection {
 	}
 
 	/**
+	 * A ~/.codex/config.toml [[mcp_servers]] entry for Codex CLI.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function codex_toml( string $name, array $env ): string {
+		$env_pairs = implode(
+			', ',
+			array_map(
+				static fn( $k, $v ) => $k . ' = ' . wp_json_encode( $v ),
+				array_keys( $env ),
+				$env
+			)
+		);
+		return implode(
+			"\n",
+			array(
+				'[[mcp_servers]]',
+				'name = ' . wp_json_encode( $name ),
+				'command = "npx"',
+				'args = ["-y", ' . wp_json_encode( self::PROXY_PACKAGE ) . ']',
+				'env = { ' . $env_pairs . ' }',
+			)
+		);
+	}
+
+	/**
 	 * A `gemini mcp add` command. Env flags (`-e KEY=VAL`) precede the name.
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
@@ -267,20 +293,32 @@ final class Connection {
 
 		$agents = array(
 			array(
-				'id'     => 'prompt',
-				'label'  => __( 'Any agent (prompt)', 'agent-connector-for-wp' ),
+				'id'     => 'codex-cli',
+				'label'  => __( 'Codex CLI', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
 						'kind'  => 'text',
-						'title' => __( 'Paste into your agent', 'agent-connector-for-wp' ),
-						'hint'  => __( 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' ),
-						'value' => self::agent_prompt( $name, $env ),
+						'title' => __( 'config.toml', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this entry to ~/.codex/config.toml, then restart Codex CLI.', 'agent-connector-for-wp' ),
+						'value' => self::codex_toml( $name, $env ),
+					),
+				),
+			),
+			array(
+				'id'     => 'codex-desktop',
+				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'json',
+						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to your Codex Desktop MCP configuration (Settings → MCP Servers), then restart.', 'agent-connector-for-wp' ),
+						'value' => self::mcp_servers_json( $name, $env ),
 					),
 				),
 			),
 			array(
 				'id'     => 'claude-code',
-				'label'  => __( 'Claude Code', 'agent-connector-for-wp' ),
+				'label'  => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
 						'kind'  => 'command',
@@ -322,64 +360,14 @@ final class Connection {
 				),
 			),
 			array(
-				'id'     => 'cursor',
-				'label'  => __( 'Cursor', 'agent-connector-for-wp' ),
+				'id'     => 'other',
+				'label'  => __( 'Other', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'   => 'deeplink',
-						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
-						'hint'   => __( 'Opens Cursor and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
-						'button' => __( 'Add to Cursor', 'agent-connector-for-wp' ),
-						'value'  => self::cursor_deeplink( $name, $env ),
-					),
-					array(
-						'kind'  => 'json',
-						'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in your project).', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
-					),
-				),
-			),
-			array(
-				'id'     => 'vscode',
-				'label'  => __( 'VS Code', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'   => 'deeplink',
-						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
-						'hint'   => __( 'Opens VS Code and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
-						'button' => __( 'Add to VS Code', 'agent-connector-for-wp' ),
-						'value'  => self::vscode_deeplink( $name, $env ),
-					),
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Or run in your terminal', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Adds the server to your VS Code user profile via the code CLI.', 'agent-connector-for-wp' ),
-						'value' => self::vscode_cli( $name, $env ),
-					),
-				),
-			),
-			array(
-				'id'     => 'gemini',
-				'label'  => __( 'Gemini CLI', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Gemini CLI', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server to the Gemini CLI. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
-						'value' => self::gemini_cli( $name, $env ),
-					),
-				),
-			),
-			array(
-				'id'     => 'windsurf',
-				'label'  => __( 'Windsurf', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'json',
-						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to ~/.codeium/windsurf/mcp_config.json, then refresh MCP servers in Windsurf.', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
+						'kind'  => 'text',
+						'title' => __( 'Paste into your agent', 'agent-connector-for-wp' ),
+						'hint'  => __( 'A plain-English prompt for any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' ),
+						'value' => self::agent_prompt( $name, $env ),
 					),
 				),
 			),
