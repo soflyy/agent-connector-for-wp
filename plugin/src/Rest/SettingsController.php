@@ -69,6 +69,9 @@ final class SettingsController extends WP_REST_Controller {
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'generate' ),
 				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'name' => array( 'type' => 'string', 'default' => '' ),
+				),
 			)
 		);
 
@@ -247,11 +250,14 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'pw_unavailable', __( 'Application passwords are not available on this site.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
 		}
 
-		$name = sprintf(
-			/* translators: %s: date/time the password was created. */
-			__( 'Agent Connector for WP (MCP) — %s', 'agent-connector-for-wp' ),
-			gmdate( 'Y-m-d H:i:s' )
-		) . ' [' . wp_generate_password( 4, false ) . ']';
+		$name = (string) $request->get_param( 'name' );
+		if ( '' === $name ) {
+			$name = sprintf(
+				/* translators: %s: date/time the password was created. */
+				__( 'Agent Connector for WP (MCP) — %s', 'agent-connector-for-wp' ),
+				gmdate( 'Y-m-d H:i:s' )
+			) . ' [' . wp_generate_password( 4, false ) . ']';
+		}
 
 		$created = WP_Application_Passwords::create_new_application_password( $user->ID, array( 'name' => $name ) );
 
@@ -264,7 +270,9 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'pw_failed', __( 'Failed to generate an application password.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
 		}
 
-		return new WP_REST_Response( Connection::build_artifacts( $user->user_login, $password ) );
+		$result               = Connection::build_artifacts( $user->user_login, $password );
+		$result['password']   = $password;
+		return new WP_REST_Response( $result );
 	}
 
 	public function get_directory( WP_REST_Request $request ): WP_REST_Response {

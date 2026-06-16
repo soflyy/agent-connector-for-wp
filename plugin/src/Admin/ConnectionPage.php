@@ -104,6 +104,8 @@ final class ConnectionPage {
 				'declaredHost'       => Config::declared_host(),
 				'envType'            => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
 				'serverUrl'          => Connection::endpoint_url(),
+				'serverName'         => Connection::server_name(),
+				'siteName'           => (string) get_bloginfo( 'name' ),
 				'username'           => $user instanceof \WP_User ? $user->user_login : '',
 				'pwAvailable'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
 			)
@@ -114,6 +116,18 @@ final class ConnectionPage {
 			'admin_body_class',
 			static function ( string $classes ): string {
 				return "$classes acfw-app-page";
+			}
+		);
+
+		// Hide the WP admin footer and remove default content-area padding on our page.
+		add_action(
+			'admin_head',
+			static function (): void {
+				echo '<style>
+					.acfw-app-page #wpfooter { display: none !important; }
+					.acfw-app-page #wpcontent { padding-left: 0 !important; }
+					.acfw-app-page #wpbody-content { padding-bottom: 0 !important; }
+				</style>';
 			}
 		);
 	}

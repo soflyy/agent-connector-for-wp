@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock,
 } from 'lucide-react'
-import CopyButton from '../components/CopyButton'
-import { api } from '../api'
+import { api, initial } from '../api'
 
 const AGENTS = [
   { id: 'claude-code',    label: 'Claude Code',    icon: '⬡', color: '#d97706', desc: 'claude mcp add command' },
@@ -16,44 +16,252 @@ const AGENTS = [
   { id: 'prompt',         label: 'Any agent',      icon: '✦', color: '#6b7280', desc: 'Plain-English prompt' },
 ]
 
+// ─── Client-side artifact builder ────────────────────────────────────────────
+
+const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote'
+
+function shellArg(s) {
+  return "'" + s.replace(/'/g, "'\\''") + "'"
+}
+
+function buildArtifacts(serverName, serverUrl, username, password, siteName) {
+  const env = {
+    WP_API_URL: serverUrl,
+    WP_API_USERNAME: username,
+    WP_API_PASSWORD: password,
+    OAUTH_ENABLED: 'false',
+  }
+  const serverEntry = { command: 'npx', args: ['-y', PROXY_PACKAGE], env }
+
+  const claudeCodeCmd = [
+    'claude', 'mcp', 'add', shellArg(serverName),
+    ...Object.entries(env).flatMap(([k, v]) => ['--env', shellArg(`${k}=${v}`)]),
+    '--', 'npx', '-y', shellArg(PROXY_PACKAGE),
+  ].join(' ')
+
+  const mcpServersJson = JSON.stringify({ mcpServers: { [serverName]: serverEntry } }, null, 2)
+
+  const vscodeConfig = JSON.stringify({ name: serverName, ...serverEntry })
+  const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(vscodeConfig)
+  const vscodeCLI = 'code --add-mcp ' + shellArg(vscodeConfig)
+
+  const cursorConfig = btoa(JSON.stringify(serverEntry))
+  const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorConfig)}`
+
+  const geminiCmd = [
+    'gemini', 'mcp', 'add',
+    ...Object.entries(env).flatMap(([k, v]) => ['-e', shellArg(`${k}=${v}`)]),
+    shellArg(serverName), 'npx', '-y', shellArg(PROXY_PACKAGE),
+  ].join(' ')
+
+  const prompt = [
+    'Please configure a new MCP (Model Context Protocol) server for me, then connect to it.',
+    '',
+    `- Name: ${serverName}`,
+    `- Transport: stdio, via Automattic's mcp-wordpress-remote proxy run with npx`,
+    `- Command: npx -y ${PROXY_PACKAGE}`,
+    '- Environment variables:',
+    `    WP_API_URL=${env.WP_API_URL}`,
+    `    WP_API_USERNAME=${env.WP_API_USERNAME}`,
+    `    WP_API_PASSWORD=${env.WP_API_PASSWORD}`,
+    '    OAUTH_ENABLED=false',
+    '',
+    'This is a WordPress site exposing its abilities over MCP. The proxy connects to it and',
+    'authenticates with the WordPress application password above. Once connected, list the',
+    'available tools to confirm it works. Use the "discover-abilities" tool to see what this',
+    'site can do and "execute-ability" to run one — including agent-connector-for-wp/shell-exec,',
+    'agent-connector-for-wp/php-eval, and the file-read/write/list/delete abilities, which give you',
+    'shell, PHP, and filesystem access on the server. To drive the WordPress admin in a browser,',
+    'run agent-connector-for-wp/create-admin-login-link and open the returned URL: it logs the',
+    'browser into wp-admin once, without a username or password.',
+  ].join('\n')
+
+  const mcpJson = { [serverName]: { type: 'stdio', ...serverEntry } }
+  const pluginJson = {
+    name: serverName,
+    description: `WordPress MCP connection for ${siteName}`,
+    author: { name: siteName },
+  }
+
+  return {
+    url: serverUrl,
+    username,
+    agents: [
+      {
+        id: 'prompt',
+        label: 'Any agent (prompt)',
+        blocks: [{ kind: 'text', title: 'Paste into your agent', hint: 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', value: prompt }],
+      },
+      {
+        id: 'claude-code',
+        label: 'Claude Code',
+        blocks: [{ kind: 'command', title: 'Claude Code CLI', hint: 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', value: claudeCodeCmd }],
+      },
+      {
+        id: 'claude-desktop',
+        label: 'Claude Desktop',
+        blocks: [
+          { kind: 'plugin', title: 'Claude Plugin', hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.', filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson },
+          { kind: 'json', title: 'Or add manually', hint: 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', value: mcpServersJson },
+        ],
+      },
+      {
+        id: 'cursor',
+        label: 'Cursor',
+        blocks: [
+          { kind: 'deeplink', title: 'One-click install', hint: 'Opens Cursor and pre-fills the server config for you to approve.', button: 'Add to Cursor', value: cursorDeeplink },
+          { kind: 'json', title: 'Or add manually', hint: 'Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in your project).', value: mcpServersJson },
+        ],
+      },
+      {
+        id: 'vscode',
+        label: 'VS Code',
+        blocks: [
+          { kind: 'deeplink', title: 'One-click install', hint: 'Opens VS Code and pre-fills the server config for you to approve.', button: 'Add to VS Code', value: vscodeDeeplink },
+          { kind: 'command', title: 'Or run in your terminal', hint: 'Adds the server to your VS Code user profile via the code CLI.', value: vscodeCLI },
+        ],
+      },
+      {
+        id: 'gemini',
+        label: 'Gemini CLI',
+        blocks: [{ kind: 'command', title: 'Gemini CLI', hint: 'Run this in your terminal to add the server to the Gemini CLI. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', value: geminiCmd }],
+      },
+      {
+        id: 'windsurf',
+        label: 'Windsurf',
+        blocks: [{ kind: 'json', title: 'mcpServers JSON', hint: 'Add this to ~/.codeium/windsurf/mcp_config.json, then refresh MCP servers in Windsurf.', value: mcpServersJson }],
+      },
+    ],
+  }
+}
+
 // ─── Block renderer ───────────────────────────────────────────────────────────
 
 function blockIcon(kind) {
-  if (kind === 'command') return <Terminal className="w-3.5 h-3.5" />
-  if (kind === 'json') return <FileCode className="w-3.5 h-3.5" />
-  if (kind === 'deeplink') return <Link className="w-3.5 h-3.5" />
-  return <MessageSquare className="w-3.5 h-3.5" />
+  if (kind === 'command') return <Terminal className="w-4 h-4" />
+  if (kind === 'json') return <FileCode className="w-4 h-4" />
+  if (kind === 'deeplink') return <Link className="w-4 h-4" />
+  return <MessageSquare className="w-4 h-4" />
 }
 
-function downloadMcpb(block) {
-  const bytes = atob(block.value)
-  const arr = new Uint8Array(bytes.length)
-  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i)
-  const blob = new Blob([arr], { type: 'application/octet-stream' })
+async function downloadPlugin(block) {
+  const name = (block.filename || 'plugin.zip').replace(/\.zip$/, '')
+  const zip = new JSZip()
+  const folder = zip.folder(name)
+  folder.file('.mcp.json', JSON.stringify(block.mcp_json, null, 2))
+  const pluginFolder = folder.folder('.claude-plugin')
+  pluginFolder.file('plugin.json', JSON.stringify(block.plugin_json, null, 2))
+  const blob = await zip.generateAsync({ type: 'blob' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = block.filename || 'extension.mcpb'
+  a.download = block.filename || 'plugin.zip'
   a.click()
   URL.revokeObjectURL(url)
 }
 
-function Block({ block }) {
-  if (block.kind === 'plugin' || block.kind === 'mcpb') {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          <Download className="w-3.5 h-3.5" />
-          {block.title}
+function CodeBlock({ block }) {
+  const [copied, setCopied] = useState(false)
+  const textareaRef = useRef(null)
+  const isCommand = block.kind === 'command'
+
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.max(el.scrollHeight, 160) + 'px'
+  }, [block.value])
+
+  function selectAndCopy() {
+    if (textareaRef.current) textareaRef.current.select()
+    navigator.clipboard.writeText(block.value).catch(() => {
+      if (textareaRef.current) document.execCommand('copy')
+    })
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        {isCommand
+          ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-gray-800 text-gray-300 text-sm font-mono font-semibold border border-gray-700"><Terminal className="w-3.5 h-3.5" /> Terminal</span>
+          : <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-400 uppercase tracking-wider">{blockIcon(block.kind)}{block.title}</span>
+        }
+      </div>
+
+      {block.hint && <p className="text-base text-gray-400">{block.hint}</p>}
+
+      <div className="rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
+        {isCommand && (
+          <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-gray-800 bg-gray-900">
+            <span className="w-3 h-3 rounded-full bg-red-500/60" />
+            <span className="w-3 h-3 rounded-full bg-yellow-500/60" />
+            <span className="w-3 h-3 rounded-full bg-green-500/60" />
+          </div>
+        )}
+
+        <div className="relative">
+          {isCommand && (
+            <span className="absolute left-4 top-4 text-green-400 font-mono text-base select-none pointer-events-none">$&nbsp;</span>
+          )}
+          <textarea
+            ref={textareaRef}
+            readOnly
+            value={block.value}
+            onClick={selectAndCopy}
+            style={{ height: 'auto', minHeight: '160px', overflow: 'hidden' }}
+            className={[
+              'w-full bg-transparent text-gray-200 text-base font-mono leading-relaxed resize-none focus:outline-none cursor-pointer p-4 pb-6',
+              isCommand ? 'pl-10' : '',
+            ].join(' ')}
+          />
         </div>
-        <p className="text-sm text-gray-400">{block.hint}</p>
-        <button
-          onClick={() => downloadMcpb(block)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Download {block.filename || 'plugin.zip'}
-        </button>
+
+        <div className="px-4 pb-4">
+          <button
+            onClick={selectAndCopy}
+            className={[
+              'w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold transition-all',
+              copied ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 text-white',
+            ].join(' ')}
+          >
+            {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Block({ block }) {
+  if (block.kind === 'plugin') {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        <div className="p-6 space-y-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
+            <Download className="w-4 h-4" />
+            {block.title}
+          </div>
+          {block.hint && <p className="text-base text-gray-500">{block.hint}</p>}
+          <button
+            onClick={() => downloadPlugin(block)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
+          >
+            <Download className="w-5 h-5" />
+            Download {block.filename || 'plugin.zip'}
+          </button>
+        </div>
+        <div className="border-t border-gray-100 bg-gray-50 px-6 py-5 space-y-2">
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+          <ol className="text-base text-gray-600 space-y-1.5 list-decimal list-inside">
+            <li>Download the ZIP above</li>
+            <li>Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong></li>
+            <li>Click <strong>Install</strong> and select the downloaded ZIP</li>
+            <li>Restart Claude Desktop if prompted</li>
+          </ol>
+        </div>
       </div>
     )
   }
@@ -61,38 +269,37 @@ function Block({ block }) {
   if (block.kind === 'deeplink') {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-400 uppercase tracking-wider">
           {blockIcon(block.kind)}
           {block.title}
         </div>
-        <p className="text-sm text-gray-400">{block.hint}</p>
+        {block.hint && <p className="text-base text-gray-400">{block.hint}</p>}
         <a
           href={block.value}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
         >
-          <ExternalLink className="w-4 h-4" />
+          <ExternalLink className="w-5 h-5" />
           {block.button || block.title}
         </a>
       </div>
     )
   }
 
+  return <CodeBlock block={block} />
+}
+
+// Shared layout shell — every step uses this exact wrapper for consistent width
+const SHELL = 'max-w-2xl mx-auto space-y-8'
+
+function BackLink({ onClick, label = 'Back' }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-          {blockIcon(block.kind)}
-          {block.title}
-        </div>
-        <CopyButton text={block.value} />
-      </div>
-      <p className="text-sm text-gray-400">{block.hint}</p>
-      <div className="relative rounded-lg bg-gray-950 border border-gray-800 overflow-hidden">
-        <pre className="p-4 text-sm text-gray-200 overflow-x-auto leading-relaxed whitespace-pre-wrap break-all">
-          <code>{block.value}</code>
-        </pre>
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 text-base text-gray-400 hover:text-gray-700 transition-colors"
+    >
+      <ArrowLeft className="w-4 h-4" />
+      {label}
+    </button>
   )
 }
 
@@ -101,16 +308,13 @@ function Block({ block }) {
 function WelcomeStep({ status, onStart }) {
   if (!status.active) {
     return (
-      <div className="max-w-xl mx-auto">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
+      <div className={SHELL}>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
           <h2 className="text-xl font-semibold text-amber-900">Agent Connector isn't active</h2>
-          <p className="text-sm text-amber-700 max-w-xs mx-auto">
+          <p className="text-base text-amber-700 max-w-xs mx-auto">
             Enable the MCP server in{' '}
-            <button
-              className="underline font-medium"
-              onClick={() => { window.location.hash = '/settings' }}
-            >
+            <button className="underline font-medium" onClick={() => { window.location.hash = '/settings' }}>
               Settings
             </button>
             {' '}before connecting an agent.
@@ -121,30 +325,27 @@ function WelcomeStep({ status, onStart }) {
   }
 
   return (
-    <div className="max-w-xl mx-auto">
+    <div className={SHELL}>
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center space-y-6">
         <div className="flex justify-center">
           <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
             <Plug className="w-10 h-10 text-indigo-500" />
           </div>
         </div>
-
         <div className="space-y-3">
-          <h2 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h2>
-          <p className="text-gray-500 max-w-xs mx-auto leading-relaxed">
+          <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
+          <p className="text-gray-500 leading-relaxed">
             Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
           </p>
         </div>
-
-        <div className="space-y-3">
+        <div>
           <button
             onClick={onStart}
-            className="inline-flex items-center justify-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors w-full max-w-xs"
+            className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
           >
             Get started
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-5 h-5" />
           </button>
-
         </div>
       </div>
     </div>
@@ -155,19 +356,12 @@ function WelcomeStep({ status, onStart }) {
 
 function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Which agent are you connecting?</h1>
-          <p className="text-gray-500 mt-0.5 text-sm">We'll give you the exact setup instructions.</p>
-        </div>
+    <div className={SHELL}>
+      <BackLink onClick={onBack} />
+
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Which agent are you connecting?</h1>
+        <p className="text-gray-500 mt-1 text-base">We'll give you the exact setup instructions.</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -178,7 +372,7 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
               key={agent.id}
               onClick={() => onSelect(agent.id)}
               className={[
-                'flex flex-col items-start gap-2 p-4 rounded-xl border-2 text-left transition-all',
+                'flex flex-col items-start gap-3 p-5 rounded-xl border-2 text-left transition-all',
                 isSelected
                   ? 'border-indigo-500 bg-indigo-50 shadow-sm'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
@@ -188,10 +382,10 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
                 {agent.icon}
               </span>
               <div>
-                <div className={`text-sm font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                <div className={`text-base font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
                   {agent.label}
                 </div>
-                <div className="text-xs text-gray-400 mt-0.5 leading-tight">{agent.desc}</div>
+                <div className="text-sm text-gray-400 mt-0.5 leading-tight">{agent.desc}</div>
               </div>
             </button>
           )
@@ -201,90 +395,206 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
       <div>
         <button
           onClick={onContinue}
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
         >
           Continue
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </div>
   )
 }
 
-// ─── Step 3: Instructions ─────────────────────────────────────────────────────
+// ─── Step 3: Generate password + instructions ─────────────────────────────────
 
-function ConnectStep({ selectedAgent, status, connection, generating, error, onGenerate, onBack }) {
-  const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
-  const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
+function GeneratedPasswordBox({ password }) {
+  const [copied, setCopied] = useState(false)
 
-  // Generate immediately on mount (if not already done).
-  useEffect(() => {
-    if (!connection && status.pwAvailable) onGenerate()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  function copy() {
+    navigator.clipboard.writeText(password).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Back + heading */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Connect{' '}
-            <span style={{ color: agentMeta.color }}>{agentMeta.label}</span>
-          </h1>
-        </div>
+    <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
+      <div className="flex items-center gap-2 text-green-800 text-base font-semibold">
+        <Check className="w-5 h-5" />
+        Application password created
       </div>
+      <p className="text-sm text-green-700">Store this somewhere safe if you need it again — it won't be shown after you leave this page.</p>
+      <div className="flex gap-2">
+        <input
+          readOnly
+          value={password}
+          className="flex-1 font-mono text-base bg-white border border-green-200 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none"
+          onClick={(e) => e.target.select()}
+        />
+        <button
+          onClick={copy}
+          className={[
+            'px-4 py-2.5 rounded-lg text-base font-semibold transition-all flex items-center gap-2',
+            copied ? 'bg-green-600 text-white' : 'bg-white border border-green-300 text-green-700 hover:bg-green-100',
+          ].join(' ')}
+        >
+          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
-      {!status.pwAvailable && (
-        <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          Application passwords require HTTPS (or a local environment) and are not available on this site.
-        </div>
-      )}
+function GenerateStep({ selectedAgent, status, onBack }) {
+  const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
+  const defaultName = `${agentMeta.label} App Password`
 
-      {generating && (
-        <div className="flex items-center gap-3 p-6 text-sm text-gray-400">
-          <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-          Generating connection…
-        </div>
-      )}
+  const [mode, setMode] = useState('generate') // 'generate' | 'existing'
+  const [name, setName] = useState(defaultName)
+  const [existingPw, setExistingPw] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState(null)
+  const [generatedPassword, setGeneratedPassword] = useState(null)
+  const [connection, setConnection] = useState(null)
 
-      {error && !generating && (
-        <div className="space-y-3">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
-          <button
-            onClick={onGenerate}
-            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
+  async function handleGenerate() {
+    setGenerating(true)
+    setError(null)
+    try {
+      const data = await api.generate({ name })
+      setGeneratedPassword(data.password)
+      setConnection(data)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setGenerating(false)
+    }
+  }
 
-      {connection && !generating && (
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <strong className="text-amber-800">Copy these credentials now</strong>
-              <span className="text-amber-700"> — the application password won't be shown again. Treat it like an SSH key.</span>
+  function handleUseExisting() {
+    setConnection(buildArtifacts(
+      initial.serverName,
+      initial.serverUrl,
+      initial.username,
+      existingPw,
+      initial.siteName,
+    ))
+  }
+
+  const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
+
+  return (
+    <div className={SHELL}>
+      <BackLink onClick={onBack} label="Choose a different agent" />
+
+      <h1 className="text-2xl font-bold text-gray-900">
+        Connect <span style={{ color: agentMeta.color }}>{agentMeta.label}</span>
+      </h1>
+
+      {connection ? (
+        <>
+          {generatedPassword && <GeneratedPasswordBox password={generatedPassword} />}
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
+            <div className="space-y-6">
+              {agentData?.blocks?.length
+                ? agentData.blocks.map((block, i) => <Block key={i} block={block} />)
+                : <p className="text-base text-gray-400">No configuration available for this agent.</p>
+              }
+            </div>
+          </div>
+        </>
+      ) : mode === 'generate' ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <KeyRound className="w-6 h-6 text-indigo-500" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Generate an application password</h2>
+              <p className="text-base text-gray-500 mt-0.5">A WordPress credential scoped to your account.</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-            {agentData?.blocks?.length ? (
-              agentData.blocks.map((block, i) => <Block key={i} block={block} />)
-            ) : (
-              <p className="text-sm text-gray-400">No configuration available for this agent.</p>
-            )}
+          {!status.pwAvailable && (
+            <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+              Application passwords require HTTPS and aren't available on this site.
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="block text-base font-medium text-gray-700">Password name</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
           </div>
 
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">{error}</div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !status.pwAvailable}
+              className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-base font-semibold rounded-lg transition-colors"
+            >
+              {generating
+                ? <><RefreshCw className="w-5 h-5 animate-spin" /> Generating…</>
+                : <><KeyRound className="w-5 h-5" /> Generate App Password</>
+              }
+            </button>
+            <button
+              onClick={() => setMode('existing')}
+              className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+            >
+              I already have one
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Lock className="w-6 h-6 text-gray-500" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Use an existing password</h2>
+              <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally — never sent to the server.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-base font-medium text-gray-700">Application password</label>
+            <input
+              type="text"
+              value={existingPw}
+              onChange={(e) => setExistingPw(e.target.value)}
+              placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleUseExisting}
+              className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
+            >
+              <ArrowRight className="w-5 h-5" />
+              Use this password
+            </button>
+            <button
+              onClick={() => setMode('generate')}
+              className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+            >
+              Generate a new one instead
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -293,25 +603,9 @@ function ConnectStep({ selectedAgent, status, connection, generating, error, onG
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-export default function Connect({ status, onStatusChange }) {
+export default function Connect({ status }) {
   const [step, setStep] = useState('welcome')
   const [selectedAgent, setSelectedAgent] = useState('claude-code')
-  const [connection, setConnection] = useState(null)
-  const [generating, setGenerating] = useState(false)
-  const [error, setError] = useState(null)
-
-  async function generate() {
-    setGenerating(true)
-    setError(null)
-    try {
-      const data = await api.generate()
-      setConnection(data)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   if (step === 'welcome') {
     return <WelcomeStep status={status} onStart={() => setStep('pick')} />
@@ -323,19 +617,15 @@ export default function Connect({ status, onStatusChange }) {
         selectedAgent={selectedAgent}
         onSelect={setSelectedAgent}
         onBack={() => setStep('welcome')}
-        onContinue={() => setStep('connect')}
+        onContinue={() => setStep('generate')}
       />
     )
   }
 
   return (
-    <ConnectStep
+    <GenerateStep
       selectedAgent={selectedAgent}
       status={status}
-      connection={connection}
-      generating={generating}
-      error={error}
-      onGenerate={generate}
       onBack={() => setStep('pick')}
     />
   )

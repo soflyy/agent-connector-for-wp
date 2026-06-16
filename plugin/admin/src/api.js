@@ -23,7 +23,7 @@ export const api = {
   getStatus: () => request('/status'),
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
   reconnect: () => request('/reconnect', { method: 'POST' }),
-  generate: () => request('/generate', { method: 'POST' }),
+  generate: (params = {}) => request('/generate', { method: 'POST', body: JSON.stringify(params) }),
   getDirectory: () => request('/directory'),
   refreshDirectory: () => request('/directory/refresh', { method: 'POST' }),
   installPack: (pack_slug) => request('/directory/install', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
@@ -54,6 +54,8 @@ export const initial = {
   declaredHost: cfg.declaredHost ?? '',
   envType: cfg.envType ?? 'unknown',
   serverUrl: cfg.serverUrl ?? '',
+  serverName: cfg.serverName ?? '',
+  siteName: cfg.siteName ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
 }

@@ -148,59 +148,6 @@ final class Connection {
 	}
 
 	/**
-	 * Build a Claude plugin ZIP for Claude Desktop / Claude Code.
-	 *
-	 * The ZIP follows the Claude plugin format:
-	 *   {name}/.mcp.json            — MCP server entry with pre-baked credentials
-	 *   {name}/.claude-plugin/plugin.json — Plugin metadata
-	 *
-	 * Returns base64-encoded ZIP content, or empty string when ZipArchive is
-	 * unavailable (uncommon but possible on hardened servers).
-	 *
-	 * @param array<string,string> $env Proxy environment variables.
-	 */
-	private static function build_claude_plugin( string $name, array $env ): string {
-		if ( ! class_exists( 'ZipArchive' ) ) {
-			return '';
-		}
-
-		$mcp_json = array(
-			$name => array(
-				'type'    => 'stdio',
-				'command' => 'npx',
-				'args'    => array( '-y', self::PROXY_PACKAGE ),
-				'env'     => $env,
-			),
-		);
-
-		$plugin_json = array(
-			'name'        => $name,
-			'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
-			'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
-		);
-
-		$tmp = tempnam( sys_get_temp_dir(), 'claude-plugin' );
-		$zip = new \ZipArchive();
-		if ( true !== $zip->open( $tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
-			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			return '';
-		}
-
-		$zip->addEmptyDir( $name );
-		$zip->addEmptyDir( $name . '/.claude-plugin' );
-		$zip->addFromString( $name . '/.mcp.json', (string) wp_json_encode( $mcp_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
-		$zip->addFromString( $name . '/.claude-plugin/plugin.json', (string) wp_json_encode( $plugin_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
-		$zip->close();
-
-		$bytes = file_get_contents( $tmp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-
-		return '' !== (string) $bytes
-			? base64_encode( (string) $bytes ) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-			: '';
-	}
-
-	/**
 	 * A standard "mcpServers" JSON config block (Claude Desktop, Cursor, Windsurf…).
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
@@ -346,26 +293,32 @@ final class Connection {
 			array(
 				'id'     => 'claude-desktop',
 				'label'  => __( 'Claude Desktop', 'agent-connector-for-wp' ),
-				'blocks' => array_filter(
+				'blocks' => array(
 					array(
-						array(
-							'kind'     => 'plugin',
-							'title'    => __( 'Claude Plugin', 'agent-connector-for-wp' ),
-							'hint'     => __( 'Download the plugin ZIP and install it in Claude — no JSON editing required.', 'agent-connector-for-wp' ),
-							'filename' => $name . '.zip',
-							'value'    => self::build_claude_plugin( $name, $env ),
+						'kind'        => 'plugin',
+						'title'       => __( 'Claude Plugin', 'agent-connector-for-wp' ),
+						'hint'        => __( 'Download the plugin ZIP and install it in Claude — no JSON editing required.', 'agent-connector-for-wp' ),
+						'filename'    => $name . '.zip',
+						'mcp_json'    => array(
+							$name => array(
+								'type'    => 'stdio',
+								'command' => 'npx',
+								'args'    => array( '-y', self::PROXY_PACKAGE ),
+								'env'     => $env,
+							),
 						),
-						array(
-							'kind'  => 'json',
-							'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
-							'hint'  => __( 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', 'agent-connector-for-wp' ),
-							'value' => self::mcp_servers_json( $name, $env ),
+						'plugin_json' => array(
+							'name'        => $name,
+							'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
+							'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
 						),
 					),
-					static function ( array $block ): bool {
-						// Drop the plugin block if ZipArchive wasn't available.
-						return '' !== (string) $block['value'];
-					}
+					array(
+						'kind'  => 'json',
+						'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', 'agent-connector-for-wp' ),
+						'value' => self::mcp_servers_json( $name, $env ),
+					),
 				),
 			),
 			array(
