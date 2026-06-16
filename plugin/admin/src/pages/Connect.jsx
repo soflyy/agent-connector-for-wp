@@ -2,16 +2,17 @@ import React, { useState, useEffect, useRef } from 'react'
 import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles,
 } from 'lucide-react'
+import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial } from '../api'
 
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',      icon: '◆', color: '#10a37f', desc: 'Edit ~/.codex/config.toml' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',  icon: '◆', color: '#10a37f', desc: 'Edit MCP config JSON' },
-  { id: 'claude-code',    label: 'Claude Code CLI', icon: '⬡', color: '#d97706', desc: 'claude mcp add command' },
-  { id: 'claude-desktop', label: 'Claude Desktop',  icon: '⬡', color: '#d97706', desc: 'Edit claude_desktop_config.json' },
-  { id: 'other',          label: 'Other',           icon: '✦', color: '#6b7280', desc: 'Plain-English prompt' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c' },
+  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -279,7 +280,7 @@ function Block({ block }) {
 }
 
 // Shared layout shell — every step uses this exact wrapper for consistent width
-const SHELL = 'max-w-2xl mx-auto space-y-8'
+const SHELL = 'max-w-3xl mx-auto space-y-8'
 
 function BackLink({ onClick, label = 'Back' }) {
   return (
@@ -346,46 +347,46 @@ function WelcomeStep({ status, onStart }) {
 
 function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
   return (
-    <div className={SHELL}>
-      <BackLink onClick={onBack} />
-
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Which agent are you connecting?</h1>
-        <p className="text-gray-500 mt-1 text-base">We'll give you the exact setup instructions.</p>
+    <div className="space-y-10">
+      <div className={SHELL}>
+        <BackLink onClick={onBack} />
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold text-gray-900">Which agent are you connecting?</h1>
+        <p className="text-gray-500 text-base">We'll give you the exact setup instructions.</p>
+      </div>
+
+      <div className="flex flex-wrap justify-center gap-4">
         {AGENTS.map((agent) => {
           const isSelected = selectedAgent === agent.id
+          const { Icon } = agent
           return (
             <button
               key={agent.id}
               onClick={() => onSelect(agent.id)}
               className={[
-                'flex flex-col items-start gap-3 p-5 rounded-xl border-2 text-left transition-all',
+                'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
                 isSelected
-                  ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                  ? 'border-indigo-500 bg-indigo-50 shadow-md'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
               ].join(' ')}
             >
-              <span className="text-xl font-bold leading-none" style={{ color: agent.color }}>
-                {agent.icon}
-              </span>
-              <div>
-                <div className={`text-base font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
-                  {agent.label}
-                </div>
-                <div className="text-sm text-gray-400 mt-0.5 leading-tight">{agent.desc}</div>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
+                <Icon size={28} style={{ color: agent.fg }} />
               </div>
+              <span className={`text-sm font-semibold text-center leading-tight ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                {agent.label}
+              </span>
             </button>
           )
         })}
       </div>
 
-      <div>
+      <div className="flex justify-center">
         <button
           onClick={onContinue}
-          className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
         >
           Continue
           <ArrowRight className="w-5 h-5" />
