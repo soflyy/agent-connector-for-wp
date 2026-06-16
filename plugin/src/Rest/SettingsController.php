@@ -136,6 +136,16 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
+			'/uap/install',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'install_uap' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
 			'/registered-abilities',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -200,6 +210,7 @@ final class SettingsController extends WP_REST_Controller {
 				'server_url'          => Connection::endpoint_url(),
 				'username'            => $user instanceof \WP_User ? $user->user_login : '',
 				'pw_available'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'uap_active'          => $this->is_uap_active(),
 			)
 		);
 	}
@@ -568,6 +579,56 @@ final class SettingsController extends WP_REST_Controller {
 			'duration_ms' => isset( $row['duration_ms'] ) && '' !== (string) $row['duration_ms'] ? (float) $row['duration_ms'] : null,
 			'user_login'  => $user_login,
 		);
+	}
+
+	public function install_uap( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
+			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
+		}
+
+		$plugin_file = 'universal-abilities-plugin/default-abilities-plugin.php';
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		if ( is_plugin_active( $plugin_file ) ) {
+			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
+		}
+
+		if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
+			$result = activate_plugin( $plugin_file, '', false, true );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
+		}
+
+		$url = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip';
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/misc.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+		if ( 'direct' !== get_filesystem_method() ) {
+			return new WP_Error( 'fs_unavailable', __( 'Direct filesystem access is not available on this server.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
+
+		$upgrader = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
+		$installed = $upgrader->install( $url );
+
+		if ( is_wp_error( $installed ) || true !== $installed ) {
+			return new WP_Error( 'install_failed', __( 'Could not install Universal Abilities. Please try installing it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
+
+		activate_plugin( $plugin_file, '', false, true );
+
+		return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
+	}
+
+	private function is_uap_active(): bool {
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		return is_plugin_active( 'universal-abilities-plugin/default-abilities-plugin.php' );
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

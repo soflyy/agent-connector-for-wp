@@ -297,8 +297,8 @@ export default function Log() {
             {data?.rows?.map(row => (
               <tr key={row.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{formatTime(row.created_at)}</td>
-                <td className="px-4 py-3 max-w-[160px]">
-                  <code className="text-sm text-gray-700 break-all">{row.event || '—'}</code>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <code className="text-sm text-gray-700">{row.event || '—'}</code>
                 </td>
                 <td className="px-4 py-3">
                   <code className="text-sm text-gray-500">{row.method || '—'}</code>

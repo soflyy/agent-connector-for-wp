@@ -6,7 +6,7 @@ export default function Header({ page, onNavigate, status }) {
   const isEnabled = status.enabled
 
   return (
-    <div className="bg-gray-900 text-white shadow-md">
+    <div className="bg-gray-900 text-white shadow-md sticky top-8 z-50">
       <div className="px-8">
         <div className="flex items-center justify-between h-16">
           {/* Brand */}

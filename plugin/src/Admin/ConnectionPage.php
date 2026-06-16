@@ -39,7 +39,7 @@ final class ConnectionPage {
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' ),
-			'dashicons-superhero-alt',
+			'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8H6a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2z"/></svg>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 			81
 		);
 
@@ -108,6 +108,7 @@ final class ConnectionPage {
 				'siteName'           => (string) get_bloginfo( 'name' ),
 				'username'           => $user instanceof \WP_User ? $user->user_login : '',
 				'pwAvailable'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'uapActive'          => $this->is_uap_active(),
 			)
 		);
 
@@ -137,6 +138,13 @@ final class ConnectionPage {
 			return;
 		}
 		echo '<div id="agent-connector-for-wp-app"></div>';
+	}
+
+	private function is_uap_active(): bool {
+		if ( ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		return is_plugin_active( 'universal-abilities-plugin/default-abilities-plugin.php' );
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

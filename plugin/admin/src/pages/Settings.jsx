@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Save, RefreshCw, AlertTriangle, ShieldAlert, Lock, Bug } from 'lucide-react'
+import { Save, RefreshCw, AlertTriangle, ShieldAlert, Lock, Bug, Package, CheckCircle2, Download } from 'lucide-react'
 import { api } from '../api'
 
 function Toggle({ checked, onChange, disabled }) {
@@ -50,6 +50,69 @@ function Row({ label, description, control, danger }) {
   )
 }
 
+function UapInstallDialog({ onConfirm, onCancel, installing }) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Install Universal Abilities?</h2>
+            <p className="mt-1 text-sm text-gray-500">Universal Abilities for Agent Connector</p>
+          </div>
+        </div>
+
+        <p className="text-base text-gray-700">
+          This companion plugin gives your AI agent powerful, low-level access to this WordPress server. Once installed and enabled, the agent can:
+        </p>
+
+        <ul className="space-y-2 text-base text-gray-700">
+          {[
+            ['Run arbitrary shell commands', 'Full command-line access to the server'],
+            ['Evaluate PHP code', 'Execute any PHP in the WordPress context'],
+            ['Read, write, and delete files', 'Full filesystem access'],
+            ['Run WP-CLI commands', 'Any wp-cli command on your install'],
+            ['Create one-time admin login links', 'Log into wp-admin without a password'],
+          ].map(([title, desc]) => (
+            <li key={title} className="flex items-start gap-3">
+              <span className="mt-1 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+              <span><span className="font-semibold">{title}</span> — {desc}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          <strong>Only install on development or staging sites</strong> you fully control. These abilities grant root-equivalent access to anyone who can authenticate with your MCP server.
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={installing}
+            className="px-5 py-2.5 rounded-lg text-base font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={installing}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors disabled:opacity-50"
+          >
+            {installing ? (
+              <><RefreshCw className="w-4 h-4 animate-spin" /> Installing…</>
+            ) : (
+              <><Download className="w-4 h-4" /> Install & Activate</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Settings({ status, onStatusChange }) {
   const [form, setForm] = useState({
     enabled: status.enabled,
@@ -59,6 +122,9 @@ export default function Settings({ status, onStatusChange }) {
   const [saving, setSaving] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
   const [notice, setNotice] = useState(null)
+  const [uapActive, setUapActive] = useState(status.uapActive ?? false)
+  const [showUapDialog, setShowUapDialog] = useState(false)
+  const [installingUap, setInstallingUap] = useState(false)
 
   function set(key, val) {
     setForm((f) => ({ ...f, [key]: val }))
@@ -96,10 +162,33 @@ export default function Settings({ status, onStatusChange }) {
     }
   }
 
+  async function installUap() {
+    setInstallingUap(true)
+    try {
+      await api.installUap()
+      setUapActive(true)
+      setShowUapDialog(false)
+      setNotice({ type: 'success', message: 'Universal Abilities installed and activated.' })
+    } catch (e) {
+      setShowUapDialog(false)
+      setNotice({ type: 'error', message: e.message })
+    } finally {
+      setInstallingUap(false)
+    }
+  }
+
   const lockMismatch =
     status.active && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
 
   return (
+    <>
+    {showUapDialog && (
+      <UapInstallDialog
+        onConfirm={installUap}
+        onCancel={() => setShowUapDialog(false)}
+        installing={installingUap}
+      />
+    )}
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
@@ -126,6 +215,25 @@ export default function Settings({ status, onStatusChange }) {
           description="Runs the MCP server and exposes abilities registered by other plugins."
           control={
             <Toggle checked={form.enabled} onChange={(v) => set('enabled', v)} />
+          }
+        />
+
+        <Row
+          label="Universal Abilities"
+          description="Shell, PHP eval, filesystem, WP-CLI, and admin login link — exposed over MCP."
+          control={
+            uapActive ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-500/15 text-green-700">
+                <CheckCircle2 className="w-4 h-4" /> Active
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowUapDialog(true)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
+              >
+                <Package className="w-4 h-4" /> Install
+              </button>
+            )
           }
         />
 
@@ -222,5 +330,6 @@ export default function Settings({ status, onStatusChange }) {
         </button>
       </div>
     </div>
+    </>
   )
 }

@@ -38,6 +38,7 @@ export const api = {
   },
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
+  installUap: () => request('/uap/install', { method: 'POST' }),
 }
 
 // wp_localize_script serializes PHP booleans as strings ("1" / ""), so coerce them.
@@ -58,4 +59,5 @@ export const initial = {
   siteName: cfg.siteName ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
+  uapActive: bool(cfg.uapActive),
 }
