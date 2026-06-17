@@ -139,16 +139,35 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
       {
         id: 'codex-desktop',
         label: 'Codex Desktop',
-        blocks: [{
-          kind: 'text', title: 'Agent prompt',
-          hint: 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.',
-          value: agentPrompt,
-          steps: [
-            'Copy the prompt below',
-            'Open Codex Desktop and paste it into the chat',
-            'Codex will configure the MCP server automatically',
-          ],
-        }],
+        blocks: [
+          {
+            kind: 'text', title: 'MCP server settings',
+            hint: null,
+            value: [
+              `Name:      ${serverName}`,
+              `Command:   npx`,
+              `Arguments: -y ${PROXY_PACKAGE}@latest`,
+              ``,
+              `Environment variables:`,
+              `  WP_API_URL:      ${env.WP_API_URL}`,
+              `  WP_API_USERNAME: ${env.WP_API_USERNAME}`,
+              `  WP_API_PASSWORD: ${env.WP_API_PASSWORD}`,
+            ].join('\n'),
+            steps: [
+              'Add an MCP server with the settings below',
+            ],
+          },
+          {
+            kind: 'command', title: 'Or use the terminal',
+            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
+            value: codexCliCmd,
+            steps: [
+              'Copy the command below',
+              'Open your terminal and paste it',
+              'Codex will confirm the server was added',
+            ],
+          },
+        ],
       },
       {
         id: 'claude-code',

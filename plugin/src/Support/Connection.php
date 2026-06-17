@@ -370,13 +370,31 @@ final class Connection {
 				'blocks' => array(
 					array(
 						'kind'  => 'text',
-						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.', 'agent-connector-for-wp' ),
-						'value' => self::agent_prompt( $name, $env ),
+						'title' => __( 'MCP server settings', 'agent-connector-for-wp' ),
+						'hint'  => null,
+						'value' => implode( "\n", array(
+							'Name:      ' . $name,
+							'Command:   npx',
+							'Arguments: -y ' . self::PROXY_PACKAGE . '@latest',
+							'',
+							'Environment variables:',
+							'  WP_API_URL:      ' . $env['WP_API_URL'],
+							'  WP_API_USERNAME: ' . $env['WP_API_USERNAME'],
+							'  WP_API_PASSWORD: ' . $env['WP_API_PASSWORD'],
+						) ),
 						'steps' => array(
-							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
-							__( 'Open Codex Desktop and paste it into the chat', 'agent-connector-for-wp' ),
-							__( 'Codex will configure the MCP server automatically', 'agent-connector-for-wp' ),
+							__( 'Add an MCP server with the settings below', 'agent-connector-for-wp' ),
+						),
+					),
+					array(
+						'kind'  => 'command',
+						'title' => __( 'Or use the terminal', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server automatically (Node.js required).', 'agent-connector-for-wp' ),
+						'value' => self::codex_cli( $name, $env ),
+						'steps' => array(
+							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
+							__( 'Codex will confirm the server was added', 'agent-connector-for-wp' ),
 						),
 					),
 				),
