@@ -403,39 +403,30 @@ final class Connection {
 				'label'  => __( 'Claude Desktop', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'        => 'plugin',
-						'title'       => __( 'Claude Plugin', 'agent-connector-for-wp' ),
-						'hint'        => __( 'Download the plugin ZIP and install it in Claude — no JSON editing required.', 'agent-connector-for-wp' ),
-						'filename'    => $name . '.zip',
-						'mcp_json'    => array(
-							$name => array(
-								'type'    => 'stdio',
-								'command' => 'npx',
-								'args'    => array( '-y', self::PROXY_PACKAGE ),
-								'env'     => $env,
+						'kind'  => 'json',
+						'title' => __( 'mcpServers config', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to your <code>claude_desktop_config.json</code>:<br><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br><strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>', 'agent-connector-for-wp' ),
+						'value' => (string) wp_json_encode(
+							array(
+								'mcpServers' => array(
+									$name => array(
+										'command' => 'npx',
+										'args'    => array( '-y', self::PROXY_PACKAGE . '@latest' ),
+										'env'     => array(
+											'WP_API_URL'      => $env['WP_API_URL'],
+											'WP_API_USERNAME' => $env['WP_API_USERNAME'],
+											'WP_API_PASSWORD' => $env['WP_API_PASSWORD'],
+										),
+									),
+								),
 							),
+							JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 						),
-						'plugin_json' => array(
-							'name'        => $name,
-							'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
-							'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
-						),
-						'steps'       => array(
-							__( 'Download the ZIP below', 'agent-connector-for-wp' ),
-							__( 'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar', 'agent-connector-for-wp' ),
-							__( 'Click <strong>+</strong> next to <strong>Personal Plugins</strong>', 'agent-connector-for-wp' ),
-							__( 'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP', 'agent-connector-for-wp' ),
-						),
-					),
-					array(
-						'kind'  => 'text',
-						'title' => __( 'Or paste a prompt', 'agent-connector-for-wp' ),
-						'hint'  => __( "Paste this into Claude Desktop's chat — it will configure the MCP server for you automatically.", 'agent-connector-for-wp' ),
-						'value' => self::agent_prompt( $name, $env ),
 						'steps' => array(
-							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
-							__( 'Open Claude Desktop and paste it into the chat', 'agent-connector-for-wp' ),
-							__( 'Claude will configure the MCP server automatically', 'agent-connector-for-wp' ),
+							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
+							__( 'Open <code>claude_desktop_config.json</code> (paths above)', 'agent-connector-for-wp' ),
+							__( 'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file', 'agent-connector-for-wp' ),
+							__( 'Save and restart Claude Desktop', 'agent-connector-for-wp' ),
 						),
 					),
 				),

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
@@ -111,13 +110,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     'Any remaining manual steps.',
   ].join('\n')
 
-  const mcpJson = { [serverName]: { type: 'stdio', ...serverEntry } }
-  const pluginJson = {
-    name: serverName,
-    description: `WordPress MCP connection for ${siteName}`,
-    author: { name: siteName },
-  }
-
   const codexToml = [
     '[[mcp_servers]]',
     `name = ${JSON.stringify(serverName)}`,
@@ -175,29 +167,17 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
       {
         id: 'claude-desktop',
         label: 'Claude Desktop',
-        blocks: [
-          {
-            kind: 'plugin', title: 'Claude Plugin',
-            hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.',
-            filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson,
-            steps: [
-              'Download the ZIP below',
-              'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar',
-              'Click <strong>+</strong> next to <strong>Personal Plugins</strong>',
-              'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP',
-            ],
-          },
-          {
-            kind: 'text', title: 'Or paste a prompt',
-            hint: 'Paste this into Claude Desktop\'s chat — it will configure the MCP server for you automatically.',
-            value: agentPrompt,
-            steps: [
-              'Copy the prompt below',
-              'Open Claude Desktop and paste it into the chat',
-              'Claude will configure the MCP server automatically',
-            ],
-          },
-        ],
+        blocks: [{
+          kind: 'json', title: 'mcpServers config',
+          hint: 'Add this to your <code>claude_desktop_config.json</code>:<br><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br><strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
+          value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
+          steps: [
+            'Copy the JSON below',
+            'Open <code>claude_desktop_config.json</code> (paths above)',
+            'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file',
+            'Save and restart Claude Desktop',
+          ],
+        }],
       },
       {
         id: 'other',
@@ -228,21 +208,6 @@ async function copyToClipboard(text, el) {
   return false
 }
 
-async function downloadPlugin(block) {
-  const name = (block.filename || 'plugin.zip').replace(/\.zip$/, '')
-  const zip = new JSZip()
-  const folder = zip.folder(name)
-  folder.file('.mcp.json', JSON.stringify(block.mcp_json, null, 2))
-  const pluginFolder = folder.folder('.claude-plugin')
-  pluginFolder.file('plugin.json', JSON.stringify(block.plugin_json, null, 2))
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = block.filename || 'plugin.zip'
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
@@ -318,9 +283,7 @@ function CodeContent({ block }) {
 }
 
 function Block({ block, videoUrl }) {
-  const titleIcon = block.kind === 'plugin'
-    ? <Download className="w-4 h-4" />
-    : block.kind === 'command'
+  const titleIcon = block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
     : block.kind === 'json'
     ? <FileCode className="w-4 h-4" />
@@ -366,15 +329,7 @@ function Block({ block, videoUrl }) {
         </div>
         {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
 
-        {block.kind === 'plugin' ? (
-          <button
-            onClick={() => downloadPlugin(block)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
-          >
-            <Download className="w-5 h-5" />
-            Download {block.filename || 'plugin.zip'}
-          </button>
-        ) : block.kind === 'deeplink' ? (
+        {block.kind === 'deeplink' ? (
           <a
             href={block.value}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
