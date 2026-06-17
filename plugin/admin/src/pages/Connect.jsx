@@ -169,7 +169,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         label: 'Claude Desktop',
         blocks: [{
           kind: 'json', title: 'mcpServers config',
-          hint: 'Add this to your <code>claude_desktop_config.json</code>:<br><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br><strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
+          hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
           value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
             'Copy the JSON below',

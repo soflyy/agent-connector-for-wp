@@ -405,7 +405,7 @@ final class Connection {
 					array(
 						'kind'  => 'json',
 						'title' => __( 'mcpServers config', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to your <code>claude_desktop_config.json</code>:<br><strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br><strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>', 'agent-connector-for-wp' ),
 						'value' => (string) wp_json_encode(
 							array(
 								'mcpServers' => array(
