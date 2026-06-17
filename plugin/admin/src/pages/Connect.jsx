@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
@@ -373,6 +373,8 @@ function Block({ block, videoUrl }) {
     ? <FileCode className="w-4 h-4" />
     : block.kind === 'deeplink'
     ? <Link className="w-4 h-4" />
+    : block.kind === 'fields'
+    ? <Settings className="w-4 h-4" />
     : <MessageSquare className="w-4 h-4" />
 
   return (
