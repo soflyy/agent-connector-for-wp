@@ -8,7 +8,7 @@ import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
 
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc' },
   { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
