@@ -156,10 +156,12 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             noVideo: true,
             stepsTitle: 'Manual install',
             value: [
+              { label: 'Transport',       value: 'STDIO' },
               { label: 'Name',            value: serverName },
               { label: 'Command',         value: 'npx' },
               { label: 'Argument 1',      value: '-y' },
               { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
+              { heading: 'Environment Variables' },
               { label: 'WP_API_URL',      value: env.WP_API_URL },
               { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
               { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
@@ -332,24 +334,28 @@ function FieldsContent({ fields }) {
 
   return (
     <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-100">
-      {fields.map(({ label, value }, i) => (
+      {fields.map((field, i) => field.heading ? (
+        <div key={i} className="px-3 py-1.5 bg-gray-50">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{field.heading}</span>
+        </div>
+      ) : (
         <div key={i} className="flex items-center bg-white hover:bg-gray-50 transition-colors divide-x divide-gray-100">
           <div className="flex items-center gap-1 px-3 py-2.5 w-52 flex-shrink-0">
-            <span className="flex-1 text-xs font-medium text-gray-500 font-mono">{label}</span>
+            <span className="flex-1 text-xs font-medium text-gray-500 font-mono">{field.label}</span>
             <button
-              onClick={() => copyItem(label, `label-${i}`)}
+              onClick={() => copyItem(field.label, `label-${i}`)}
               className="p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-              aria-label={`Copy key ${label}`}
+              aria-label={`Copy key ${field.label}`}
             >
               {copied === `label-${i}` ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
             </button>
           </div>
           <div className="flex items-center gap-1 px-3 py-2.5 flex-1 min-w-0">
-            <span className="flex-1 font-mono text-sm text-gray-800 truncate">{value}</span>
+            <span className="flex-1 font-mono text-sm text-gray-800 truncate">{field.value}</span>
             <button
-              onClick={() => copyItem(value, `value-${i}`)}
+              onClick={() => copyItem(field.value, `value-${i}`)}
               className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-              aria-label={`Copy value ${label}`}
+              aria-label={`Copy value ${field.label}`}
             >
               {copied === `value-${i}` ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
             </button>
