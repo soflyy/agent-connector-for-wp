@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
-import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
 
 const AGENTS = [
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb' },
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b' },
+  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -111,13 +110,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     'Any remaining manual steps.',
   ].join('\n')
 
-  const mcpJson = { [serverName]: { type: 'stdio', ...serverEntry } }
-  const pluginJson = {
-    name: serverName,
-    description: `WordPress MCP connection for ${siteName}`,
-    author: { name: siteName },
-  }
-
   const codexToml = [
     '[[mcp_servers]]',
     `name = ${JSON.stringify(serverName)}`,
@@ -147,16 +139,41 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
       {
         id: 'codex-desktop',
         label: 'Codex Desktop',
-        blocks: [{
-          kind: 'text', title: 'Agent prompt',
-          hint: 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.',
-          value: agentPrompt,
-          steps: [
-            'Copy the prompt below',
-            'Open Codex Desktop and paste it into the chat',
-            'Codex will configure the MCP server automatically',
-          ],
-        }],
+        blocks: [
+          {
+            kind: 'command', title: 'Terminal command',
+            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
+            value: codexCliCmd,
+            steps: [
+              '<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">Install Codex CLI</a>',
+              'Copy the command below',
+              'Open your terminal and paste it',
+            ],
+          },
+          {
+            kind: 'fields', title: 'MCP server settings',
+            hint: null,
+            noVideo: true,
+            stepsTitle: 'Manual install',
+            value: [
+              { label: 'Transport',       value: 'STDIO' },
+              { label: 'Name',            value: serverName },
+              { label: 'Command',         value: 'npx' },
+              { label: 'Argument 1',      value: '-y' },
+              { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
+              { heading: 'Environment Variables' },
+              { label: 'WP_API_URL',      value: env.WP_API_URL },
+              { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
+              { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+            ],
+            steps: [
+              'Open Codex Desktop → <strong>Settings</strong>',
+              'Click <strong>MCP Servers</strong>',
+              'Click <strong>Add Server</strong>',
+              'Manually enter the MCP server settings below',
+            ],
+          },
+        ],
       },
       {
         id: 'claude-code',
@@ -175,41 +192,34 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
       {
         id: 'claude-desktop',
         label: 'Claude Desktop',
-        blocks: [
-          {
-            kind: 'plugin', title: 'Claude Plugin',
-            hint: 'Download the plugin ZIP and install it in Claude — no JSON editing required.',
-            filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson,
-            steps: [
-              'Download the ZIP below',
-              'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar',
-              'Click <strong>+</strong> next to <strong>Personal Plugins</strong>',
-              'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP',
-            ],
-          },
-          {
-            kind: 'text', title: 'Or paste a prompt',
-            hint: 'Paste this into Claude Desktop\'s chat — it will configure the MCP server for you automatically.',
-            value: agentPrompt,
-            steps: [
-              'Copy the prompt below',
-              'Open Claude Desktop and paste it into the chat',
-              'Claude will configure the MCP server automatically',
-            ],
-          },
-        ],
+        blocks: [{
+          kind: 'json', title: 'mcpServers config',
+          hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
+          value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
+          steps: [
+            'Copy the JSON below',
+            'Open <code>claude_desktop_config.json</code>',
+            'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file',
+            'Save and restart Claude Desktop',
+          ],
+        }],
       },
       {
         id: 'other',
         label: 'Other',
         blocks: [{
-          kind: 'text', title: 'Agent prompt',
-          hint: 'Paste this into your agent\'s chat — it will configure the MCP server automatically.',
-          value: agentPrompt,
+          kind: 'fields', title: 'MCP server settings',
+          hint: null,
+          value: [
+            { label: 'Name',            value: serverName },
+            { label: 'Command',         value: 'npx' },
+            { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
+            { label: 'WP_API_URL',      value: env.WP_API_URL },
+            { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
+            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+          ],
           steps: [
-            'Copy the prompt below',
-            'Paste it into your agent\'s chat',
-            'The agent will configure the MCP server automatically',
+            'Add an MCP server with the settings below',
           ],
         }],
       },
@@ -224,25 +234,19 @@ async function copyToClipboard(text, el) {
   if (navigator.clipboard?.writeText) {
     try { await navigator.clipboard.writeText(text); return true } catch {}
   }
-  try { return document.execCommand('copy') } catch {}
-  return false
+  const tmp = el ?? (() => {
+    const t = document.createElement('textarea')
+    t.value = text
+    t.style.cssText = 'position:fixed;opacity:0;top:0;left:0'
+    document.body.appendChild(t)
+    t.select()
+    return t
+  })()
+  try { return document.execCommand('copy') } catch { return false } finally {
+    if (!el) tmp.remove()
+  }
 }
 
-async function downloadPlugin(block) {
-  const name = (block.filename || 'plugin.zip').replace(/\.zip$/, '')
-  const zip = new JSZip()
-  const folder = zip.folder(name)
-  folder.file('.mcp.json', JSON.stringify(block.mcp_json, null, 2))
-  const pluginFolder = folder.folder('.claude-plugin')
-  pluginFolder.file('plugin.json', JSON.stringify(block.plugin_json, null, 2))
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = block.filename || 'plugin.zip'
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
@@ -317,15 +321,60 @@ function CodeContent({ block }) {
   )
 }
 
+function FieldsContent({ fields }) {
+  const [copied, setCopied] = useState(null) // 'label-i' | 'value-i'
+
+  async function copyItem(text, key) {
+    const ok = await copyToClipboard(text)
+    if (ok) {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 2000)
+    }
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-100">
+      {fields.map((field, i) => field.heading ? (
+        <div key={i} className="px-3 py-1.5 bg-gray-50">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{field.heading}</span>
+        </div>
+      ) : (
+        <div key={i} className="flex items-center bg-white hover:bg-gray-50 transition-colors divide-x divide-gray-100">
+          <div className="flex items-center gap-1 px-3 py-2.5 w-52 flex-shrink-0">
+            <span className="flex-1 text-xs font-medium text-gray-500 font-mono">{field.label}</span>
+            <button
+              onClick={() => copyItem(field.label, `label-${i}`)}
+              className="p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+              aria-label={`Copy key ${field.label}`}
+            >
+              {copied === `label-${i}` ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+            </button>
+          </div>
+          <div className="flex items-center gap-1 px-3 py-2.5 flex-1 min-w-0">
+            <span className="flex-1 font-mono text-sm text-gray-800 truncate">{field.value}</span>
+            <button
+              onClick={() => copyItem(field.value, `value-${i}`)}
+              className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+              aria-label={`Copy value ${field.label}`}
+            >
+              {copied === `value-${i}` ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Block({ block, videoUrl }) {
-  const titleIcon = block.kind === 'plugin'
-    ? <Download className="w-4 h-4" />
-    : block.kind === 'command'
+  const titleIcon = block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
     : block.kind === 'json'
     ? <FileCode className="w-4 h-4" />
     : block.kind === 'deeplink'
     ? <Link className="w-4 h-4" />
+    : block.kind === 'fields'
+    ? <Settings className="w-4 h-4" />
     : <MessageSquare className="w-4 h-4" />
 
   return (
@@ -333,7 +382,7 @@ function Block({ block, videoUrl }) {
       {/* Steps — top gray section */}
       {block.steps?.length > 0 && (
         <div className="bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{block.stepsTitle || 'How to install'}</p>
           <ol className="space-y-2">
             {block.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
@@ -344,7 +393,7 @@ function Block({ block, videoUrl }) {
               </li>
             ))}
           </ol>
-          {videoUrl && (
+          {videoUrl && !block.noVideo && (
             <a
               href={videoUrl}
               target="_blank"
@@ -366,15 +415,7 @@ function Block({ block, videoUrl }) {
         </div>
         {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
 
-        {block.kind === 'plugin' ? (
-          <button
-            onClick={() => downloadPlugin(block)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
-          >
-            <Download className="w-5 h-5" />
-            Download {block.filename || 'plugin.zip'}
-          </button>
-        ) : block.kind === 'deeplink' ? (
+        {block.kind === 'deeplink' ? (
           <a
             href={block.value}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
@@ -382,6 +423,8 @@ function Block({ block, videoUrl }) {
             <ExternalLink className="w-5 h-5" />
             {block.button || block.title}
           </a>
+        ) : block.kind === 'fields' ? (
+          <FieldsContent fields={block.value} />
         ) : (
           <CodeContent block={block} />
         )}
