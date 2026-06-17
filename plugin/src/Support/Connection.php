@@ -436,30 +436,21 @@ final class Connection {
 				'label'  => __( 'Other', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'  => 'json',
-						'title' => __( 'mcpServers config', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this server entry to your MCP client\'s configuration file under the <code>mcpServers</code> key.', 'agent-connector-for-wp' ),
-						'value' => (string) wp_json_encode(
-							array(
-								'mcpServers' => array(
-									$name => array(
-										'command' => 'npx',
-										'args'    => array( '-y', self::PROXY_PACKAGE . '@latest' ),
-										'env'     => array(
-											'WP_API_URL'      => $env['WP_API_URL'],
-											'WP_API_USERNAME' => $env['WP_API_USERNAME'],
-											'WP_API_PASSWORD' => $env['WP_API_PASSWORD'],
-										),
-									),
-								),
-							),
-							JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
-						),
+						'kind'  => 'text',
+						'title' => __( 'MCP server settings', 'agent-connector-for-wp' ),
+						'hint'  => null,
+						'value' => implode( "\n", array(
+							'Name:      ' . $name,
+							'Command:   npx',
+							'Arguments: -y ' . self::PROXY_PACKAGE . '@latest',
+							'',
+							'Environment variables:',
+							'  WP_API_URL:      ' . $env['WP_API_URL'],
+							'  WP_API_USERNAME: ' . $env['WP_API_USERNAME'],
+							'  WP_API_PASSWORD: ' . $env['WP_API_PASSWORD'],
+						) ),
 						'steps' => array(
-							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
-							__( 'Open your MCP client\'s configuration file', 'agent-connector-for-wp' ),
-							__( 'Merge the <code>mcpServers</code> entry — don\'t replace existing servers', 'agent-connector-for-wp' ),
-							__( 'Save and restart your MCP client', 'agent-connector-for-wp' ),
+							__( 'Add an MCP server with the settings below', 'agent-connector-for-wp' ),
 						),
 					),
 				),
