@@ -349,9 +349,9 @@ function Block({ block, videoUrl }) {
               href={videoUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
             >
-              <Play className="w-3.5 h-3.5" />
+              <Play className="w-4 h-4 text-indigo-500" />
               Watch video instructions
             </a>
           )}
