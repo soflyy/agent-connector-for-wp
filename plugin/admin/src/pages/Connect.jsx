@@ -44,8 +44,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     '--', 'npx', '-y', shellArg(PROXY_PACKAGE),
   ].join(' ')
 
-  const mcpServersJson = JSON.stringify({ mcpServers: { [serverName]: serverEntry } }, null, 2)
-
   const vscodeConfig = JSON.stringify({ name: serverName, ...serverEntry })
   const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(vscodeConfig)
   const vscodeCLI = 'code --add-mcp ' + shellArg(vscodeConfig)
@@ -150,14 +148,13 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         id: 'codex-desktop',
         label: 'Codex Desktop',
         blocks: [{
-          kind: 'json', title: 'mcpServers JSON',
-          hint: 'Add this server entry to your Codex Desktop MCP configuration.',
-          value: mcpServersJson,
+          kind: 'text', title: 'Agent prompt',
+          hint: 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.',
+          value: agentPrompt,
           steps: [
-            'Copy the JSON below',
-            'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
-            'Paste the server entry and save',
-            'Restart Codex Desktop',
+            'Copy the prompt below',
+            'Open Codex Desktop and paste it into the chat',
+            'Codex will configure the MCP server automatically',
           ],
         }],
       },
