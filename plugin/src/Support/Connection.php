@@ -422,9 +422,9 @@ final class Connection {
 						),
 						'steps'       => array(
 							__( 'Download the ZIP below', 'agent-connector-for-wp' ),
-							__( 'Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong>', 'agent-connector-for-wp' ),
-							__( 'Click <strong>Install</strong> and select the downloaded ZIP', 'agent-connector-for-wp' ),
-							__( 'Restart Claude Desktop if prompted', 'agent-connector-for-wp' ),
+							__( 'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar', 'agent-connector-for-wp' ),
+							__( 'Click <strong>+</strong> next to <strong>Personal Plugins</strong>', 'agent-connector-for-wp' ),
+							__( 'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP', 'agent-connector-for-wp' ),
 						),
 					),
 					array(

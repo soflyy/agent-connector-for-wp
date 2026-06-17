@@ -8,11 +8,11 @@ import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
 
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b' },
-  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c' },
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c' },
-  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: '' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: '' },
+  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -182,9 +182,9 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             filename: `${serverName}.zip`, mcp_json: mcpJson, plugin_json: pluginJson,
             steps: [
               'Download the ZIP below',
-              'Open Claude Desktop → <strong>Settings</strong> → <strong>Extensions</strong>',
-              'Click <strong>Install</strong> and select the downloaded ZIP',
-              'Restart Claude Desktop if prompted',
+              'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar',
+              'Click <strong>+</strong> next to <strong>Personal Plugins</strong>',
+              'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP',
             ],
           },
           {
@@ -317,7 +317,7 @@ function CodeContent({ block }) {
   )
 }
 
-function Block({ block }) {
+function Block({ block, videoUrl }) {
   const titleIcon = block.kind === 'plugin'
     ? <Download className="w-4 h-4" />
     : block.kind === 'command'
@@ -332,18 +332,35 @@ function Block({ block }) {
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       {/* Steps — top gray section */}
       {block.steps?.length > 0 && (
-        <div className="bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
-          <ol className="space-y-2">
-            {block.steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
-              </li>
-            ))}
-          </ol>
+        <div className="bg-gray-50 px-6 py-5">
+          <div className={videoUrl ? 'flex gap-6 items-start' : 'space-y-3'}>
+            <div className="flex-1 space-y-3">
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+              <ol className="space-y-2">
+                {block.steps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
+                  </li>
+                ))}
+              </ol>
+            </div>
+            {videoUrl && (
+              <div className="flex-shrink-0 rounded-lg overflow-hidden bg-black" style={{ width: '240px' }}>
+                <div className="aspect-video">
+                  <iframe
+                    src={videoUrl}
+                    className="w-full h-full"
+                    allowFullScreen
+                    title="How to install"
+                    allow="autoplay; fullscreen"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -627,7 +644,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
             <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
             <div className="space-y-6">
               {agentData?.blocks?.length
-                ? agentData.blocks.map((block, i) => <Block key={i} block={block} />)
+                ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
                 : <p className="text-base text-gray-400">No configuration available for this agent.</p>
               }
             </div>
