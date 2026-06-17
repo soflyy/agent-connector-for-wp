@@ -12,7 +12,7 @@ Connect any AI agent to your WordPress site over MCP. Ships no abilities by defa
 
 == Description ==
 
-Agent Connector for WP runs an MCP **server** for your WordPress site and exposes the WordPress **Abilities** that other plugins register. It ships **no abilities of its own** — out of the box, activating the plugin exposes nothing sensitive and is safe on any environment.
+Agent Connector for WP runs an MCP **server** for your WordPress site and exposes the WordPress **Abilities** that other plugins register. It ships **no abilities of its own**.
 
 It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. Every exposed ability is governed by super-admin authentication, domain lock, and an audit log, regardless of which plugin registered it.
 
@@ -61,7 +61,7 @@ On the **Connection** screen, once the plugin is enabled, choose your agent (Cod
 
 == Security Model ==
 
-The plugin itself is a secured MCP gateway — it enforces:
+The plugin enforces:
 
 * administrator/super-admin checks (`manage_options` + `is_super_admin()`) forced onto every ability exposed over MCP, no matter which plugin registered it
 * explicit opt-in: off until enabled on the Connection screen
