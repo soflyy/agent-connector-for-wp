@@ -8,11 +8,11 @@ import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
 
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
-  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -332,35 +332,29 @@ function Block({ block, videoUrl }) {
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       {/* Steps — top gray section */}
       {block.steps?.length > 0 && (
-        <div className="bg-gray-50 px-6 py-5">
-          <div className={videoUrl ? 'flex gap-6 items-start' : 'space-y-3'}>
-            <div className="flex-1 space-y-3">
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
-              <ol className="space-y-2">
-                {block.steps.map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
-                      {i + 1}
-                    </span>
-                    <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
-                  </li>
-                ))}
-              </ol>
-            </div>
-            {videoUrl && (
-              <div className="flex-shrink-0 rounded-lg overflow-hidden bg-black" style={{ width: '240px' }}>
-                <div className="aspect-video">
-                  <iframe
-                    src={videoUrl}
-                    className="w-full h-full"
-                    allowFullScreen
-                    title="How to install"
-                    allow="autoplay; fullscreen"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="bg-gray-50 px-6 py-5 space-y-3">
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+          <ol className="space-y-2">
+            {block.steps.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
+              </li>
+            ))}
+          </ol>
+          {videoUrl && (
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Watch video instructions
+            </a>
+          )}
         </div>
       )}
 
