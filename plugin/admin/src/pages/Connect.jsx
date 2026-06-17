@@ -141,8 +141,19 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         label: 'Codex Desktop',
         blocks: [
           {
+            kind: 'command', title: 'Terminal command',
+            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
+            value: codexCliCmd,
+            steps: [
+              'Copy the command below',
+              'Open your terminal and paste it',
+              'Codex will confirm the server was added',
+            ],
+          },
+          {
             kind: 'text', title: 'MCP server settings',
             hint: null,
+            noVideo: true,
             value: [
               `Name:      ${serverName}`,
               `Command:   npx`,
@@ -155,16 +166,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             ].join('\n'),
             steps: [
               'Add an MCP server with the settings below',
-            ],
-          },
-          {
-            kind: 'command', title: 'Or use the terminal',
-            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
-            value: codexCliCmd,
-            steps: [
-              'Copy the command below',
-              'Open your terminal and paste it',
-              'Codex will confirm the server was added',
             ],
           },
         ],
@@ -333,7 +334,7 @@ function Block({ block, videoUrl }) {
               </li>
             ))}
           </ol>
-          {videoUrl && (
+          {videoUrl && !block.noVideo && (
             <a
               href={videoUrl}
               target="_blank"

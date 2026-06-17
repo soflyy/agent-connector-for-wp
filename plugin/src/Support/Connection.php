@@ -369,10 +369,22 @@ final class Connection {
 				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'  => 'text',
-						'title' => __( 'MCP server settings', 'agent-connector-for-wp' ),
-						'hint'  => null,
-						'value' => implode( "\n", array(
+						'kind'  => 'command',
+						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server automatically (Node.js required).', 'agent-connector-for-wp' ),
+						'value' => self::codex_cli( $name, $env ),
+						'steps' => array(
+							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
+							__( 'Codex will confirm the server was added', 'agent-connector-for-wp' ),
+						),
+					),
+					array(
+						'kind'    => 'text',
+						'title'   => __( 'MCP server settings', 'agent-connector-for-wp' ),
+						'hint'    => null,
+						'noVideo' => true,
+						'value'   => implode( "\n", array(
 							'Name:      ' . $name,
 							'Command:   npx',
 							'Arguments: -y ' . self::PROXY_PACKAGE . '@latest',
@@ -382,19 +394,8 @@ final class Connection {
 							'  WP_API_USERNAME: ' . $env['WP_API_USERNAME'],
 							'  WP_API_PASSWORD: ' . $env['WP_API_PASSWORD'],
 						) ),
-						'steps' => array(
+						'steps'   => array(
 							__( 'Add an MCP server with the settings below', 'agent-connector-for-wp' ),
-						),
-					),
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Or use the terminal', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server automatically (Node.js required).', 'agent-connector-for-wp' ),
-						'value' => self::codex_cli( $name, $env ),
-						'steps' => array(
-							__( 'Copy the command below', 'agent-connector-for-wp' ),
-							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
-							__( 'Codex will confirm the server was added', 'agent-connector-for-wp' ),
 						),
 					),
 				),
