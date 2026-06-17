@@ -16,7 +16,7 @@ Agent Connector for WP runs an MCP **server** for your WordPress site and expose
 
 It bundles wordpress/mcp-adapter (loaded via the Jetpack Autoloader), so it works standalone — the separate MCP Adapter plugin is not required. Every exposed ability is governed by super-admin authentication, domain lock, and an audit log, regardless of which plugin registered it.
 
-**Want powerful dev-environment abilities?** Install the optional **Universal Abilities for Agent Connector** pack in one click from the Connection screen. It is off by default and adds:
+**Want powerful dev-environment abilities?** Install the optional **Universal Abilities for Agent Connector** pack in one click from the Connection screen. Once active, it adds:
 
 * **Shell execution** (`agent-connector-for-wp/shell-exec`) — run arbitrary commands via proc_open(), capturing stdout/stderr/exit code with a working directory and timeout.
 * **WP-CLI execution** (`agent-connector-for-wp/wp-cli`) — run a WP-CLI command against this install; runs from the WordPress root and auto-adds --allow-root when running as root.
@@ -42,7 +42,7 @@ wordpress/mcp-adapter is bundled with this plugin; you do not need to install it
 Everything is configured on one screen: **Agent Connector for WP > Connection** in wp-admin (always available, even while the plugin is off). There is no enabling constant.
 
 * **Enable Agent Connector** — the master toggle. When on, the plugin runs an MCP server for this site and exposes the abilities other plugins registered ("third-party abilities", always active while enabled). Enabling also locks the plugin to the current domain (see Domain Lock).
-* **Universal Abilities pack** — provided by the separate **Universal Abilities for Agent Connector** companion plugin, **off by default**. If it isn't installed, the Connection screen shows a one-click **Install** button; once installed, tick its toggle to expose the powerful abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login). Leave it off — or uninstalled — if you only want to expose abilities registered by other plugins.
+* **Universal Abilities pack** — provided by the separate **Universal Abilities for Agent Connector** companion plugin. If it isn't installed, the Connection screen shows a one-click **Install** button. Once active, it exposes the powerful abilities (shell, PHP eval, filesystem, WP-CLI, env-inspect, admin-login). Leave it uninstalled if you only want to expose abilities registered by other plugins.
 * **Production override** — required only when `wp_get_environment_type()` reports `production`. On `local`/`development`/`staging` the master toggle alone activates the plugin; on `production` you must additionally tick the override.
 
 == Domain Lock ==
@@ -70,7 +70,7 @@ The plugin enforces:
 * timeout enforcement and output caps
 * append-only audit logging of every invocation (user, ability, input summary, status, duration)
 
-The **Universal Abilities pack** is intentionally high-trust and does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It is a further explicit opt-in (a separate plugin, off by default) intended for trusted local and development environments.
+The **Universal Abilities pack** is intentionally high-trust and does NOT implement sandboxing, granular ACLs, approval workflows, restricted shells, or command whitelisting. It is a separate plugin intended for trusted local and development environments.
 
 == Changelog ==
 
