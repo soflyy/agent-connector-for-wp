@@ -145,15 +145,16 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             hint: 'Run this in your terminal to add the server automatically (Node.js required).',
             value: codexCliCmd,
             steps: [
+              '<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">Install Codex CLI</a>',
               'Copy the command below',
               'Open your terminal and paste it',
-              'Codex will confirm the server was added',
             ],
           },
           {
             kind: 'text', title: 'MCP server settings',
             hint: null,
             noVideo: true,
+            stepsTitle: 'Manual install',
             value: [
               `Name:      ${serverName}`,
               `Command:   npx`,
@@ -165,7 +166,10 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
               `  WP_API_PASSWORD: ${env.WP_API_PASSWORD}`,
             ].join('\n'),
             steps: [
-              'Add an MCP server with the settings below',
+              'Open Codex Desktop → <strong>Settings</strong>',
+              'Click <strong>MCP Servers</strong>',
+              'Click <strong>Add Server</strong>',
+              'Manually enter the MCP server settings below',
             ],
           },
         ],
@@ -323,7 +327,7 @@ function Block({ block, videoUrl }) {
       {/* Steps — top gray section */}
       {block.steps?.length > 0 && (
         <div className="bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">How to install</p>
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{block.stepsTitle || 'How to install'}</p>
           <ol className="space-y-2">
             {block.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
