@@ -41,9 +41,13 @@ final class Connection {
 	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
-		$slug = sanitize_title( (string) get_bloginfo( 'name' ) );
+		$host      = (string) parse_url( get_site_url(), PHP_URL_HOST );
+		$host_slug = trim( (string) preg_replace( '/[^a-zA-Z0-9]+/', '-', strtolower( $host ) ), '-' );
+		$name_slug = sanitize_title( (string) get_bloginfo( 'name' ) );
 
-		return '' !== $slug ? $slug . '-wp' : self::CLIENT_NAME;
+		$parts = array_filter( array( $host_slug, $name_slug ) );
+
+		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wp' : self::CLIENT_NAME;
 	}
 
 	/**

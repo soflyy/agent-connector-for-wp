@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial } from '../api'
@@ -191,6 +191,15 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 
 // ─── Block renderer ───────────────────────────────────────────────────────────
 
+async function copyToClipboard(text, el) {
+  if (el) el.select()
+  if (navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(text); return true } catch {}
+  }
+  try { return document.execCommand('copy') } catch {}
+  return false
+}
+
 async function downloadPlugin(block) {
   const name = (block.filename || 'plugin.zip').replace(/\.zip$/, '')
   const zip = new JSZip()
@@ -209,6 +218,7 @@ async function downloadPlugin(block) {
 
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
   const textareaRef = useRef(null)
   const isCommand = block.kind === 'command'
 
@@ -219,13 +229,16 @@ function CodeContent({ block }) {
     el.style.height = Math.max(el.scrollHeight, 120) + 'px'
   }, [block.value])
 
-  function selectAndCopy() {
-    if (textareaRef.current) textareaRef.current.select()
-    navigator.clipboard.writeText(block.value).catch(() => {
-      if (textareaRef.current) document.execCommand('copy')
-    })
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function selectAndCopy() {
+    const ok = await copyToClipboard(block.value, textareaRef.current)
+    if (ok) {
+      setCopied(true)
+      setCopyFailed(false)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      setCopyFailed(true)
+      setTimeout(() => setCopyFailed(false), 8000)
+    }
   }
 
   return (
@@ -255,7 +268,7 @@ function CodeContent({ block }) {
         />
       </div>
 
-      <div className="p-4 pt-0">
+      <div className="p-4 pt-0 space-y-2">
         <button
           onClick={selectAndCopy}
           className={[
@@ -266,6 +279,11 @@ function CodeContent({ block }) {
           {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
           {copied ? 'Copied!' : 'Copy'}
         </button>
+        {copyFailed && (
+          <p className="text-center text-xs text-gray-400">
+            Clipboard unavailable — text is selected, press <strong className="text-gray-300">Ctrl+C</strong> / <strong className="text-gray-300">⌘C</strong> to copy
+          </p>
+        )}
       </div>
     </div>
   )
@@ -452,40 +470,66 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
 
 // ─── Step 3: Generate password + instructions ─────────────────────────────────
 
-function GeneratedPasswordBox({ password }) {
+function GeneratedPasswordNotice({ password }) {
+  const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
+  const inputRef = useRef(null)
 
-  function copy() {
-    navigator.clipboard.writeText(password).catch(() => {})
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copy() {
+    const ok = await copyToClipboard(password, inputRef.current)
+    if (ok) {
+      setCopied(true)
+      setCopyFailed(false)
+      setTimeout(() => setCopied(false), 2000)
+    } else {
+      setCopyFailed(true)
+      setTimeout(() => setCopyFailed(false), 8000)
+    }
   }
 
   return (
-    <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
-      <div className="flex items-center gap-2 text-green-800 text-base font-semibold">
-        <Check className="w-5 h-5" />
-        Application password created
-      </div>
-      <p className="text-sm text-green-700">Store this somewhere safe if you need it again — it won't be shown after you leave this page.</p>
-      <div className="flex gap-2">
-        <input
-          readOnly
-          value={password}
-          className="flex-1 font-mono text-base bg-white border border-green-200 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none"
-          onClick={(e) => e.target.select()}
-        />
+    <div className="rounded-lg border border-green-200 bg-green-50 overflow-hidden text-sm">
+      <div className="flex items-center gap-2.5 px-4 py-3">
+        <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+        <span className="font-medium text-green-800">App password created</span>
+        <span className="text-green-600 hidden sm:inline">— store it somewhere safe; it won't be shown again.</span>
         <button
-          onClick={copy}
-          className={[
-            'px-4 py-2.5 rounded-lg text-base font-semibold transition-all flex items-center gap-2',
-            copied ? 'bg-green-600 text-white' : 'bg-white border border-green-300 text-green-700 hover:bg-green-100',
-          ].join(' ')}
+          onClick={() => setOpen((o) => !o)}
+          className="ml-auto flex items-center gap-1.5 text-green-700 hover:text-green-900 font-medium transition-colors"
         >
-          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          {copied ? 'Copied' : 'Copy'}
+          {open ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {open ? 'Hide' : 'Show password'}
         </button>
       </div>
+      {open && (
+        <div className="border-t border-green-200 bg-white px-4 py-3 space-y-2">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              readOnly
+              value={password}
+              className="flex-1 font-mono text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 focus:outline-none"
+              onClick={(e) => e.target.select()}
+            />
+            <button
+              onClick={copy}
+              className={[
+                'flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all flex-shrink-0',
+                copied ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50',
+              ].join(' ')}
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          {copyFailed && (
+            <p className="text-xs text-gray-500">
+              Clipboard unavailable — text is selected, press <strong>Ctrl+C</strong> / <strong>⌘C</strong> to copy
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -538,7 +582,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
       {connection ? (
         <>
-          {generatedPassword && <GeneratedPasswordBox password={generatedPassword} />}
+          {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
 
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
