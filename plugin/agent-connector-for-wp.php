@@ -3,7 +3,7 @@
  * Plugin Name:       Agent Connector for WP
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       Give agents unrestricted execution capability on WordPress. Adds shell access, PHP eval, filesystem operations, and process execution to the WordPress MCP stack. Designed for trusted development environments where agents need the same operational capabilities as a human administrator.
- * Version:           1.19.0
+ * Version:           1.20.0
  * Requires at least: 7.0
  * Requires PHP:      8.1
  * Author:            Soflyy
@@ -30,7 +30,7 @@ namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.19.0' );
+define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.20.0' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
 
