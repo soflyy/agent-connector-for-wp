@@ -6,13 +6,13 @@ export default function Header({ page, onNavigate, status }) {
   const isEnabled = status.enabled
 
   return (
-    <div className="bg-gray-900 text-white shadow-md">
-      <div className="max-w-4xl mx-auto px-6">
-        <div className="flex items-center justify-between h-14">
+    <div className="bg-gray-900 text-white shadow-md sticky top-8 z-50">
+      <div className="px-8">
+        <div className="flex items-center justify-between h-16">
           {/* Brand */}
-          <div className="flex items-center gap-2.5">
-            <Plug className="w-5 h-5 text-indigo-400" />
-            <span className="font-semibold text-sm tracking-wide">Agent Connector</span>
+          <div className="flex items-center gap-3">
+            <Plug className="w-6 h-6 text-indigo-400" />
+            <span className="font-semibold text-base tracking-wide">Agent Connector</span>
           </div>
 
           {/* Nav */}
@@ -27,7 +27,7 @@ export default function Header({ page, onNavigate, status }) {
                 key={id}
                 onClick={() => onNavigate(id)}
                 className={[
-                  'px-4 py-1.5 rounded text-sm font-medium transition-colors',
+                  'px-5 py-2 rounded text-base font-medium transition-colors',
                   page === id
                     ? 'bg-white/10 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-white/5',
@@ -39,10 +39,10 @@ export default function Header({ page, onNavigate, status }) {
           </nav>
 
           {/* Status badge */}
-          <div className="flex items-center gap-2 text-xs">
+          <div className="flex items-center gap-2 text-sm">
             <span
               className={[
-                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold',
+                'inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-semibold',
                 isActive
                   ? 'bg-green-500/20 text-green-400'
                   : isEnabled
@@ -52,7 +52,7 @@ export default function Header({ page, onNavigate, status }) {
             >
               <span
                 className={[
-                  'w-1.5 h-1.5 rounded-full',
+                  'w-2 h-2 rounded-full',
                   isActive ? 'bg-green-400' : isEnabled ? 'bg-yellow-400' : 'bg-gray-500',
                 ].join(' ')}
               />

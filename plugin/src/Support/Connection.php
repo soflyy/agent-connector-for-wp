@@ -41,9 +41,13 @@ final class Connection {
 	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
-		$slug = sanitize_title( (string) get_bloginfo( 'name' ) );
+		$host      = (string) parse_url( get_site_url(), PHP_URL_HOST );
+		$host_slug = trim( (string) preg_replace( '/[^a-zA-Z0-9]+/', '-', strtolower( $host ) ), '-' );
+		$name_slug = sanitize_title( (string) get_bloginfo( 'name' ) );
 
-		return '' !== $slug ? $slug . '-wp' : self::CLIENT_NAME;
+		$parts = array_filter( array( $host_slug, $name_slug ) );
+
+		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wordpress' : self::CLIENT_NAME;
 	}
 
 	/**
@@ -116,7 +120,7 @@ final class Connection {
 	}
 
 	/**
-	 * A natural-language prompt any coding agent can act on to self-configure.
+	 * A structured prompt any coding agent can act on to self-configure.
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
 	 */
@@ -124,80 +128,59 @@ final class Connection {
 		return implode(
 			"\n",
 			array(
-				'Please configure a new MCP (Model Context Protocol) server for me, then connect to it.',
+				'Configure an MCP server for me.',
 				'',
-				'- Name: ' . $name,
-				'- Transport: stdio, via Automattic\'s mcp-wordpress-remote proxy run with npx',
-				'- Command: npx -y ' . self::PROXY_PACKAGE,
-				'- Environment variables:',
-				'    WP_API_URL=' . $env['WP_API_URL'],
-				'    WP_API_USERNAME=' . $env['WP_API_USERNAME'],
-				'    WP_API_PASSWORD=' . $env['WP_API_PASSWORD'],
-				'    OAUTH_ENABLED=false',
+				'Server name: ' . $name,
 				'',
-				'This is a WordPress site exposing its abilities over MCP. The proxy connects to it and',
-				'authenticates with the WordPress application password above. Once connected, list the',
-				'available tools to confirm it works. Use the "discover-abilities" tool to see what this',
-				'site can do and "execute-ability" to run one — including agent-connector-for-wp/shell-exec,',
-				'agent-connector-for-wp/php-eval, and the file-read/write/list/delete abilities, which give you',
-				'shell, PHP, and filesystem access on the server. To drive the WordPress admin in a browser,',
-				'run agent-connector-for-wp/create-admin-login-link and open the returned URL: it logs the',
-				'browser into wp-admin once, without a username or password.',
+				'Command:',
+				'npx',
+				'',
+				'Arguments:',
+				'-y',
+				self::PROXY_PACKAGE,
+				'',
+				'Environment variables:',
+				'',
+				'WP_API_URL=' . $env['WP_API_URL'],
+				'',
+				'WP_API_USERNAME=' . $env['WP_API_USERNAME'],
+				'',
+				'WP_API_PASSWORD=' . $env['WP_API_PASSWORD'],
+				'',
+				'OAUTH_ENABLED=false',
+				'',
+				'Requirements:',
+				'',
+				'Perform the installation and configuration yourself whenever possible.',
+				'Detect the operating system and MCP client automatically.',
+				'Verify that node, npm, and npx are available.',
+				"If Node.js is missing, attempt to install the latest LTS version automatically using the platform's standard installation method. Only ask the user for help if elevated permissions, security restrictions, interactive approval, or platform limitations prevent automatic installation.",
+				'If automatic Node.js installation is not possible, explain exactly why and provide the official Node.js download location.',
+				'Locate the MCP configuration file automatically.',
+				'Create a backup before making any changes.',
+				'Add this MCP server without removing, replacing, or modifying any existing MCP servers.',
+				'Validate the configuration before saving.',
+				'Verify that the package ' . self::PROXY_PACKAGE . ' is available.',
+				'If possible, perform a basic startup test to confirm the MCP server can launch.',
+				'Show exact errors if any step fails.',
+				'Do not make assumptions about configuration file locations when they can be discovered automatically.',
+				'If the MCP client must be identified by the user, ask only for that information and continue.',
+				'After configuration changes are made, instruct the user to completely restart the MCP client because many MCP clients do not reliably hot-reload server configurations.',
+				'If automatic configuration is not possible, provide the exact file path that must be edited and the exact configuration that must be added.',
+				'Never overwrite unrelated configuration.',
+				'Never claim success unless the configuration was actually written or the server was verified to already exist.',
+				'If any part of the process cannot be verified, explicitly state what remains unverified.',
+				'Prefer taking action over providing instructions.',
+				'Optimize for completing the task correctly on the first attempt with minimal user involvement.',
+				'',
+				'At the end, report only:',
+				'',
+				'What was changed.',
+				'Any errors encountered.',
+				'Whether a restart is required.',
+				'Any remaining manual steps.',
 			)
 		);
-	}
-
-	/**
-	 * Build a Claude plugin ZIP for Claude Desktop / Claude Code.
-	 *
-	 * The ZIP follows the Claude plugin format:
-	 *   {name}/.mcp.json            — MCP server entry with pre-baked credentials
-	 *   {name}/.claude-plugin/plugin.json — Plugin metadata
-	 *
-	 * Returns base64-encoded ZIP content, or empty string when ZipArchive is
-	 * unavailable (uncommon but possible on hardened servers).
-	 *
-	 * @param array<string,string> $env Proxy environment variables.
-	 */
-	private static function build_claude_plugin( string $name, array $env ): string {
-		if ( ! class_exists( 'ZipArchive' ) ) {
-			return '';
-		}
-
-		$mcp_json = array(
-			$name => array(
-				'type'    => 'stdio',
-				'command' => 'npx',
-				'args'    => array( '-y', self::PROXY_PACKAGE ),
-				'env'     => $env,
-			),
-		);
-
-		$plugin_json = array(
-			'name'        => $name,
-			'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
-			'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
-		);
-
-		$tmp = tempnam( sys_get_temp_dir(), 'claude-plugin' );
-		$zip = new \ZipArchive();
-		if ( true !== $zip->open( $tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE ) ) {
-			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-			return '';
-		}
-
-		$zip->addEmptyDir( $name );
-		$zip->addEmptyDir( $name . '/.claude-plugin' );
-		$zip->addFromString( $name . '/.mcp.json', (string) wp_json_encode( $mcp_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
-		$zip->addFromString( $name . '/.claude-plugin/plugin.json', (string) wp_json_encode( $plugin_json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
-		$zip->close();
-
-		$bytes = file_get_contents( $tmp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-
-		return '' !== (string) $bytes
-			? base64_encode( (string) $bytes ) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
-			: '';
 	}
 
 	/**
@@ -217,6 +200,25 @@ final class Connection {
 	}
 
 	/**
+	 * A ready-to-run `codex mcp add` command (stdio server with env vars).
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function codex_cli( string $name, array $env ): string {
+		$parts = array( 'codex', 'mcp', 'add', escapeshellarg( $name ) );
+		foreach ( $env as $key => $value ) {
+			$parts[] = '--env';
+			$parts[] = escapeshellarg( $key . '=' . $value );
+		}
+		$parts[] = '--';
+		$parts[] = 'npx';
+		$parts[] = '-y';
+		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+
+		return implode( ' ', $parts );
+	}
+
+	/**
 	 * A ready-to-run `claude mcp add` command (stdio server with env vars).
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
@@ -233,6 +235,32 @@ final class Connection {
 		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
 
 		return implode( ' ', $parts );
+	}
+
+	/**
+	 * A ~/.codex/config.toml [[mcp_servers]] entry for Codex CLI.
+	 *
+	 * @param array<string,string> $env Proxy environment variables.
+	 */
+	private static function codex_toml( string $name, array $env ): string {
+		$env_pairs = implode(
+			', ',
+			array_map(
+				static fn( $k, $v ) => $k . ' = ' . wp_json_encode( $v ),
+				array_keys( $env ),
+				$env
+			)
+		);
+		return implode(
+			"\n",
+			array(
+				'[[mcp_servers]]',
+				'name = ' . wp_json_encode( $name ),
+				'command = "npx"',
+				'args = ["-y", ' . wp_json_encode( self::PROXY_PACKAGE ) . ']',
+				'env = { ' . $env_pairs . ' }',
+			)
+		);
 	}
 
 	/**
@@ -320,113 +348,112 @@ final class Connection {
 
 		$agents = array(
 			array(
-				'id'     => 'prompt',
-				'label'  => __( 'Any agent (prompt)', 'agent-connector-for-wp' ),
+				'id'     => 'codex-cli',
+				'label'  => __( 'Codex CLI', 'agent-connector-for-wp' ),
+				'blocks' => array(
+					array(
+						'kind'  => 'command',
+						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server to Codex CLI. It writes to ~/.codex/config.toml automatically (Node.js required).', 'agent-connector-for-wp' ),
+						'value' => self::codex_cli( $name, $env ),
+						'steps' => array(
+							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
+							__( 'Codex CLI will confirm the server was added', 'agent-connector-for-wp' ),
+						),
+					),
+				),
+			),
+			array(
+				'id'     => 'codex-desktop',
+				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
 						'kind'  => 'text',
-						'title' => __( 'Paste into your agent', 'agent-connector-for-wp' ),
-						'hint'  => __( 'A plain-English prompt for Claude or any coding agent — it will set up the MCP server itself.', 'agent-connector-for-wp' ),
+						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.', 'agent-connector-for-wp' ),
 						'value' => self::agent_prompt( $name, $env ),
+						'steps' => array(
+							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
+							__( 'Open Codex Desktop and paste it into the chat', 'agent-connector-for-wp' ),
+							__( 'Codex will configure the MCP server automatically', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
 			array(
 				'id'     => 'claude-code',
-				'label'  => __( 'Claude Code', 'agent-connector-for-wp' ),
+				'label'  => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
 						'kind'  => 'command',
-						'title' => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server to Claude Code. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
+						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Run this in your terminal to add the server to Claude Code (Node.js required).', 'agent-connector-for-wp' ),
 						'value' => self::claude_code_cli( $name, $env ),
+						'steps' => array(
+							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
+							__( 'Claude Code will confirm the server was added', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
 			array(
 				'id'     => 'claude-desktop',
 				'label'  => __( 'Claude Desktop', 'agent-connector-for-wp' ),
-				'blocks' => array_filter(
+				'blocks' => array(
 					array(
-						array(
-							'kind'     => 'plugin',
-							'title'    => __( 'Claude Plugin', 'agent-connector-for-wp' ),
-							'hint'     => __( 'Download the plugin ZIP and install it in Claude — no JSON editing required.', 'agent-connector-for-wp' ),
-							'filename' => $name . '.zip',
-							'value'    => self::build_claude_plugin( $name, $env ),
+						'kind'        => 'plugin',
+						'title'       => __( 'Claude Plugin', 'agent-connector-for-wp' ),
+						'hint'        => __( 'Download the plugin ZIP and install it in Claude — no JSON editing required.', 'agent-connector-for-wp' ),
+						'filename'    => $name . '.zip',
+						'mcp_json'    => array(
+							$name => array(
+								'type'    => 'stdio',
+								'command' => 'npx',
+								'args'    => array( '-y', self::PROXY_PACKAGE ),
+								'env'     => $env,
+							),
 						),
-						array(
-							'kind'  => 'json',
-							'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
-							'hint'  => __( 'Add to claude_desktop_config.json (Settings → Developer → Edit Config), then restart.', 'agent-connector-for-wp' ),
-							'value' => self::mcp_servers_json( $name, $env ),
+						'plugin_json' => array(
+							'name'        => $name,
+							'description' => 'WordPress MCP connection for ' . (string) get_bloginfo( 'name' ),
+							'author'      => array( 'name' => (string) get_bloginfo( 'name' ) ),
+						),
+						'steps'       => array(
+							__( 'Download the ZIP below', 'agent-connector-for-wp' ),
+							__( 'Open Claude Desktop and click <strong>Customize</strong> in the left sidebar', 'agent-connector-for-wp' ),
+							__( 'Click <strong>+</strong> next to <strong>Personal Plugins</strong>', 'agent-connector-for-wp' ),
+							__( 'Choose <strong>Create Plugin</strong> → <strong>Upload Plugin</strong> and select the ZIP', 'agent-connector-for-wp' ),
 						),
 					),
-					static function ( array $block ): bool {
-						// Drop the plugin block if ZipArchive wasn't available.
-						return '' !== (string) $block['value'];
-					}
-				),
-			),
-			array(
-				'id'     => 'cursor',
-				'label'  => __( 'Cursor', 'agent-connector-for-wp' ),
-				'blocks' => array(
 					array(
-						'kind'   => 'deeplink',
-						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
-						'hint'   => __( 'Opens Cursor and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
-						'button' => __( 'Add to Cursor', 'agent-connector-for-wp' ),
-						'value'  => self::cursor_deeplink( $name, $env ),
-					),
-					array(
-						'kind'  => 'json',
-						'title' => __( 'Or add manually', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in your project).', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
+						'kind'  => 'text',
+						'title' => __( 'Or paste a prompt', 'agent-connector-for-wp' ),
+						'hint'  => __( "Paste this into Claude Desktop's chat — it will configure the MCP server for you automatically.", 'agent-connector-for-wp' ),
+						'value' => self::agent_prompt( $name, $env ),
+						'steps' => array(
+							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
+							__( 'Open Claude Desktop and paste it into the chat', 'agent-connector-for-wp' ),
+							__( 'Claude will configure the MCP server automatically', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),
 			array(
-				'id'     => 'vscode',
-				'label'  => __( 'VS Code', 'agent-connector-for-wp' ),
+				'id'     => 'other',
+				'label'  => __( 'Other', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'   => 'deeplink',
-						'title'  => __( 'One-click install', 'agent-connector-for-wp' ),
-						'hint'   => __( 'Opens VS Code and pre-fills the server config for you to approve.', 'agent-connector-for-wp' ),
-						'button' => __( 'Add to VS Code', 'agent-connector-for-wp' ),
-						'value'  => self::vscode_deeplink( $name, $env ),
-					),
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Or run in your terminal', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Adds the server to your VS Code user profile via the code CLI.', 'agent-connector-for-wp' ),
-						'value' => self::vscode_cli( $name, $env ),
-					),
-				),
-			),
-			array(
-				'id'     => 'gemini',
-				'label'  => __( 'Gemini CLI', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Gemini CLI', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server to the Gemini CLI. It runs the mcp-wordpress-remote proxy via npx (Node.js required).', 'agent-connector-for-wp' ),
-						'value' => self::gemini_cli( $name, $env ),
-					),
-				),
-			),
-			array(
-				'id'     => 'windsurf',
-				'label'  => __( 'Windsurf', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'json',
-						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this to ~/.codeium/windsurf/mcp_config.json, then refresh MCP servers in Windsurf.', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
+						'kind'  => 'text',
+						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
+						'hint'  => __( "Paste this into your agent's chat — it will configure the MCP server automatically.", 'agent-connector-for-wp' ),
+						'value' => self::agent_prompt( $name, $env ),
+						'steps' => array(
+							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
+							__( "Paste it into your agent's chat", 'agent-connector-for-wp' ),
+							__( 'The agent will configure and connect to the MCP server', 'agent-connector-for-wp' ),
+						),
 					),
 				),
 			),

@@ -28,7 +28,7 @@ function StatusBadge({ status }) {
     ? 'bg-red-500/20 text-red-600'
     : 'bg-gray-200 text-gray-600'
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>
+    <span className={`inline-flex px-2.5 py-1 rounded-full text-sm font-medium ${cls}`}>
       {status}
     </span>
   )
@@ -43,10 +43,10 @@ function JsonBlock({ title, body }) {
   })()
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
+      <h3 className="text-base font-semibold text-gray-700">{title}</h3>
       {pretty
-        ? <pre className="bg-gray-950 text-gray-200 text-xs p-4 rounded-xl overflow-auto max-h-64 leading-relaxed whitespace-pre-wrap break-all">{pretty}</pre>
-        : <p className="text-sm text-gray-400 italic">Not captured.</p>
+        ? <pre className="bg-gray-950 text-gray-200 text-sm p-4 rounded-xl overflow-auto max-h-64 leading-relaxed whitespace-pre-wrap break-all">{pretty}</pre>
+        : <p className="text-base text-gray-400 italic">Not captured.</p>
       }
     </div>
   )
@@ -54,7 +54,7 @@ function JsonBlock({ title, body }) {
 
 function CodeOrDash({ value }) {
   if (!value) return <span className="text-gray-400">—</span>
-  return <code className="text-xs bg-gray-100 px-1 py-0.5 rounded break-all">{value}</code>
+  return <code className="text-sm bg-gray-100 px-1.5 py-0.5 rounded break-all">{value}</code>
 }
 
 function EventDetail({ eventId, onBack }) {
@@ -75,27 +75,27 @@ function EventDetail({ eventId, onBack }) {
     <div className="space-y-6">
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+        className="flex items-center gap-2 text-base text-gray-500 hover:text-gray-700 transition-colors"
       >
-        <ChevronLeft className="w-4 h-4" />
+        <ChevronLeft className="w-5 h-5" />
         Back to events
       </button>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <RefreshCw className="w-4 h-4 animate-spin" /> Loading…
+        <div className="flex items-center gap-2 text-base text-gray-400">
+          <RefreshCw className="w-5 h-5 animate-spin" /> Loading…
         </div>
       )}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">{error}</div>
       )}
 
       {data && (
         <>
-          <h2 className="text-lg font-semibold text-gray-900">Event #{data.id}</h2>
+          <h2 className="text-xl font-semibold text-gray-900">Event #{data.id}</h2>
 
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-base">
               <tbody>
                 {[
                   ['Time', formatTime(data.created_at), false],
@@ -116,8 +116,8 @@ function EventDetail({ eventId, onBack }) {
                   ['Failure reason', data.failure_reason, false],
                 ].map(([label, value, mono, custom], i) => (
                   <tr key={label} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="px-4 py-2 font-medium text-gray-500 w-44 text-sm">{label}</td>
-                    <td className="px-4 py-2 text-gray-900">
+                    <td className="px-4 py-3 font-medium text-gray-500 w-48 text-base">{label}</td>
+                    <td className="px-4 py-3 text-gray-900">
                       {custom ?? (mono
                         ? <CodeOrDash value={value} />
                         : (value || <span className="text-gray-400">—</span>)
@@ -134,14 +134,14 @@ function EventDetail({ eventId, onBack }) {
 
           {data.tags && Object.keys(data.tags).length > 0 && (
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-700">Tags</h3>
+              <h3 className="text-base font-semibold text-gray-700">Tags</h3>
               <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <tbody className="divide-y divide-gray-100">
                     {Object.entries(data.tags).map(([k, v]) => (
                       <tr key={k}>
-                        <td className="px-4 py-2 font-mono text-xs text-gray-500 w-48 bg-gray-50">{k}</td>
-                        <td className="px-4 py-2 font-mono text-xs text-gray-900 break-all">
+                        <td className="px-4 py-2.5 font-mono text-sm text-gray-500 w-48 bg-gray-50">{k}</td>
+                        <td className="px-4 py-2.5 font-mono text-sm text-gray-900 break-all">
                           {typeof v === 'string' ? v : JSON.stringify(v)}
                         </td>
                       </tr>
@@ -205,8 +205,8 @@ export default function Log() {
       <h1 className="text-2xl font-bold text-gray-900">MCP Events</h1>
 
       {data && !data.debug_enabled && (
-        <div className="flex items-start gap-2 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
-          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-700">
+          <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
           <span>
             Event logging is off — enable <strong>Debug</strong> in{' '}
             <button
@@ -225,7 +225,7 @@ export default function Log() {
         <select
           value={eventFilter}
           onChange={e => { setEventFilter(e.target.value); setPage(1) }}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="text-base border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           <option value="">All events (excl. lifecycle)</option>
           {data?.distinct_events?.map(ev => <option key={ev} value={ev}>{ev}</option>)}
@@ -233,7 +233,7 @@ export default function Log() {
         <select
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="text-base border border-gray-300 rounded-lg pl-4 pr-10 py-2 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           <option value="">All statuses</option>
           {data?.distinct_statuses?.map(s => <option key={s} value={s}>{s}</option>)}
@@ -241,30 +241,30 @@ export default function Log() {
         <button
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 text-base text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
         <div className="ml-auto flex items-center gap-3">
           {data && (
-            <span className="text-sm text-gray-500">
+            <span className="text-base text-gray-500">
               {data.total} event{data.total !== 1 ? 's' : ''}
             </span>
           )}
           <button
             onClick={handleClear}
             disabled={clearing || !data?.total}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-600 hover:text-red-800 border border-red-200 rounded-lg bg-white hover:bg-red-50 transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 px-4 py-2 text-base text-red-600 hover:text-red-800 border border-red-200 rounded-lg bg-white hover:bg-red-50 transition-colors disabled:opacity-40"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4" />
             Clear log
           </button>
         </div>
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{error}</div>
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">{error}</div>
       )}
 
       {/* Table */}
@@ -273,7 +273,7 @@ export default function Log() {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               {['Time', 'Event', 'Method', 'Tool / Prompt', 'Status', 'Duration', 'User', ''].map(h => (
-                <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider last:text-right">
+                <th key={h} className="px-4 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider last:text-right">
                   {h}
                 </th>
               ))}
@@ -283,38 +283,38 @@ export default function Log() {
             {loading && !data && (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center">
-                  <RefreshCw className="w-4 h-4 animate-spin text-gray-400 mx-auto" />
+                  <RefreshCw className="w-5 h-5 animate-spin text-gray-400 mx-auto" />
                 </td>
               </tr>
             )}
             {!loading && data?.rows?.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-base text-gray-400">
                   No MCP events recorded yet.
                 </td>
               </tr>
             )}
             {data?.rows?.map(row => (
               <tr key={row.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">{formatTime(row.created_at)}</td>
-                <td className="px-4 py-2.5 max-w-[140px]">
-                  <code className="text-xs text-gray-700 break-all">{row.event || '—'}</code>
+                <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{formatTime(row.created_at)}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <code className="text-sm text-gray-700">{row.event || '—'}</code>
                 </td>
-                <td className="px-4 py-2.5">
-                  <code className="text-xs text-gray-500">{row.method || '—'}</code>
+                <td className="px-4 py-3">
+                  <code className="text-sm text-gray-500">{row.method || '—'}</code>
                 </td>
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-3">
                   {row.tool_name || row.prompt_name
-                    ? <code className="text-xs text-gray-700">{row.tool_name || row.prompt_name}</code>
+                    ? <code className="text-sm text-gray-700">{row.tool_name || row.prompt_name}</code>
                     : <span className="text-gray-400">—</span>}
                 </td>
-                <td className="px-4 py-2.5"><StatusBadge status={row.status} /></td>
-                <td className="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">{formatDuration(row.duration_ms)}</td>
-                <td className="px-4 py-2.5 text-gray-500 text-xs">{row.user_login || '—'}</td>
-                <td className="px-4 py-2.5 text-right">
+                <td className="px-4 py-3"><StatusBadge status={row.status} /></td>
+                <td className="px-4 py-3 text-gray-500 text-sm whitespace-nowrap">{formatDuration(row.duration_ms)}</td>
+                <td className="px-4 py-3 text-gray-500 text-sm">{row.user_login || '—'}</td>
+                <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => setDetail(row.id)}
-                    className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
                   >
                     View
                   </button>
@@ -327,11 +327,11 @@ export default function Log() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between text-base">
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
           >
             Previous
           </button>
@@ -339,7 +339,7 @@ export default function Log() {
           <button
             onClick={() => setPage(p => p + 1)}
             disabled={page >= totalPages}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
           >
             Next
           </button>

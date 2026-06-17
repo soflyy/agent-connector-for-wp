@@ -19,11 +19,14 @@ async function request(path, options = {}) {
   return data
 }
 
+// Replace with the actual getting started / demo video URL when ready.
+export const DEMO_URL = ''
+
 export const api = {
   getStatus: () => request('/status'),
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
   reconnect: () => request('/reconnect', { method: 'POST' }),
-  generate: () => request('/generate', { method: 'POST' }),
+  generate: (params = {}) => request('/generate', { method: 'POST', body: JSON.stringify(params) }),
   getDirectory: () => request('/directory'),
   refreshDirectory: () => request('/directory/refresh', { method: 'POST' }),
   installPack: (pack_slug) => request('/directory/install', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
@@ -38,6 +41,8 @@ export const api = {
   },
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
+  installUap: () => request('/uap/install', { method: 'POST' }),
+  dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 
 // wp_localize_script serializes PHP booleans as strings ("1" / ""), so coerce them.
@@ -54,6 +59,10 @@ export const initial = {
   declaredHost: cfg.declaredHost ?? '',
   envType: cfg.envType ?? 'unknown',
   serverUrl: cfg.serverUrl ?? '',
+  serverName: cfg.serverName ?? '',
+  siteName: cfg.siteName ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
+  uapActive: bool(cfg.uapActive),
+  showGsBanner: bool(cfg.showGsBanner),
 }
