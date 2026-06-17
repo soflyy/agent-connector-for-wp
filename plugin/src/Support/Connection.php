@@ -388,7 +388,8 @@ final class Connection {
 						'value'      => array(
 							array( 'label' => 'Name',            'value' => $name ),
 							array( 'label' => 'Command',         'value' => 'npx' ),
-							array( 'label' => 'Arguments',       'value' => '-y ' . self::PROXY_PACKAGE . '@latest' ),
+							array( 'label' => 'Argument 1',      'value' => '-y' ),
+							array( 'label' => 'Argument 2',      'value' => self::PROXY_PACKAGE . '@latest' ),
 							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
 							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
 							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
@@ -463,7 +464,8 @@ final class Connection {
 						'value' => array(
 							array( 'label' => 'Name',            'value' => $name ),
 							array( 'label' => 'Command',         'value' => 'npx' ),
-							array( 'label' => 'Arguments',       'value' => '-y ' . self::PROXY_PACKAGE . '@latest' ),
+							array( 'label' => 'Argument 1',      'value' => '-y' ),
+							array( 'label' => 'Argument 2',      'value' => self::PROXY_PACKAGE . '@latest' ),
 							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
 							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
 							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),

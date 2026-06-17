@@ -158,7 +158,8 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             value: [
               { label: 'Name',            value: serverName },
               { label: 'Command',         value: 'npx' },
-              { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
+              { label: 'Argument 1',      value: '-y' },
+              { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
               { label: 'WP_API_URL',      value: env.WP_API_URL },
               { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
               { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
