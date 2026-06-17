@@ -146,6 +146,16 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
+			'/dismiss-gs-banner',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_gs_banner' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
 			'/registered-abilities',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -642,5 +652,10 @@ final class SettingsController extends WP_REST_Controller {
 			return (bool) wp_is_application_passwords_available_for_user( $user );
 		}
 		return true;
+	}
+
+	public function dismiss_gs_banner(): WP_REST_Response {
+		update_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', '1' );
+		return new WP_REST_Response( array( 'dismissed' => true ) );
 	}
 }

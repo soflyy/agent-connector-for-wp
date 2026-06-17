@@ -19,6 +19,9 @@ async function request(path, options = {}) {
   return data
 }
 
+// Replace with the actual getting started / demo video URL when ready.
+export const DEMO_URL = ''
+
 export const api = {
   getStatus: () => request('/status'),
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
@@ -39,6 +42,7 @@ export const api = {
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
   installUap: () => request('/uap/install', { method: 'POST' }),
+  dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 
 // wp_localize_script serializes PHP booleans as strings ("1" / ""), so coerce them.
@@ -60,4 +64,5 @@ export const initial = {
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
   uapActive: bool(cfg.uapActive),
+  showGsBanner: bool(cfg.showGsBanner),
 }

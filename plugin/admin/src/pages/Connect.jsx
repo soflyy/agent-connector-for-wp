@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import JSZip from 'jszip'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Download, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
-import { api, initial } from '../api'
+import { api, initial, DEMO_URL } from '../api'
 
 const AGENTS = [
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b' },
@@ -432,7 +432,7 @@ function WelcomeStep({ status, onStart }) {
             Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
           </p>
         </div>
-        <div>
+        <div className="flex flex-col items-center gap-3">
           <button
             onClick={onStart}
             className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
@@ -440,6 +440,17 @@ function WelcomeStep({ status, onStart }) {
             Get started
             <ArrowRight className="w-5 h-5" />
           </button>
+          {DEMO_URL && (
+            <a
+              href={DEMO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Watch a 2-minute walkthrough
+            </a>
+          )}
         </div>
       </div>
     </div>
