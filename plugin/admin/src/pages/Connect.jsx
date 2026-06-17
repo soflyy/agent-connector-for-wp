@@ -231,8 +231,17 @@ async function copyToClipboard(text, el) {
   if (navigator.clipboard?.writeText) {
     try { await navigator.clipboard.writeText(text); return true } catch {}
   }
-  try { return document.execCommand('copy') } catch {}
-  return false
+  const tmp = el ?? (() => {
+    const t = document.createElement('textarea')
+    t.value = text
+    t.style.cssText = 'position:fixed;opacity:0;top:0;left:0'
+    document.body.appendChild(t)
+    t.select()
+    return t
+  })()
+  try { return document.execCommand('copy') } catch { return false } finally {
+    if (!el) tmp.remove()
+  }
 }
 
 
