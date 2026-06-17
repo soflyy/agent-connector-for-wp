@@ -436,14 +436,30 @@ final class Connection {
 				'label'  => __( 'Other', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'  => 'text',
-						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
-						'hint'  => __( "Paste this into your agent's chat — it will configure the MCP server automatically.", 'agent-connector-for-wp' ),
-						'value' => self::agent_prompt( $name, $env ),
+						'kind'  => 'json',
+						'title' => __( 'mcpServers config', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Add this server entry to your MCP client\'s configuration file under the <code>mcpServers</code> key.', 'agent-connector-for-wp' ),
+						'value' => (string) wp_json_encode(
+							array(
+								'mcpServers' => array(
+									$name => array(
+										'command' => 'npx',
+										'args'    => array( '-y', self::PROXY_PACKAGE . '@latest' ),
+										'env'     => array(
+											'WP_API_URL'      => $env['WP_API_URL'],
+											'WP_API_USERNAME' => $env['WP_API_USERNAME'],
+											'WP_API_PASSWORD' => $env['WP_API_PASSWORD'],
+										),
+									),
+								),
+							),
+							JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+						),
 						'steps' => array(
-							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
-							__( "Paste it into your agent's chat", 'agent-connector-for-wp' ),
-							__( 'The agent will configure and connect to the MCP server', 'agent-connector-for-wp' ),
+							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
+							__( 'Open your MCP client\'s configuration file', 'agent-connector-for-wp' ),
+							__( 'Merge the <code>mcpServers</code> entry — don\'t replace existing servers', 'agent-connector-for-wp' ),
+							__( 'Save and restart your MCP client', 'agent-connector-for-wp' ),
 						),
 					),
 				),

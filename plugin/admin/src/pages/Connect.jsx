@@ -11,7 +11,7 @@ const AGENTS = [
   { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb' },
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b' },
-  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+  { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '' },
 ]
 
 // ─── Client-side artifact builder ────────────────────────────────────────────
@@ -183,13 +183,14 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         id: 'other',
         label: 'Other',
         blocks: [{
-          kind: 'text', title: 'Agent prompt',
-          hint: 'Paste this into your agent\'s chat — it will configure the MCP server automatically.',
-          value: agentPrompt,
+          kind: 'json', title: 'mcpServers config',
+          hint: 'Add this server entry to your MCP client\'s configuration file under the <code>mcpServers</code> key.',
+          value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
-            'Copy the prompt below',
-            'Paste it into your agent\'s chat',
-            'The agent will configure the MCP server automatically',
+            'Copy the JSON below',
+            'Open your MCP client\'s configuration file',
+            'Merge the <code>mcpServers</code> entry — don\'t replace existing servers',
+            'Save and restart your MCP client',
           ],
         }],
       },
