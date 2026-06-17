@@ -47,7 +47,7 @@ final class Connection {
 
 		$parts = array_filter( array( $host_slug, $name_slug ) );
 
-		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wp' : self::CLIENT_NAME;
+		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wordpress' : self::CLIENT_NAME;
 	}
 
 	/**
