@@ -173,7 +173,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
             'Copy the JSON below',
-            'Open <code>claude_desktop_config.json</code> (paths above)',
+            'Open <code>claude_desktop_config.json</code>',
             'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file',
             'Save and restart Claude Desktop',
           ],

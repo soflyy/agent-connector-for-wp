@@ -424,7 +424,7 @@ final class Connection {
 						),
 						'steps' => array(
 							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
-							__( 'Open <code>claude_desktop_config.json</code> (paths above)', 'agent-connector-for-wp' ),
+							__( 'Open <code>claude_desktop_config.json</code>', 'agent-connector-for-wp' ),
 							__( 'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file', 'agent-connector-for-wp' ),
 							__( 'Save and restart Claude Desktop', 'agent-connector-for-wp' ),
 						),
