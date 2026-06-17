@@ -369,15 +369,14 @@ final class Connection {
 				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
-						'kind'  => 'json',
-						'title' => __( 'mcpServers JSON', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Add this server entry to your Codex Desktop MCP configuration.', 'agent-connector-for-wp' ),
-						'value' => self::mcp_servers_json( $name, $env ),
+						'kind'  => 'text',
+						'title' => __( 'Agent prompt', 'agent-connector-for-wp' ),
+						'hint'  => __( 'Paste this into Codex Desktop\'s chat — it will configure the MCP server for you automatically.', 'agent-connector-for-wp' ),
+						'value' => self::agent_prompt( $name, $env ),
 						'steps' => array(
-							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
-							__( 'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>', 'agent-connector-for-wp' ),
-							__( 'Paste the server entry and save', 'agent-connector-for-wp' ),
-							__( 'Restart Codex Desktop', 'agent-connector-for-wp' ),
+							__( 'Copy the prompt below', 'agent-connector-for-wp' ),
+							__( 'Open Codex Desktop and paste it into the chat', 'agent-connector-for-wp' ),
+							__( 'Codex will configure the MCP server automatically', 'agent-connector-for-wp' ),
 						),
 					),
 				),
