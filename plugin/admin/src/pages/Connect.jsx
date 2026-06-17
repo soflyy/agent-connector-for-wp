@@ -151,20 +151,18 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             ],
           },
           {
-            kind: 'text', title: 'MCP server settings',
+            kind: 'fields', title: 'MCP server settings',
             hint: null,
             noVideo: true,
             stepsTitle: 'Manual install',
             value: [
-              `Name:      ${serverName}`,
-              `Command:   npx`,
-              `Arguments: -y ${PROXY_PACKAGE}@latest`,
-              ``,
-              `Environment variables:`,
-              `  WP_API_URL:      ${env.WP_API_URL}`,
-              `  WP_API_USERNAME: ${env.WP_API_USERNAME}`,
-              `  WP_API_PASSWORD: ${env.WP_API_PASSWORD}`,
-            ].join('\n'),
+              { label: 'Name',            value: serverName },
+              { label: 'Command',         value: 'npx' },
+              { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
+              { label: 'WP_API_URL',      value: env.WP_API_URL },
+              { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
+              { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+            ],
             steps: [
               'Open Codex Desktop → <strong>Settings</strong>',
               'Click <strong>MCP Servers</strong>',
@@ -207,18 +205,16 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         id: 'other',
         label: 'Other',
         blocks: [{
-          kind: 'text', title: 'MCP server settings',
+          kind: 'fields', title: 'MCP server settings',
           hint: null,
           value: [
-            `Name:      ${serverName}`,
-            `Command:   npx`,
-            `Arguments: -y ${PROXY_PACKAGE}@latest`,
-            ``,
-            `Environment variables:`,
-            `  WP_API_URL:      ${env.WP_API_URL}`,
-            `  WP_API_USERNAME: ${env.WP_API_USERNAME}`,
-            `  WP_API_PASSWORD: ${env.WP_API_PASSWORD}`,
-          ].join('\n'),
+            { label: 'Name',            value: serverName },
+            { label: 'Command',         value: 'npx' },
+            { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
+            { label: 'WP_API_URL',      value: env.WP_API_URL },
+            { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
+            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+          ],
           steps: [
             'Add an MCP server with the settings below',
           ],
@@ -313,6 +309,36 @@ function CodeContent({ block }) {
   )
 }
 
+function FieldsContent({ fields }) {
+  const [copiedIdx, setCopiedIdx] = useState(null)
+
+  async function copyField(value, i) {
+    const ok = await copyToClipboard(value)
+    if (ok) {
+      setCopiedIdx(i)
+      setTimeout(() => setCopiedIdx(null), 2000)
+    }
+  }
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-gray-200 divide-y divide-gray-100">
+      {fields.map(({ label, value }, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-2.5 bg-white hover:bg-gray-50 transition-colors">
+          <span className="text-xs font-medium text-gray-400 w-32 flex-shrink-0">{label}</span>
+          <span className="flex-1 font-mono text-sm text-gray-800 truncate">{value}</span>
+          <button
+            onClick={() => copyField(value, i)}
+            className="flex-shrink-0 p-1.5 rounded text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            aria-label={`Copy ${label}`}
+          >
+            {copiedIdx === i ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Block({ block, videoUrl }) {
   const titleIcon = block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
@@ -368,6 +394,8 @@ function Block({ block, videoUrl }) {
             <ExternalLink className="w-5 h-5" />
             {block.button || block.title}
           </a>
+        ) : block.kind === 'fields' ? (
+          <FieldsContent fields={block.value} />
         ) : (
           <CodeContent block={block} />
         )}
