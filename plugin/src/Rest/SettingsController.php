@@ -596,23 +596,25 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
 		}
 
-		$plugin_file = 'universal-abilities-plugin/default-abilities-plugin.php';
-
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-		if ( is_plugin_active( $plugin_file ) ) {
+		// Already active — nothing to do.
+		if ( PluginDirectory::is_universal_abilities_active() ) {
 			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
 		}
 
-		if ( file_exists( WP_PLUGIN_DIR . '/' . $plugin_file ) ) {
-			$result = activate_plugin( $plugin_file, '', false, true );
+		// Installed but inactive — activate the existing copy instead of downloading a duplicate.
+		$existing = PluginDirectory::universal_abilities_file();
+		if ( null !== $existing ) {
+			$result = activate_plugin( $existing, '', false, true );
 			if ( is_wp_error( $result ) ) {
 				return $result;
 			}
 			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
 		}
 
-		$url = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip';
+		$plugin_file = 'universal-abilities-plugin/default-abilities-plugin.php';
+		$url         = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip';
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/misc.php';
@@ -635,10 +637,7 @@ final class SettingsController extends WP_REST_Controller {
 	}
 
 	private function is_uap_active(): bool {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		return is_plugin_active( 'universal-abilities-plugin/default-abilities-plugin.php' );
+		return PluginDirectory::is_universal_abilities_active();
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

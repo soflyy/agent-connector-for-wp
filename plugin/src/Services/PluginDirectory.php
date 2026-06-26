@@ -420,6 +420,29 @@ final class PluginDirectory {
 	}
 
 	/**
+	 * The Universal Abilities companion plugin's folder slug.
+	 */
+	public const UNIVERSAL_ABILITIES_SLUG = 'universal-abilities-plugin';
+
+	/**
+	 * Resolve the Universal Abilities companion plugin's installed file via the
+	 * tolerant slug matcher (so it's found regardless of its main-file name), or
+	 * null when it isn't installed.
+	 */
+	public static function universal_abilities_file(): ?string {
+		return self::installed_file_for_slug( self::UNIVERSAL_ABILITIES_SLUG );
+	}
+
+	/**
+	 * Whether the Universal Abilities companion plugin is installed AND active.
+	 */
+	public static function is_universal_abilities_active(): bool {
+		$file = self::universal_abilities_file();
+
+		return null !== $file && self::is_active( $file );
+	}
+
+	/**
 	 * Resolve a manifest slug to an installed plugin file, tolerating slug format
 	 * differences (full "folder/file.php" path vs bare folder slug).
 	 *

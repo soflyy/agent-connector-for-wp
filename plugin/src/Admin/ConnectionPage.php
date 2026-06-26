@@ -14,6 +14,7 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
+use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use WP_Application_Passwords;
@@ -142,10 +143,7 @@ final class ConnectionPage {
 	}
 
 	private function is_uap_active(): bool {
-		if ( ! function_exists( 'is_plugin_active' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-		return is_plugin_active( 'universal-abilities-plugin/default-abilities-plugin.php' );
+		return PluginDirectory::is_universal_abilities_active();
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {
