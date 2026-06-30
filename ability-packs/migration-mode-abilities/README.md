@@ -34,14 +34,31 @@ The profile + token can be supplied three ways (checked in this order):
 headers, or `acm_profile` / `acm_token` cookies. The first hit also sets sticky
 cookies so the page's asset/AJAX sub-requests inherit the same profile.
 
+### Where it applies
+
+The switch applies **everywhere the signal is present** — the front end **and
+wp-admin**, plus admin-ajax, REST, and login — so the agent can also drive the
+admin under a profile (open the target builder's editor with the old builder
+off, check WooCommerce admin under the new stack, etc.). wp-cron runs the real
+stack because the loopback cron request never carries the signal.
+
+There is exactly **one carve-out**: the plugin-management screens
+(`plugins.php`, `update.php`, `plugin-install.php`, `plugin-editor.php`, and
+admin-ajax plugin operations) are never filtered. Those read the active-plugin
+list and *write it back*, so filtering them would make WordPress persist the
+reduced list to the database and permanently deactivate the hidden plugins — the
+classic `option_active_plugins` footgun. They always see the true list.
+
 ### Safety
 
 - A **secret token** gates the switch (`hash_equals`, constant-time). Without it
   the switch is completely inert, so a random visitor cannot disable your
   security/membership plugins. Rotate with `repair-mu`.
-- `/wp-admin/`, `wp-login.php`, and cron are **never** filtered → no lock-out.
+- No database writes — filtering is in-memory, per request (and the plugin-screen
+  carve-out above guarantees the reduced list is never persisted).
 - **Protected** plugins (Agent Connector, this plugin, the default-abilities pack)
-  are never disabled, so MCP keeps working under every profile.
+  are never disabled, so MCP and the recovery path keep working under every
+  profile.
 - To fully disable everything: delete the mu-plugin file. This is a dev/staging
   migration tool, not a production access-control layer.
 
@@ -62,8 +79,10 @@ misbehaving. Build each "stack" profile to include every plugin it needs.
 | `migration-mode/get-preview-url` | Token-signed URL (+ header/cookie equivalents) to view a path under a profile. Hand the `url` to a browser/Playwright. |
 | `migration-mode/repair-mu` | (Re)install/update the mu-plugin; optionally rotate the secret. |
 
-Abilities are registered via the WordPress Abilities API and auto-exposed over MCP
-by Agent Connector's mcp-adapter — no custom MCP server.
+Abilities are registered via `agent_connector_for_wp_register_ability()`, so Agent
+Connector injects the permission check (admin/super-admin), domain lock, and audit
+log for each one, and the mcp-adapter auto-exposes them over MCP — no custom MCP
+server and no auth code in this pack.
 
 ## Typical agent workflow
 

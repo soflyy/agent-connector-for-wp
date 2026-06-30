@@ -3,7 +3,7 @@
  * Plugin Name: Migration Mode Switch (MU)
  * Description: Per-request plugin-activation switch for builder migrations. Filters the active-plugin list before plugins load, so one URL can be rendered as if only a chosen "profile" of plugins were active. Managed by the "Migration Mode Abilities" plugin. Delete this file to fully disable.
  *
- * ACM-MU-VERSION: 1.0.0
+ * ACM-MU-VERSION: 1.1.1
  *
  * Why this is an mu-plugin: WordPress loads the active-plugin list in
  * wp_get_active_and_valid_plugins() (wp-settings.php), which reads
@@ -19,7 +19,7 @@ namespace MigrationMode\Switcher;
 
 defined( 'ABSPATH' ) || exit;
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.1';
 
 // Shared option keys (written by the Migration Mode Abilities plugin's abilities).
 const OPT_ENABLED   = 'acm_migration_enabled';
@@ -117,18 +117,50 @@ function compute( array $plugins, array $managed, array $protected, array $keep_
 	return array_values( array_unique( $out ) );
 }
 
-function boot(): void {
-	// Never filter admin, login, or cron requests. This guarantees you can never
-	// lock yourself out of wp-admin, and background jobs run with the real stack.
-	$uri = isset( $_SERVER['REQUEST_URI'] ) ? (string) $_SERVER['REQUEST_URI'] : '';
-	if ( false !== stripos( $uri, '/wp-admin/' ) || false !== stripos( $uri, 'wp-login.php' ) ) {
-		return;
+/**
+ * Detect requests that read AND re-save the active-plugin list — the Plugins
+ * screen and the plugin install/update/activate endpoints. We must NOT filter
+ * these: WordPress would read our reduced list and persist it to the DB,
+ * permanently deactivating the hidden plugins (the classic option_active_plugins
+ * footgun). Everything else — front end, the rest of wp-admin, admin-ajax, REST,
+ * login — IS filtered when the signal is present, so the agent can drive the
+ * admin under a profile too.
+ */
+function is_plugin_management_request(): bool {
+	$script = (string) ( $_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? '' );
+	$screens = array(
+		'/wp-admin/plugins.php',
+		'/wp-admin/network/plugins.php',
+		'/wp-admin/update.php',          // plugin (de)activation / update actions post here
+		'/wp-admin/plugin-install.php',
+		'/wp-admin/plugin-editor.php',
+	);
+	foreach ( $screens as $s ) {
+		if ( strlen( $script ) >= strlen( $s ) && substr( $script, -strlen( $s ) ) === $s ) {
+			return true;
+		}
 	}
-	if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+	// admin-ajax plugin operations (install/update/activate via the bulk UI).
+	$ajax = '/wp-admin/admin-ajax.php';
+	if ( strlen( $script ) >= strlen( $ajax ) && substr( $script, -strlen( $ajax ) ) === $ajax ) {
+		$action = isset( $_REQUEST['action'] ) ? (string) $_REQUEST['action'] : '';
+		if ( false !== stripos( $action, 'plugin' ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function boot(): void {
+	if ( ! get_option( OPT_ENABLED, false ) ) {
 		return;
 	}
 
-	if ( ! get_option( OPT_ENABLED, false ) ) {
+	// The only carve-out: never filter the screens that read-then-write the
+	// active-plugin list, or WP would persist our reduced list to the DB. The
+	// switch otherwise applies everywhere the signal is present (front end AND
+	// wp-admin), so the agent can use the admin under a profile.
+	if ( is_plugin_management_request() ) {
 		return;
 	}
 
@@ -207,17 +239,17 @@ function boot(): void {
 	// page renders. We only reach here for an authenticated preview request.
 	add_filter( 'redirect_canonical', '__return_false' );
 
-	// Debug aid for the agent / curl: echo the computed set as a header.
+	// Debug aid for the agent / curl: echo the computed set as a header. Emitted
+	// on the front end (send_headers) and in wp-admin (admin_init, before output).
 	if ( isset( $_GET['acm_debug'] ) ) {
-		add_action(
-			'send_headers',
-			static function () {
-				if ( is_array( State::$active ) ) {
-					header( 'X-ACM-Profile: ' . State::$profile );
-					header( 'X-ACM-Active-Plugins: ' . implode( ',', State::$active ) );
-				}
+		$emit = static function () {
+			if ( ! headers_sent() && is_array( State::$active ) ) {
+				header( 'X-ACM-Profile: ' . State::$profile );
+				header( 'X-ACM-Active-Plugins: ' . implode( ',', State::$active ) );
 			}
-		);
+		};
+		add_action( 'send_headers', $emit );
+		add_action( 'admin_init', $emit );
 	}
 }
 
