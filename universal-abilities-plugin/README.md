@@ -13,6 +13,7 @@ control of the site to an agent over MCP:
 | `agent-connector-for-wp/php-eval` | Evaluate PHP inside the live WordPress runtime. |
 | `agent-connector-for-wp/file-read` · `-write` · `-list` · `-delete` | Filesystem operations. |
 | `agent-connector-for-wp/env-inspect` | Inspect server / environment details. |
+| `agent-connector-for-wp/search-media` | Search the WordPress media library (read-only). |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time admin login link. |
 
 > **Danger.** These abilities are not sandboxed and are **not** for production.
