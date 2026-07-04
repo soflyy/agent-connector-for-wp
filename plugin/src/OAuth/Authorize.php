@@ -142,14 +142,17 @@ final class Authorize {
 
 		// User denied authorization.
 		if ( 'authorize' !== $action ) {
-			$deny_url = add_query_arg(
-				array(
-					'error'             => 'access_denied',
-					'error_description' => rawurlencode( 'User denied the authorization request.' ),
-					'state'             => rawurlencode( $state ),
-				),
-				$redirect_uri
+			// Note: add_query_arg() URL-encodes values itself — do NOT pre-encode
+			// (e.g. rawurlencode) or state/description arrive double-encoded and
+			// strict clients reject the mismatched state.
+			$deny_args = array(
+				'error'             => 'access_denied',
+				'error_description' => 'User denied the authorization request.',
 			);
+			if ( '' !== $state ) {
+				$deny_args['state'] = $state;
+			}
+			$deny_url = add_query_arg( $deny_args, $redirect_uri );
 			// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri validated against the registered list above.
 			wp_redirect( $deny_url );
 			exit;
@@ -170,13 +173,13 @@ final class Authorize {
 			return new WP_Error( 'server_error', 'Could not generate authorization code.', array( 'status' => 500 ) );
 		}
 
-		$success_url = add_query_arg(
-			array(
-				'code'  => $code,
-				'state' => rawurlencode( $state ),
-			),
-			$redirect_uri
-		);
+		// add_query_arg() URL-encodes values itself; pass raw so state round-trips
+		// back to the client byte-for-byte.
+		$success_args = array( 'code' => $code );
+		if ( '' !== $state ) {
+			$success_args['state'] = $state;
+		}
+		$success_url = add_query_arg( $success_args, $redirect_uri );
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri validated against the registered list above.
 		wp_redirect( $success_url );
 		exit;
