@@ -1,0 +1,140 @@
+/**
+ * OAuth 2.1 authorization (consent) page styles.
+ *
+ * @package AgentConnectorForWp
+ */
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	background: #f0f0f1;
+	color: #1d2327;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	padding: 20px;
+}
+
+.acfw-oauth-card {
+	background: #fff;
+	border-radius: 8px;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, .13);
+	max-width: 440px;
+	width: 100%;
+	padding: 32px;
+}
+
+.acfw-oauth-header {
+	text-align: center;
+	margin-bottom: 24px;
+}
+
+.acfw-oauth-header img {
+	width: 64px;
+	height: 64px;
+	border-radius: 8px;
+	margin-bottom: 12px;
+}
+
+.acfw-oauth-header h1 {
+	font-size: 20px;
+	font-weight: 600;
+	margin-bottom: 8px;
+}
+
+.acfw-oauth-header p {
+	color: #646970;
+	font-size: 14px;
+}
+
+.acfw-oauth-warning {
+	background: #fcf0f1;
+	border-left: 4px solid #d63638;
+	border-radius: 4px;
+	color: #8a1f22;
+	font-size: 13px;
+	line-height: 1.5;
+	margin-bottom: 20px;
+	padding: 12px 14px;
+}
+
+.acfw-oauth-scopes {
+	background: #f6f7f7;
+	border-radius: 6px;
+	padding: 16px;
+	margin-bottom: 24px;
+}
+
+.acfw-oauth-scopes h3 {
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .02em;
+	color: #646970;
+	margin-bottom: 10px;
+}
+
+.acfw-oauth-scopes ul {
+	list-style: none;
+}
+
+.acfw-oauth-scopes li {
+	font-size: 14px;
+	padding: 4px 0 4px 22px;
+	position: relative;
+}
+
+.acfw-oauth-scopes li::before {
+	content: "\2713";
+	color: #00a32a;
+	position: absolute;
+	left: 0;
+	font-weight: 700;
+}
+
+.acfw-oauth-user {
+	color: #646970;
+	font-size: 13px;
+	text-align: center;
+	margin-bottom: 20px;
+}
+
+.acfw-oauth-actions {
+	display: flex;
+	gap: 12px;
+}
+
+.acfw-oauth-actions button {
+	flex: 1;
+	border: 0;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 600;
+	padding: 12px 0;
+	transition: background .15s ease;
+}
+
+.acfw-oauth-btn-deny {
+	background: #f0f0f1;
+	color: #1d2327;
+}
+
+.acfw-oauth-btn-deny:hover {
+	background: #dcdcde;
+}
+
+.acfw-oauth-btn-authorize {
+	background: #2271b1;
+	color: #fff;
+}
+
+.acfw-oauth-btn-authorize:hover {
+	background: #135e96;
+}
