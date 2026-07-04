@@ -223,11 +223,10 @@ final class Server {
 		}
 
 		foreach ( $redirect_uris as $uri ) {
-			$uri = esc_url_raw( (string) $uri );
-			if ( '' === $uri || 0 !== strpos( $uri, 'https://' ) ) {
+			if ( ! self::is_valid_redirect_uri( (string) $uri ) ) {
 				return new WP_Error(
 					'invalid_redirect_uri',
-					'All redirect_uris must be valid HTTPS URLs.',
+					'Each redirect_uri must be an HTTPS URL or an http:// loopback address (localhost, 127.0.0.1, [::1]).',
 					array( 'status' => 400 )
 				);
 			}
@@ -269,6 +268,42 @@ final class Server {
 		}
 
 		return new WP_REST_Response( $response_data, 201 );
+	}
+
+	/**
+	 * Validate a client-supplied redirect_uri for Dynamic Client Registration.
+	 *
+	 * Accepts HTTPS URLs (remote/web clients such as claude.ai), and http://
+	 * loopback URLs (localhost, 127.0.0.1, [::1]) which native and CLI clients
+	 * — Claude Code, Claude Desktop, Cursor, VS Code — use for the OAuth
+	 * redirect per RFC 8252 §7.3 ("Loopback Interface Redirection"). Loopback
+	 * http is safe because the response never leaves the user's machine.
+	 *
+	 * Plain http on any non-loopback host is rejected: it would expose the
+	 * authorization code in transit.
+	 *
+	 * @param string $uri The raw redirect_uri from the registration request.
+	 */
+	private static function is_valid_redirect_uri( string $uri ): bool {
+		if ( '' === $uri || esc_url_raw( $uri ) !== $uri ) {
+			// Empty, or altered by sanitization (e.g. a disallowed/private-use
+			// scheme, or embedded whitespace) — reject.
+			return false;
+		}
+
+		$scheme = strtolower( (string) wp_parse_url( $uri, PHP_URL_SCHEME ) );
+		$host   = strtolower( (string) wp_parse_url( $uri, PHP_URL_HOST ) );
+
+		if ( 'https' === $scheme ) {
+			return '' !== $host;
+		}
+
+		if ( 'http' === $scheme ) {
+			// Loopback only. wp_parse_url returns [::1] for IPv6 as "[::1]".
+			return in_array( $host, array( 'localhost', '127.0.0.1', '[::1]', '::1' ), true );
+		}
+
+		return false;
 	}
 
 	/**
