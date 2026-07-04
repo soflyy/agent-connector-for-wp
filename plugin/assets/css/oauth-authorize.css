@@ -19,6 +19,7 @@ body {
 	align-items: center;
 	min-height: 100vh;
 	padding: 20px;
+	-webkit-font-smoothing: antialiased;
 }
 
 .acfw-oauth-card {
