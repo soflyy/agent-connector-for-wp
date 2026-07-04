@@ -194,7 +194,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         label: 'Claude Desktop',
         blocks: [{
           kind: 'json', title: 'mcpServers config',
-          hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application\\ Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
+          hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
           value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
             'Copy the JSON below',
@@ -224,6 +224,83 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         }],
       },
     ],
+  }
+}
+
+// ─── OAuth (remote URL) artifact builder ─────────────────────────────────────
+//
+// The recommended path: OAuth-capable clients only need the MCP endpoint URL.
+// They fetch it, receive a 401 pointing at this site's .well-known discovery
+// document, self-register (Dynamic Client Registration), and open the consent
+// page for the admin to approve — no application password, no local proxy, no
+// Node.js. See src/OAuth/Server.php.
+
+function buildOAuth(serverName, serverUrl) {
+  // A universal copyable URL block used as the fallback for every client.
+  const urlBlock = {
+    kind: 'url', title: 'MCP Server URL',
+    hint: 'Add this as a <strong>remote</strong> (Streamable HTTP) MCP server. When prompted, sign in to this site and click <strong>Authorize</strong>. Only administrators can approve access.',
+    value: serverUrl,
+  }
+
+  // `claude mcp add --transport http` wires up a remote server with OAuth.
+  const claudeCodeHttp = `claude mcp add --transport http ${shellArg(serverName)} ${shellArg(serverUrl)}`
+
+  // VS Code and Cursor accept a remote server described by a bare { url } entry.
+  const vscodeRemote = JSON.stringify({ name: serverName, url: serverUrl })
+  const vscodeRemoteCLI = 'code --add-mcp ' + shellArg(vscodeRemote)
+  const cursorRemote = btoa(JSON.stringify({ url: serverUrl }))
+  const cursorRemoteDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorRemote)}`
+
+  const perAgent = {
+    'claude-desktop': [{
+      ...urlBlock,
+      steps: [
+        'Open Claude → <strong>Settings</strong> → <strong>Connectors</strong>',
+        'Click <strong>Add custom connector</strong>',
+        'Paste the MCP Server URL below and click <strong>Add</strong>',
+        'When Claude opens the sign-in page, log in and click <strong>Authorize</strong>',
+      ],
+    }],
+    'claude-code': [{
+      kind: 'command', title: 'Terminal command',
+      hint: 'Adds this site as a remote MCP server. Claude Code opens your browser to sign in and authorize on first use.',
+      value: claudeCodeHttp,
+      steps: [
+        'Copy the command below',
+        'Open your terminal and paste it',
+        'Run any tool once — Claude Code opens the browser to sign in and authorize',
+      ],
+    }],
+    'codex-cli': [{
+      ...urlBlock,
+      steps: [
+        'Add a remote (Streamable HTTP) MCP server with the URL below',
+        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+      ],
+    }],
+    'codex-desktop': [{
+      ...urlBlock,
+      steps: [
+        'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
+        'Click <strong>Add Server</strong> and choose the remote / URL option',
+        'Paste the MCP Server URL below',
+        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+      ],
+    }],
+    'other': [{
+      ...urlBlock,
+      steps: [
+        'Add a remote (Streamable HTTP) MCP server with the URL below',
+        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+      ],
+    }],
+  }
+
+  return {
+    url: serverUrl,
+    agents: AGENTS.map((a) => ({ id: a.id, label: a.label, blocks: perAgent[a.id] || perAgent.other })),
+    extras: { vscodeRemoteCLI, cursorRemoteDeeplink },
   }
 }
 
@@ -373,6 +450,8 @@ function Block({ block, videoUrl }) {
     ? <FileCode className="w-4 h-4" />
     : block.kind === 'deeplink'
     ? <Link className="w-4 h-4" />
+    : block.kind === 'url'
+    ? <Link className="w-4 h-4" />
     : block.kind === 'fields'
     ? <Settings className="w-4 h-4" />
     : <MessageSquare className="w-4 h-4" />
@@ -457,11 +536,8 @@ function WelcomeStep({ status, onStart }) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
           <h2 className="text-xl font-semibold text-amber-900">Agent Connector isn't active</h2>
-          <p className="text-base text-amber-700 max-w-sm mx-auto">
-            {status.prodBlocked
-              ? 'A protection is holding it back: “Block on production environments” is on and this is a production site.'
-              : "It's switched off."}{' '}
-            Manage this in{' '}
+          <p className="text-base text-amber-700 max-w-xs mx-auto">
+            Enable the MCP server in{' '}
             <button className="underline font-medium" onClick={() => { window.location.hash = '/settings' }}>
               Settings
             </button>
@@ -483,7 +559,7 @@ function WelcomeStep({ status, onStart }) {
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
           <p className="text-gray-500 leading-relaxed">
-            Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
+            Give any AI agent access to this WordPress site over MCP. Connect over OAuth — sign in and approve, no password to copy. It takes about 30 seconds.
           </p>
         </div>
         <div className="flex flex-col items-center gap-3">
@@ -630,7 +706,9 @@ function GeneratedPasswordNotice({ password }) {
   )
 }
 
-function GenerateStep({ selectedAgent, status, onBack }) {
+// The legacy application-password + local-proxy flow, tucked behind a
+// disclosure. Kept intact for clients that don't yet speak remote MCP / OAuth.
+function LegacyPasswordFlow({ selectedAgent, status }) {
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
   const defaultName = `${agentMeta.label} App Password`
 
@@ -668,6 +746,125 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
   const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
 
+  if (connection) {
+    return (
+      <div className="space-y-6">
+        {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
+        <div className="space-y-6">
+          {agentData?.blocks?.length
+            ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
+            : <p className="text-base text-gray-400">No configuration available for this agent.</p>
+          }
+        </div>
+      </div>
+    )
+  }
+
+  if (mode === 'generate') {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <KeyRound className="w-6 h-6 text-gray-500" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Generate an application password</h2>
+            <p className="text-base text-gray-500 mt-0.5">Runs the site through a local Node.js proxy (<code>npx</code>).</p>
+          </div>
+        </div>
+
+        {!status.pwAvailable && (
+          <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
+            <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            Application passwords require HTTPS and aren't available on this site.
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="block text-base font-medium text-gray-700">Password name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">{error}</div>
+        )}
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleGenerate}
+            disabled={generating || !status.pwAvailable}
+            className="inline-flex items-center gap-2 px-7 py-3 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-base font-semibold rounded-lg transition-colors"
+          >
+            {generating
+              ? <><RefreshCw className="w-5 h-5 animate-spin" /> Generating…</>
+              : <><KeyRound className="w-5 h-5" /> Generate App Password</>
+            }
+          </button>
+          <button
+            onClick={() => setMode('existing')}
+            className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+          >
+            I already have one
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+      <div className="flex items-center gap-4">
+        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+          <Lock className="w-6 h-6 text-gray-500" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Use an existing password</h2>
+          <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally — never sent to the server.</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-base font-medium text-gray-700">Application password</label>
+        <input
+          type="text"
+          value={existingPw}
+          onChange={(e) => setExistingPw(e.target.value)}
+          placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleUseExisting}
+          className="inline-flex items-center gap-2 px-7 py-3 bg-gray-700 hover:bg-gray-600 text-white text-base font-semibold rounded-lg transition-colors"
+        >
+          <ArrowRight className="w-5 h-5" />
+          Use this password
+        </button>
+        <button
+          onClick={() => setMode('generate')}
+          className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+        >
+          Generate a new one instead
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function GenerateStep({ selectedAgent, status, onBack }) {
+  const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
+  const [showLegacy, setShowLegacy] = useState(false)
+
+  const oauth = buildOAuth(initial.serverName, initial.serverUrl)
+  const agentData = oauth.agents.find((a) => a.id === selectedAgent)
+
   return (
     <div className={SHELL}>
       <BackLink onClick={onBack} label="Choose a different agent" />
@@ -676,118 +873,43 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      {connection ? (
-        <>
-          {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
-            <div className="space-y-6">
-              {agentData?.blocks?.length
-                ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
-                : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-              }
-            </div>
-          </div>
-        </>
-      ) : mode === 'generate' ? (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center flex-shrink-0">
-              <KeyRound className="w-6 h-6 text-indigo-500" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Generate an application password</h2>
-              <p className="text-base text-gray-500 mt-0.5">A WordPress credential scoped to your account.</p>
-            </div>
-          </div>
-
-          {!status.pwAvailable && (
-            <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
-              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              <span>
-                Application passwords require HTTPS and aren't available on this site. On a
-                production environment WordPress only allows them over HTTPS; over plain HTTP they
-                work only when the site's environment type is <code className="font-mono">local</code>{' '}
-                (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
-                <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
-              </span>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <label className="block text-base font-medium text-gray-700">Password name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-          </div>
-
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">{error}</div>
-          )}
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleGenerate}
-              disabled={generating || !status.pwAvailable}
-              className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-base font-semibold rounded-lg transition-colors"
-            >
-              {generating
-                ? <><RefreshCw className="w-5 h-5 animate-spin" /> Generating…</>
-                : <><KeyRound className="w-5 h-5" /> Generate App Password</>
-              }
-            </button>
-            <button
-              onClick={() => setMode('existing')}
-              className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
-            >
-              I already have one
-            </button>
-          </div>
+      {/* Recommended: OAuth remote connection. */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
+            <Sparkles className="w-3 h-3" /> Recommended
+          </span>
         </div>
-      ) : (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-              <Lock className="w-6 h-6 text-gray-500" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Use an existing password</h2>
-              <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally — never sent to the server.</p>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-base font-medium text-gray-700">Application password</label>
-            <input
-              type="text"
-              value={existingPw}
-              onChange={(e) => setExistingPw(e.target.value)}
-              placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-base font-mono text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleUseExisting}
-              className="inline-flex items-center gap-2 px-7 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
-            >
-              <ArrowRight className="w-5 h-5" />
-              Use this password
-            </button>
-            <button
-              onClick={() => setMode('generate')}
-              className="text-base text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
-            >
-              Generate a new one instead
-            </button>
-          </div>
+        <p className="text-base text-gray-500">
+          Connect over OAuth — the agent signs in to this site and you approve access. No password to copy, no proxy to install.
+        </p>
+        <div className="space-y-6">
+          {agentData?.blocks?.length
+            ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
+            : <p className="text-base text-gray-400">No configuration available for this agent.</p>
+          }
         </div>
-      )}
+      </div>
+
+      {/* Legacy: application password + local proxy, hidden by default. */}
+      <div className="border-t border-gray-200 pt-6">
+        <button
+          onClick={() => setShowLegacy((s) => !s)}
+          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <KeyRound className="w-4 h-4" />
+          {showLegacy ? 'Hide' : 'Show'} legacy setup (application password + proxy)
+        </button>
+        {showLegacy && (
+          <div className="mt-4 space-y-4">
+            <p className="text-sm text-gray-400">
+              Older method for clients that don't support remote MCP servers. Requires Node.js and runs traffic through a local <code>npx</code> proxy authenticated with a WordPress application password.
+            </p>
+            <LegacyPasswordFlow selectedAgent={selectedAgent} status={status} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
