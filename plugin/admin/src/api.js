@@ -42,6 +42,7 @@ export const api = {
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
   installUap: () => request('/uap/install', { method: 'POST' }),
+  installMcpAdapter: () => request('/mcp-adapter/install', { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 
@@ -64,5 +65,7 @@ export const initial = {
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
   uapActive: bool(cfg.uapActive),
+  mcpAdapterAvailable: bool(cfg.mcpAdapterAvailable, true),
+  mcpAdapterActive: bool(cfg.mcpAdapterActive),
   showGsBanner: bool(cfg.showGsBanner),
 }

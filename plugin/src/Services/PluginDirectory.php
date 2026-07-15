@@ -443,6 +443,44 @@ final class PluginDirectory {
 	}
 
 	/**
+	 * The standalone WordPress "MCP Adapter" plugin's folder slug.
+	 *
+	 * Agent Connector bundles wordpress/mcp-adapter via Composer, so this plugin
+	 * is normally NOT needed. It matters only when the bundled copy is missing —
+	 * e.g. a source checkout where `composer install` has not been run — in which
+	 * case installing this standalone plugin restores the adapter (and thus the
+	 * MCP endpoint) with one click.
+	 */
+	public const MCP_ADAPTER_SLUG = 'mcp-adapter';
+
+	/**
+	 * Resolve the standalone MCP Adapter plugin's installed file via the tolerant
+	 * slug matcher, or null when it isn't installed.
+	 */
+	public static function mcp_adapter_file(): ?string {
+		return self::installed_file_for_slug( self::MCP_ADAPTER_SLUG );
+	}
+
+	/**
+	 * Whether the standalone MCP Adapter plugin is installed AND active.
+	 */
+	public static function is_mcp_adapter_active(): bool {
+		$file = self::mcp_adapter_file();
+
+		return null !== $file && self::is_active( $file );
+	}
+
+	/**
+	 * Whether the MCP Adapter library is available in this request — whether that
+	 * is the copy bundled with this plugin (vendor/) or one provided by the
+	 * standalone "MCP Adapter" plugin. When false, the MCP server can't boot and
+	 * the connection endpoint won't exist, so the Connect flow can't work yet.
+	 */
+	public static function is_mcp_adapter_available(): bool {
+		return class_exists( \WP\MCP\Core\McpAdapter::class );
+	}
+
+	/**
 	 * Resolve a manifest slug to an installed plugin file, tolerating slug format
 	 * differences (full "folder/file.php" path vs bare folder slug).
 	 *

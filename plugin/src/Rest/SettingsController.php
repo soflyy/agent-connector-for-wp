@@ -146,6 +146,16 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
+			'/mcp-adapter/install',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'install_mcp_adapter' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
 			'/dismiss-gs-banner',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -208,19 +218,21 @@ final class SettingsController extends WP_REST_Controller {
 		$user = wp_get_current_user();
 		return new WP_REST_Response(
 			array(
-				'enabled'             => Config::is_enabled(),
-				'active'              => Config::can_boot(),
-				'prod_blocked'        => Config::is_blocked_by_production(),
-				'mcp_debug'           => Config::mcp_debug_enabled(),
-				'production_override' => Config::production_override_enabled(),
-				'is_non_prod'         => Config::is_non_production_env(),
-				'locked_host'         => Config::locked_host(),
-				'declared_host'       => Config::declared_host(),
-				'env_type'            => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
-				'server_url'          => Connection::endpoint_url(),
-				'username'            => $user instanceof \WP_User ? $user->user_login : '',
-				'pw_available'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
-				'uap_active'          => $this->is_uap_active(),
+				'enabled'               => Config::is_enabled(),
+				'active'                => Config::can_boot(),
+				'prod_blocked'          => Config::is_blocked_by_production(),
+				'mcp_debug'             => Config::mcp_debug_enabled(),
+				'production_override'   => Config::production_override_enabled(),
+				'is_non_prod'           => Config::is_non_production_env(),
+				'locked_host'           => Config::locked_host(),
+				'declared_host'         => Config::declared_host(),
+				'env_type'              => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
+				'server_url'            => Connection::endpoint_url(),
+				'username'              => $user instanceof \WP_User ? $user->user_login : '',
+				'pw_available'          => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'uap_active'            => $this->is_uap_active(),
+				'mcp_adapter_available' => PluginDirectory::is_mcp_adapter_available(),
+				'mcp_adapter_active'    => PluginDirectory::is_mcp_adapter_active(),
 			)
 		);
 	}
@@ -634,6 +646,104 @@ final class SettingsController extends WP_REST_Controller {
 		activate_plugin( $plugin_file, '', false, true );
 
 		return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
+	}
+
+	/**
+	 * Download URL for the standalone WordPress "MCP Adapter" plugin.
+	 *
+	 * The built release asset (bundles its own vendor/) — NOT the auto-generated
+	 * source tarball, which would fatal on load. Pinned to the ^0.5 line this
+	 * plugin declares in composer.json. Filterable so a site can point at a
+	 * different build if needed.
+	 */
+	private function mcp_adapter_download_url(): string {
+		/**
+		 * Filters the URL the standalone MCP Adapter plugin is installed from.
+		 *
+		 * @param string $url Default built-release ZIP URL on github.com.
+		 */
+		return (string) apply_filters(
+			'agent_connector_for_wp_mcp_adapter_download_url',
+			'https://github.com/WordPress/mcp-adapter/releases/download/v0.5.0/mcp-adapter.zip'
+		);
+	}
+
+	/**
+	 * Install (and activate) the standalone MCP Adapter plugin.
+	 *
+	 * Only relevant when the bundled adapter is missing (e.g. a source checkout
+	 * without `composer install`): without the adapter the MCP server can't boot
+	 * and the connection endpoint won't exist. Mirrors install_uap(): no-op when
+	 * the adapter is already available, activate an installed-but-inactive copy,
+	 * otherwise download the built release ZIP and activate it.
+	 */
+	public function install_mcp_adapter( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
+			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		// Already available — bundled (vendor/) or via an active standalone plugin.
+		if ( PluginDirectory::is_mcp_adapter_available() ) {
+			return new WP_REST_Response(
+				array(
+					'success'               => true,
+					'mcp_adapter_available' => true,
+					'mcp_adapter_active'    => PluginDirectory::is_mcp_adapter_active(),
+				)
+			);
+		}
+
+		// Installed but inactive — activate the existing copy instead of downloading a duplicate.
+		$existing = PluginDirectory::mcp_adapter_file();
+		if ( null !== $existing ) {
+			$result = activate_plugin( $existing, '', false, true );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return new WP_REST_Response(
+				array(
+					'success'               => true,
+					'mcp_adapter_available' => true,
+					'mcp_adapter_active'    => true,
+				)
+			);
+		}
+
+		$url = $this->mcp_adapter_download_url();
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/misc.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+
+		if ( 'direct' !== get_filesystem_method() ) {
+			return new WP_Error( 'fs_unavailable', __( 'Direct filesystem access is not available on this server.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
+
+		$upgrader  = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
+		$installed = $upgrader->install( $url );
+
+		if ( is_wp_error( $installed ) || true !== $installed ) {
+			return new WP_Error( 'install_failed', __( 'Could not install the MCP Adapter. Please try installing it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
+
+		$plugin_file = (string) $upgrader->plugin_info();
+		if ( '' === $plugin_file ) {
+			$plugin_file = (string) ( PluginDirectory::mcp_adapter_file() ?? '' );
+		}
+
+		if ( '' !== $plugin_file ) {
+			activate_plugin( $plugin_file, '', false, true );
+		}
+
+		return new WP_REST_Response(
+			array(
+				'success'               => true,
+				'mcp_adapter_available' => true,
+				'mcp_adapter_active'    => PluginDirectory::is_mcp_adapter_active(),
+			)
+		);
 	}
 
 	private function is_uap_active(): bool {

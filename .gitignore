@@ -3,6 +3,10 @@
 # tracked so builds are reproducible.
 /plugin/vendor/
 
+# Node dependencies for the admin React app — installed via `npm install`,
+# never committed (the built bundle in plugin/admin/build/ IS tracked).
+node_modules/
+
 # Build artifacts
 /plugin/dist/
 /dist/

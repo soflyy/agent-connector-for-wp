@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, Download, Package,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
@@ -448,6 +448,69 @@ function BackLink({ onClick, label = 'Back' }) {
   )
 }
 
+// ─── Step 0: Ensure the MCP Adapter is present ────────────────────────────────
+
+// The MCP server can't run — and this site has no MCP endpoint to connect to —
+// unless the WordPress MCP Adapter library is loaded. It's normally bundled with
+// this plugin, so this only appears when the bundled copy is missing (e.g. a
+// source checkout without `composer install`). One click installs the standalone
+// "MCP Adapter" plugin and restores the endpoint.
+function McpAdapterStep({ onInstalled }) {
+  const [installing, setInstalling] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function install() {
+    setInstalling(true)
+    setError(null)
+    try {
+      await api.installMcpAdapter()
+      onInstalled()
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setInstalling(false)
+    }
+  }
+
+  return (
+    <div className={SHELL}>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center space-y-6">
+        <div className="flex justify-center">
+          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
+            <Package className="w-10 h-10 text-indigo-500" />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <h1 className="text-2xl font-bold text-gray-900">One quick step: install the MCP Adapter</h1>
+          <p className="text-gray-500 leading-relaxed max-w-md mx-auto">
+            Agent Connector runs its MCP server on top of the WordPress <strong>MCP Adapter</strong>, which
+            isn't available on this site yet. Install it to create the MCP endpoint your agent connects to.
+          </p>
+        </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700 max-w-md mx-auto">
+            {error}
+          </div>
+        )}
+
+        <div className="flex justify-center">
+          <button
+            onClick={install}
+            disabled={installing}
+            className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-base font-semibold rounded-lg transition-colors"
+          >
+            {installing
+              ? <><RefreshCw className="w-5 h-5 animate-spin" /> Installing…</>
+              : <><Download className="w-5 h-5" /> Install MCP Adapter</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Step 1: Welcome ──────────────────────────────────────────────────────────
 
 function WelcomeStep({ status, onStart }) {
@@ -785,9 +848,19 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
-export default function Connect({ status }) {
+export default function Connect({ status, onStatusChange }) {
   const [step, setStep] = useState('welcome')
   const [selectedAgent, setSelectedAgent] = useState('codex-cli')
+
+  // The MCP endpoint doesn't exist until the adapter is loaded — gate the whole
+  // wizard on it so the connection instructions can't point at a dead endpoint.
+  if (!status.mcpAdapterAvailable) {
+    return (
+      <McpAdapterStep
+        onInstalled={() => onStatusChange?.((s) => ({ ...s, mcpAdapterAvailable: true, mcpAdapterActive: true }))}
+      />
+    )
+  }
 
   if (step === 'welcome') {
     return <WelcomeStep status={status} onStart={() => setStep('pick')} />

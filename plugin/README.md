@@ -44,6 +44,10 @@ The goal: give trusted agents in development environments effectively **SSH-equi
 - A local / development / staging environment
 
 > `wordpress/mcp-adapter` is bundled — you do not need to install it separately.
+> If the bundled copy is ever missing (e.g. a source checkout before
+> `composer install`), the **Connect an agent** screen detects it and offers a
+> one-click install of the standalone [MCP Adapter](https://github.com/WordPress/mcp-adapter)
+> plugin so the MCP endpoint comes to life.
 
 ## Install
 
