@@ -676,6 +676,15 @@ final class SettingsController extends WP_REST_Controller {
 	 * and the connection endpoint won't exist. Mirrors install_uap(): no-op when
 	 * the adapter is already available, activate an installed-but-inactive copy,
 	 * otherwise download the built release ZIP and activate it.
+	 *
+	 * Loading stays the Jetpack-Autoloader story used everywhere in this stack
+	 * (and in the Breakdance plugin): this plugin loads its bundled adapter via
+	 * vendor/autoload_packages.php, and the standalone plugin loads its own copy.
+	 * When both bundle the adapter behind the Jetpack Autoloader, its cross-plugin
+	 * dedup keeps a single newest McpAdapter loaded instead of fataling on a
+	 * double class declaration. We install the standalone plugin ONLY when
+	 * is_mcp_adapter_available() is false — i.e. no McpAdapter is declared yet —
+	 * so this fallback can never be what introduces a duplicate in the first place.
 	 */
 	public function install_mcp_adapter( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
@@ -684,7 +693,8 @@ final class SettingsController extends WP_REST_Controller {
 
 		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-		// Already available — bundled (vendor/) or via an active standalone plugin.
+		// Already available — our bundled copy (loaded via the Jetpack Autoloader)
+		// or an active standalone plugin. Nothing to install.
 		if ( PluginDirectory::is_mcp_adapter_available() ) {
 			return new WP_REST_Response(
 				array(
