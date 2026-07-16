@@ -457,8 +457,11 @@ function WelcomeStep({ status, onStart }) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
           <h2 className="text-xl font-semibold text-amber-900">Agent Connector isn't active</h2>
-          <p className="text-base text-amber-700 max-w-xs mx-auto">
-            Enable the MCP server in{' '}
+          <p className="text-base text-amber-700 max-w-sm mx-auto">
+            {status.prodBlocked
+              ? 'A protection is holding it back: “Block on production environments” is on and this is a production site.'
+              : "It's switched off."}{' '}
+            Manage this in{' '}
             <button className="underline font-medium" onClick={() => { window.location.hash = '/settings' }}>
               Settings
             </button>

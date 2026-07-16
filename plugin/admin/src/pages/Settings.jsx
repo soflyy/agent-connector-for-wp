@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { RefreshCw, AlertTriangle, ShieldAlert, Lock, Bug, Package, CheckCircle2, Download } from 'lucide-react'
-import { api } from '../api'
+import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2, Download } from 'lucide-react'
+import { api, normalizeStatus } from '../api'
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -121,7 +121,9 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
 export default function Settings({ status, onStatusChange }) {
   const [form, setForm] = useState({
     enabled: status.enabled,
-    productionOverride: status.productionOverride,
+    blockProduction: status.blockProduction,
+    domainLockEnabled: status.domainLockEnabled,
+    hideProdWarning: status.hideProdWarning,
     mcpDebug: status.mcpDebug,
   })
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
@@ -140,10 +142,12 @@ export default function Settings({ status, onStatusChange }) {
     try {
       const result = await api.saveSettings({
         enabled: newForm.enabled,
-        production_override: newForm.productionOverride,
+        block_production: newForm.blockProduction,
+        domain_lock_enabled: newForm.domainLockEnabled,
+        hide_production_warning: newForm.hideProdWarning,
         mcp_debug: newForm.mcpDebug,
       })
-      onStatusChange((s) => ({ ...s, ...result.status }))
+      onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) {
@@ -157,7 +161,7 @@ export default function Settings({ status, onStatusChange }) {
     setReconnectNotice(null)
     try {
       const result = await api.reconnect()
-      onStatusChange((s) => ({ ...s, ...result.status }))
+      onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setReconnectNotice({ type: 'success', message: 'Reconnected to this domain.' })
     } catch (e) {
       setReconnectNotice({ type: 'error', message: e.message })
@@ -182,7 +186,7 @@ export default function Settings({ status, onStatusChange }) {
   }
 
   const lockMismatch =
-    status.active && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
+    form.domainLockEnabled && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
 
   return (
     <>
@@ -258,23 +262,48 @@ export default function Settings({ status, onStatusChange }) {
             }
           />
 
-          {!status.isNonProd && (
-            <Row
-              label="Production override"
-              description="This site reports a production environment type. Enabling without this override is blocked."
-              danger
-              control={
-                <Toggle
-                  checked={form.productionOverride}
-                  onChange={(v) => setAndSave('productionOverride', v)}
-                />
-              }
-            />
-          )}
         </Section>
 
-        {/* Domain lock */}
-        <Section title="Domain lock" icon={Lock}>
+        {/* Protection */}
+        <Section title="Protection" icon={Shield}>
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-sm text-gray-500">
+            Optional safeguards, all off by default. Agent Connector works everywhere out of the
+            box — turn these on if you want hard limits, for example before pushing a staging
+            database to production.
+          </div>
+
+          <Row
+            label="Block on production environments"
+            description={`Stops the MCP server entirely while wp_get_environment_type() reports "production". This site currently reports "${status.envType}".`}
+            control={
+              <Toggle
+                checked={form.blockProduction}
+                onChange={(v) => setAndSave('blockProduction', v)}
+              />
+            }
+          />
+
+          {form.blockProduction && !status.isNonProd && (
+            <div className="px-6 py-4 bg-amber-50 border-b border-amber-100 flex items-start gap-2.5 text-base text-amber-700">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>
+                This site reports a production environment, so Agent Connector is now inactive.
+                Turn this off to use it here.
+              </span>
+            </div>
+          )}
+
+          <Row
+            label="Enable domain lock"
+            description="Blocks all abilities if the site's domain changes — protects databases copied to another site (e.g. staging pushed to production)."
+            control={
+              <Toggle
+                checked={form.domainLockEnabled}
+                onChange={(v) => setAndSave('domainLockEnabled', v)}
+              />
+            }
+          />
+
           {lockMismatch && (
             <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-start gap-2.5 text-base text-red-700">
               <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -287,7 +316,11 @@ export default function Settings({ status, onStatusChange }) {
           )}
           <Row
             label="Locked to"
-            description="Abilities are blocked on any other domain to protect copied databases."
+            description={
+              form.domainLockEnabled
+                ? 'Abilities are blocked on any other domain.'
+                : 'Set automatically when the plugin is activated. Not enforced while the domain lock is off.'
+            }
             control={
               <code className="text-sm text-gray-500 font-mono">
                 {status.lockedHost || '(not locked)'}
@@ -317,6 +350,17 @@ export default function Settings({ status, onStatusChange }) {
               Reconnect to this domain
             </button>
           </div>
+
+          <Row
+            label="Disable production warning"
+            description="Hides the site-wide wp-admin warning shown while Agent Connector runs on a production environment. Clicking “I understand” on the warning sets this too."
+            control={
+              <Toggle
+                checked={form.hideProdWarning}
+                onChange={(v) => setAndSave('hideProdWarning', v)}
+              />
+            }
+          />
         </Section>
 
         {/* Debug */}

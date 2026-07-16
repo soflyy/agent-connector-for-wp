@@ -8,6 +8,9 @@
 /dist/
 *.zip
 
+# Admin app dependencies (build output under plugin/admin/build IS tracked)
+/plugin/admin/node_modules/
+
 # Runtime artifacts
 agent-connector-for-wp-audit.log
 *.log

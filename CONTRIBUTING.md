@@ -6,8 +6,7 @@ Every merge to `master` that touches `plugin/**` automatically cuts a new
 versioned GitHub Release (see [`.github/workflows/auto-release.yml`](.github/workflows/auto-release.yml)).
 The workflow reads the **merged PR's title** as a [Conventional Commit](https://www.conventionalcommits.org/)
 and uses it to decide the version bump, then syncs the version into the plugin
-header / `readme.txt`, tags it, builds the vendored zip, and publishes the
-release.
+header, tags it, builds the vendored zip, and publishes the release.
 
 **So: title every PR like a conventional commit.** That title is the one that
 matters — branch commit messages are not what drives the bump.
@@ -25,9 +24,9 @@ land as patch releases.
 ### Notes
 
 - **Don't hand-edit the version** in `plugin/agent-connector-for-wp.php`
-  (`Version:` header and `AGENT_CONNECTOR_FOR_WP_VERSION`) or `readme.txt`
-  (`Stable tag:`). The release bot owns those and commits the bump with
-  `[skip ci]`. Editing them yourself just creates conflicts.
+  (`Version:` header and `AGENT_CONNECTOR_FOR_WP_VERSION`). The release bot owns
+  it and commits the bump with `[skip ci]`. Editing it yourself just creates
+  conflicts.
 - **Scope:** releases fire only when `plugin/**` changes. A merge touching only
   the tracker, abilities generator, ability packs, or root docs won't cut a
   release.

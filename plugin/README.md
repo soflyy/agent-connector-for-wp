@@ -1,7 +1,5 @@
 # Agent Connector for WP
 
-> ⚠️ **Dangerous by design.** With the optional [Default Abilities](../universal-abilities-plugin/README.md) pack installed and enabled, this stack grants root-equivalent operational capability — arbitrary shell, PHP eval, and filesystem access — to authenticated super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; everywhere else the Enable toggle is enough. Only turn it on where you would be comfortable handing out a root shell.
-
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
 This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes is governed by its auth (super-admin), domain lock, and audit log, no matter which plugin registered it.
@@ -33,7 +31,7 @@ The abilities the **Default Abilities** pack contributes:
 | `agent-connector-for-wp/process-exec` | Longer-running command execution (proxies shell-exec in v1). |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
 
-The goal: give trusted agents in development environments effectively **SSH-equivalent** operational access through the existing WordPress MCP stack.
+The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — and the Default Abilities pack once installed — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
 
 ## Requirements
 
@@ -41,7 +39,6 @@ The goal: give trusted agents in development environments effectively **SSH-equi
 - The WordPress AI plugin (provides the Abilities API)
 - PHP 8.1+
 - WP-CLI available on the server (recommended)
-- A local / development / staging environment
 
 > `wordpress/mcp-adapter` is bundled — you do not need to install it separately.
 
@@ -63,8 +60,9 @@ fetches them. If you download a packaged release `.zip` (built by CI, with
 
 ## Connect an agent
 
-Once enabled, scroll to the **Connect an agent** section of **Agent Connector for
-WP → Connection** in wp-admin and click **Generate connection**. The plugin will:
+The plugin is on as soon as you activate it. Open **Agent Connector →
+Connection** in wp-admin, pick your agent, and click **Generate connection**. The
+plugin will:
 
 1. mint a fresh WordPress application password for your account,
 2. compute this site's MCP server URL, and
@@ -84,38 +82,46 @@ The application password is shown only once, embedded in those artifacts — cop
 it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
-## Enable
+## Settings
 
-Everything is configured on one screen — **Agent Connector for WP → Connection**
-in wp-admin (always available, even while the plugin is off). There is no
-enabling constant.
+Everything is configured on one screen — **Agent Connector → Settings** in
+wp-admin. There is no enabling constant.
 
-- **Enable Agent Connector** — the master toggle. When on, the plugin runs an MCP
-  server for this site and exposes the abilities other plugins registered
-  ("third-party abilities" — always active while enabled). Enabling also locks the
-  plugin to the current domain.
-- **Built-in abilities** — the powerful abilities (shell, PHP eval, filesystem,
+- **Enable Agent Connector** — the master toggle, **on by default**. When on, the
+  plugin runs an MCP server for this site and exposes the abilities other plugins
+  registered ("third-party abilities"). Activating the plugin turns this on and
+  pins the domain lock to the current host automatically.
+- **Universal Abilities** — the powerful abilities (shell, PHP eval, filesystem,
   WP-CLI, env-inspect, admin-login) live in the separate
-  **[Default Abilities](../universal-abilities-plugin/README.md)** plugin, **off by
-  default**. If it isn't installed, the Connection screen offers a one-click
-  **Install Default Abilities** button; once installed, tick its toggle (rendered
-  on the same screen) to expose them. Leave it off — or uninstalled — to expose
-  only abilities from other plugins.
-- **Production override** — required only when `wp_get_environment_type()` reports
-  `production` (also the default when the environment type was never configured).
-  On `local` / `development` / `staging` the master toggle alone activates the
-  plugin; on `production` you must additionally tick the override, which carries
-  the danger warning. This makes it hard to accidentally expose the plugin on a
-  live site.
+  **[Universal Abilities](../universal-abilities-plugin/README.md)** plugin, **off
+  by default**. If it isn't installed, the Settings screen offers a one-click
+  **Install** button. Leave it off — or uninstalled — to expose only abilities
+  from other plugins.
 
-### Domain lock
+## Protection
 
-When enabled (or when you click **Reconnect to this domain**), the plugin records
-the site's declared home host. If the site is later cloned or moved to a
-different domain, every ability is blocked and returns an error telling the agent
-that an administrator must reconnect from **Agent Connector for WP → Settings** —
-so a copied database (and the application passwords in it) can't silently grant
-access on another site.
+The plugin works everywhere out of the box; the safeguards below are **optional
+and off by default**, grouped under Settings → Protection. What's *not* optional:
+ability execution is always restricted to super admins (enforced on every
+MCP-exposed ability, no matter which plugin registered it) — there is no setting
+to loosen that.
+
+- **Production warning notice** — while the plugin runs on a `production`
+  environment (which is also the default when `wp_get_environment_type()` was
+  never configured), a red notice appears across wp-admin explaining that
+  connected agents have super-admin-level access. It's informational, not a
+  block — dismiss it with **I understand** (site-wide) or the **Disable
+  production warning** toggle.
+- **Block on production environments** — opt in to make the plugin refuse to run
+  while the environment type is `production`. Off by default, so a production site
+  works but shows the warning above.
+- **Domain lock** — the host is pinned when you activate the plugin (or click
+  **Reconnect to this domain**), but enforcement is **off** until you enable it.
+  When on, every ability is blocked if the site's domain no longer matches the
+  pinned host — so a database cloned to another domain (e.g. staging pushed to
+  production, carrying its application passwords) can't silently grant access
+  there. The error tells the agent an administrator must reconnect from
+  **Agent Connector → Settings → Protection**.
 
 ### Optional tunables
 
@@ -179,9 +185,9 @@ A runnable reference pack lives in [`examples/acfw-ability-pack-hello/`](example
 
 ## Philosophy
 
-> Trusted agents in trusted environments should have root-equivalent operational capability.
+> An agent you've connected should have the same operational reach as the admin who connected it.
 
-Built for developers running autonomous coding agents against local or development WordPress installs, bridging the execution gap in the WordPress MCP ecosystem until native Abilities coverage is comprehensive enough.
+Built for people running autonomous coding agents against their WordPress installs, bridging the execution gap in the WordPress MCP ecosystem until native Abilities coverage is comprehensive enough. The plugin's job is to make that reach clear — through the audit log, the super-admin gate, and the on-page warning — not to second-guess an operator who deliberately installed it.
 
 ## License
 

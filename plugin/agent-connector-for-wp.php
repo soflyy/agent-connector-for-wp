@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Agent Connector for WP
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
- * Description:       Give agents unrestricted execution capability on WordPress. Adds shell access, PHP eval, filesystem operations, and process execution to the WordPress MCP stack. Designed for trusted development environments where agents need the same operational capabilities as a human administrator.
+ * Description:       Connect AI agents to your WordPress site over MCP. Runs the WordPress MCP server, exposes abilities registered by your plugins to connected agents, and audit-logs every call — with optional protections (production blocking, domain lock) under Settings → Protection.
  * Version:           1.20.1
  * Requires at least: 7.0
  * Requires PHP:      8.1
@@ -12,14 +12,15 @@
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       agent-connector-for-wp
  *
- * ---------------------------------------------------------------------------
- *  DANGER: This plugin intentionally grants root-equivalent operational
- *  capability (arbitrary shell, PHP eval, filesystem access) to authenticated
- *  administrators/super admins and the agents acting on their behalf. It is
- *  NOT sandboxed
- *  and NOT intended for production. Enable only in trusted local/dev/staging
- *  environments. See readme.txt.
- * ---------------------------------------------------------------------------
+ * Agents connected through this plugin can act with the full capability of a
+ * super admin (and, with the Universal Abilities pack, run shell/PHP/WP-CLI).
+ * That is the product, not an accident — the operator installed it to give an
+ * agent that access. The UI is responsible for making sure they understand:
+ * a site-wide warning notice renders on production environments until
+ * explicitly dismissed, and opt-in protections (production blocking, domain
+ * lock) live under Settings → Protection. Ability execution is always
+ * restricted to super admins (see Support\Governance) — that gate is not
+ * configurable.
  *
  * @package AgentConnectorForWp
  */
@@ -94,22 +95,31 @@ unset( $agent_connector_for_wp_has_vendor );
 require_once AGENT_CONNECTOR_FOR_WP_DIR . 'src/api.php';
 
 /**
+ * Activation: switch the plugin on and pin the domain lock to the current host
+ * (enforcement of the lock stays off until the operator opts in under
+ * Settings → Protection). See Support\Config::activate().
+ */
+register_activation_hook( __FILE__, array( Support\Config::class, 'activate' ) );
+
+/**
  * Boot the plugin once WordPress is loaded.
  *
- * The plugin is inert unless the operator has explicitly switched it on from the
- * Connection screen (see Support\Config). This keeps a stray activation from ever
- * exposing dangerous abilities by accident.
+ * On by default: activating the plugin is the opt-in. Optional protections
+ * (production blocking, domain lock) can still hold it back — see
+ * Support\Config::can_boot().
  */
 add_action(
 	'plugins_loaded',
 	static function (): void {
-		// The Connection screen is always available — even while inert — because
-		// it's the only place to switch the plugin on. It registers nothing
-		// dangerous; the gates below still guard the MCP server and abilities.
+		// The Connection screen is always available — even while held back by a
+		// protection — because it's where the operator manages those settings.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
 			// Browser of available companion "ability pack" plugins (with install).
 			( new Admin\DirectoryPage() )->register();
+			// Site-wide warning on every wp-admin page while running on a
+			// production environment, until explicitly dismissed.
+			( new Admin\ProductionNotice() )->register();
 		}
 
 		// REST API: settings, reconnect, connection generation.
@@ -125,8 +135,9 @@ add_action(
 		( new Services\PackUpdater() )->register();
 
 		if ( ! Support\Config::can_boot() ) {
-			// Surface *why* it's off so the disabled state isn't a silent mystery.
-			add_action( 'admin_notices', array( Support\Config::class, 'render_gate_notice' ) );
+			// Disabled, or held back by the opt-in production protection. The
+			// operator chose this state, so no global nag — the plugin's own
+			// screens (Header badge, Connect page) explain why it's inactive.
 			return;
 		}
 

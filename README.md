@@ -1,8 +1,8 @@
 # Agent Connector for WP
 
-> ⚠️ **Dangerous by design.** This plugin grants root-equivalent operational capability — arbitrary shell, WP-CLI, PHP eval, and filesystem access — to authenticated administrators/super admins and the agents acting on their behalf. It is **not sandboxed**. On a `production` environment type it stays inactive until you explicitly tick a production override; on local/dev/staging the Enable toggle alone activates it. Only turn it on where you would be comfortable handing out a root shell.
-
 Agent Connector for WP connects coding agents to a WordPress site over MCP and gives them real operational access to it — shell, WP-CLI, PHP eval, and the filesystem — through the WordPress Abilities API and a bundled [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter).
+
+A connected agent acts with the full capability of a super admin (and, with the [Universal Abilities](universal-abilities-plugin/README.md) pack, can run shell commands, PHP, and WP-CLI). That is the whole point — you install it to give an agent that access. The plugin makes sure operators know what's live: a warning notice shows across wp-admin while it runs on a production environment, and opt-in protections (**Block on production environments**, **Domain lock**) live under Settings → Protection. Ability execution is always restricted to super admins and can't be turned off.
 
 This is a **monorepo**:
 
@@ -27,8 +27,8 @@ cd agent-connector-for-wp
 # Symlink plugin/ into your wp-content/plugins as agent-connector-for-wp.
 bin/install.sh /path/to/wp-content
 
-# Activate it, then switch it on from Agent Connector for WP → Settings in
-# wp-admin — it ships inert. See plugin/README.md for details.
+# Activate it — it's on by default and runs immediately. Manage it from
+# Agent Connector → Settings in wp-admin. See plugin/README.md for details.
 wp plugin activate agent-connector-for-wp
 ```
 

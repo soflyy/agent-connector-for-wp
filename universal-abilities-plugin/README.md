@@ -2,8 +2,8 @@
 
 The **Default Abilities** pack for
 [Agent Connector for WP](../plugin/README.md). It contributes Agent Connector's
-powerful built-in abilities — the ones that grant admin-equivalent, root-level
-control of the site to an agent over MCP:
+powerful built-in abilities — the ones that give a connected agent the same
+low-level operational reach a super admin has over the server, over MCP:
 
 | Ability | What it does |
 | --- | --- |
@@ -16,18 +16,18 @@ control of the site to an agent over MCP:
 | `agent-connector-for-wp/search-media` | Search the WordPress media library (read-only). |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time admin login link. |
 
-> **Danger.** These abilities are not sandboxed and are **not** for production.
-> Anyone holding an application password for this site can use them to run code
-> and read/write files as the web server. Off by default — enable only in trusted
-> local/dev/staging environments.
+Anyone who can authenticate to this site's MCP server (i.e. holds an application
+password) can use these to run code and read/write files as the web server, so
+treat that password like an SSH key. Only super admins can execute them, and
+every call is audit-logged.
 
 ## Why it's a separate plugin
 
 The main Agent Connector for WP plugin ships **no abilities of its own**. It runs
 the MCP server, governs every ability (auth + domain lock + audit), and exposes
-the abilities other plugins register. The dangerous built-ins live here so they
-are opt-in *at the plugin level*: a site only has them if this plugin is
-installed, and even then they stay off until you flip the toggle.
+the abilities other plugins register. These powerful built-ins live here so
+they're opt-in *at the plugin level*: a site only has them if this plugin is
+installed.
 
 ## Install & enable
 

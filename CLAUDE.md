@@ -33,8 +33,8 @@ release. Title PRs accordingly.
 ## Don't touch the version by hand
 
 The release bot owns the version in `plugin/agent-connector-for-wp.php`
-(`Version:` + `AGENT_CONNECTOR_FOR_WP_VERSION`) and `plugin/readme.txt`
-(`Stable tag:`). Leave them alone — it bumps them on release with `[skip ci]`.
+(`Version:` + `AGENT_CONNECTOR_FOR_WP_VERSION`). Leave it alone — it bumps on
+release with `[skip ci]`.
 
 ## Don't `wp plugin install --force` over the symlink
 
