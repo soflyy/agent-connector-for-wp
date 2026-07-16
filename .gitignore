@@ -24,3 +24,6 @@ Thumbs.db
 
 # Local agent worktrees / session state
 .claude/
+
+# npm dependencies (plugin/admin build)
+node_modules/
