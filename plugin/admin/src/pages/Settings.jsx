@@ -267,6 +267,17 @@ export default function Settings({ status, onStatusChange }) {
         {/* Protection */}
         <Section title="Protection" icon={Shield}>
           <Row
+            label="Disable production warning"
+            description="Hides the site-wide wp-admin warning shown while Agent Connector runs on a production environment. Clicking “I understand” on the warning sets this too."
+            control={
+              <Toggle
+                checked={form.hideProdWarning}
+                onChange={(v) => setAndSave('hideProdWarning', v)}
+              />
+            }
+          />
+
+          <Row
             label="Block on production environments"
             description={`Stops the MCP server entirely while wp_get_environment_type() reports "production". This site currently reports "${status.envType}".`}
             control={
@@ -344,17 +355,6 @@ export default function Settings({ status, onStatusChange }) {
               </div>
             </>
           )}
-
-          <Row
-            label="Disable production warning"
-            description="Hides the site-wide wp-admin warning shown while Agent Connector runs on a production environment. Clicking “I understand” on the warning sets this too."
-            control={
-              <Toggle
-                checked={form.hideProdWarning}
-                onChange={(v) => setAndSave('hideProdWarning', v)}
-              />
-            }
-          />
         </Section>
 
         {/* Debug */}
