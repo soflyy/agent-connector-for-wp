@@ -8,8 +8,9 @@ server and automatically protected by Agent Connector's security.
 > for WP injects, for every ability:
 >
 > - the **permission check** — administrator **and** super-admin only;
-> - the **domain lock** — calls are blocked if the site's locked domain no longer
->   matches (prevents a moved/cloned site from acting on a stale identity);
+> - the **domain lock** — when the operator has enabled it, calls are blocked if
+>   the site's locked domain no longer matches (prevents a moved/cloned site from
+>   acting on a stale identity);
 > - the **audit log** — every invocation is recorded.
 >
 > You do **not** supply `permission_callback`. If you pass one, it is **ignored

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { RefreshCw, AlertTriangle, ShieldAlert, Lock, Bug, Package, CheckCircle2, Download } from 'lucide-react'
-import { api } from '../api'
+import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2, Download } from 'lucide-react'
+import { api, normalizeStatus } from '../api'
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -61,8 +61,8 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
+            <Package className="w-6 h-6 text-indigo-500" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Install Universal Abilities Plugin?</h2>
@@ -71,7 +71,7 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
         </div>
 
         <p className="text-base text-gray-700">
-          This companion plugin gives your AI agent powerful, low-level access to this WordPress server. Once installed and enabled, the agent can:
+          This companion plugin gives your AI agent complete access to this WordPress install. Once installed and enabled, the agent can:
         </p>
 
         <ul className="space-y-2 text-base text-gray-700">
@@ -88,10 +88,6 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
             </li>
           ))}
         </ul>
-
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <strong>Only install on development or staging sites</strong> you fully control. These abilities grant root-equivalent access to anyone who can authenticate with your MCP server.
-        </div>
 
         <div className="flex gap-3 justify-end">
           <button
@@ -121,7 +117,9 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
 export default function Settings({ status, onStatusChange }) {
   const [form, setForm] = useState({
     enabled: status.enabled,
-    productionOverride: status.productionOverride,
+    blockProduction: status.blockProduction,
+    domainLockEnabled: status.domainLockEnabled,
+    hideProdWarning: status.hideProdWarning,
     mcpDebug: status.mcpDebug,
   })
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
@@ -132,6 +130,24 @@ export default function Settings({ status, onStatusChange }) {
   const [showUapDialog, setShowUapDialog] = useState(false)
   const [installingUap, setInstallingUap] = useState(false)
 
+  // The site-wide "install Universal Abilities" admin notice deep-links here
+  // with ?acfw_uap=install so the operator sees the same confirmation dialog
+  // as the in-app Install button. Open it once on arrival, then strip the
+  // param so a refresh doesn't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('acfw_uap') === 'install' && !uapActive) {
+      setShowUapDialog(true)
+      params.delete('acfw_uap')
+      const qs = params.toString()
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+      )
+    }
+  }, [])
+
   async function setAndSave(key, val) {
     const newForm = { ...form, [key]: val }
     setForm(newForm)
@@ -140,10 +156,12 @@ export default function Settings({ status, onStatusChange }) {
     try {
       const result = await api.saveSettings({
         enabled: newForm.enabled,
-        production_override: newForm.productionOverride,
+        block_production: newForm.blockProduction,
+        domain_lock_enabled: newForm.domainLockEnabled,
+        hide_production_warning: newForm.hideProdWarning,
         mcp_debug: newForm.mcpDebug,
       })
-      onStatusChange((s) => ({ ...s, ...result.status }))
+      onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus(null), 2000)
     } catch (e) {
@@ -157,7 +175,7 @@ export default function Settings({ status, onStatusChange }) {
     setReconnectNotice(null)
     try {
       const result = await api.reconnect()
-      onStatusChange((s) => ({ ...s, ...result.status }))
+      onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setReconnectNotice({ type: 'success', message: 'Reconnected to this domain.' })
     } catch (e) {
       setReconnectNotice({ type: 'error', message: e.message })
@@ -182,7 +200,7 @@ export default function Settings({ status, onStatusChange }) {
   }
 
   const lockMismatch =
-    status.active && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
+    form.domainLockEnabled && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
 
   return (
     <>
@@ -258,65 +276,99 @@ export default function Settings({ status, onStatusChange }) {
             }
           />
 
-          {!status.isNonProd && (
-            <Row
-              label="Production override"
-              description="This site reports a production environment type. Enabling without this override is blocked."
-              danger
-              control={
-                <Toggle
-                  checked={form.productionOverride}
-                  onChange={(v) => setAndSave('productionOverride', v)}
-                />
-              }
-            />
-          )}
         </Section>
 
-        {/* Domain lock */}
-        <Section title="Domain lock" icon={Lock}>
-          {lockMismatch && (
-            <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-start gap-2.5 text-base text-red-700">
+        {/* Protection */}
+        <Section title="Protection" icon={Shield}>
+          <Row
+            label="Disable production warning"
+            description="Hides the site-wide wp-admin warning shown while Agent Connector runs on a production environment. Clicking “I understand” on the warning sets this too."
+            control={
+              <Toggle
+                checked={form.hideProdWarning}
+                onChange={(v) => setAndSave('hideProdWarning', v)}
+              />
+            }
+          />
+
+          <Row
+            label="Block on production environments"
+            description={`Stops the MCP server entirely while wp_get_environment_type() reports "production". This site currently reports "${status.envType}".`}
+            control={
+              <Toggle
+                checked={form.blockProduction}
+                onChange={(v) => setAndSave('blockProduction', v)}
+              />
+            }
+          />
+
+          {form.blockProduction && !status.isNonProd && (
+            <div className="px-6 py-4 bg-amber-50 border-b border-amber-100 flex items-start gap-2.5 text-base text-amber-700">
               <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <span>
-                Domain mismatch — abilities are blocked. Locked to{' '}
-                <code className="font-mono">{status.lockedHost}</code>, but this site reports{' '}
-                <code className="font-mono">{status.declaredHost || '(unknown)'}</code>.
+                This site reports a production environment, so Agent Connector is now inactive.
+                Turn this off to use it here.
               </span>
             </div>
           )}
+
           <Row
-            label="Locked to"
-            description="Abilities are blocked on any other domain to protect copied databases."
+            label="Enable domain lock"
+            description="Blocks all abilities if the site's domain changes — protects databases copied to another site (e.g. staging pushed to production)."
             control={
-              <code className="text-sm text-gray-500 font-mono">
-                {status.lockedHost || '(not locked)'}
-              </code>
+              <Toggle
+                checked={form.domainLockEnabled}
+                onChange={(v) => setAndSave('domainLockEnabled', v)}
+              />
             }
           />
-          <Row
-            label="This site reports"
-            control={
-              <code className="text-sm text-gray-500 font-mono">
-                {status.declaredHost || '(unknown)'}
-              </code>
-            }
-          />
-          <div className="px-6 py-5 space-y-3">
-            <button
-              onClick={reconnect}
-              disabled={reconnecting}
-              className={[
-                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium transition-colors',
-                lockMismatch
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700',
-              ].join(' ')}
-            >
-              <RefreshCw className={`w-4 h-4 ${reconnecting ? 'animate-spin' : ''}`} />
-              Reconnect to this domain
-            </button>
-          </div>
+
+          {form.domainLockEnabled && (
+            <>
+              {lockMismatch && (
+                <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-start gap-2.5 text-base text-red-700">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Domain mismatch — abilities are blocked. Locked to{' '}
+                    <code className="font-mono">{status.lockedHost}</code>, but this site reports{' '}
+                    <code className="font-mono">{status.declaredHost || '(unknown)'}</code>.
+                  </span>
+                </div>
+              )}
+              <Row
+                label="Locked to"
+                description="Abilities are blocked on any other domain."
+                control={
+                  <code className="text-sm text-gray-500 font-mono">
+                    {status.lockedHost || '(not locked)'}
+                  </code>
+                }
+              />
+              <Row
+                label="This site reports"
+                control={
+                  <code className="text-sm text-gray-500 font-mono">
+                    {status.declaredHost || '(unknown)'}
+                  </code>
+                }
+              />
+              <div className="px-6 py-5 space-y-3">
+                <button
+                  onClick={reconnect}
+                  disabled={reconnecting}
+                  className={[
+                    'flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium transition-colors',
+                    lockMismatch
+                      ? 'bg-red-600 hover:bg-red-500 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700',
+                  ].join(' ')}
+                >
+                  <RefreshCw className={`w-4 h-4 ${reconnecting ? 'animate-spin' : ''}`} />
+                  Reconnect to this domain
+                </button>
+              </div>
+            </>
+          )}
         </Section>
 
         {/* Debug */}

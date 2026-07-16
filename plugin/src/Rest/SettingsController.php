@@ -45,9 +45,11 @@ final class SettingsController extends WP_REST_Controller {
 				'callback'            => array( $this, 'save_settings' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 				'args'                => array(
-					'enabled'             => array( 'type' => 'boolean', 'required' => true ),
-					'production_override' => array( 'type' => 'boolean', 'default' => false ),
-					'mcp_debug'           => array( 'type' => 'boolean', 'default' => false ),
+					'enabled'                 => array( 'type' => 'boolean', 'required' => true ),
+					'block_production'        => array( 'type' => 'boolean', 'default' => false ),
+					'domain_lock_enabled'     => array( 'type' => 'boolean', 'default' => false ),
+					'hide_production_warning' => array( 'type' => 'boolean', 'default' => false ),
+					'mcp_debug'               => array( 'type' => 'boolean', 'default' => false ),
 				),
 			)
 		);
@@ -146,6 +148,36 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
+			'/dismiss-production-warning',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_production_warning' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/dismiss-uap-notice',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_uap_notice' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/dismiss-uap-notice',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_uap_notice' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
 			'/dismiss-gs-banner',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -208,37 +240,44 @@ final class SettingsController extends WP_REST_Controller {
 		$user = wp_get_current_user();
 		return new WP_REST_Response(
 			array(
-				'enabled'             => Config::is_enabled(),
-				'active'              => Config::can_boot(),
-				'prod_blocked'        => Config::is_blocked_by_production(),
-				'mcp_debug'           => Config::mcp_debug_enabled(),
-				'production_override' => Config::production_override_enabled(),
-				'is_non_prod'         => Config::is_non_production_env(),
-				'locked_host'         => Config::locked_host(),
-				'declared_host'       => Config::declared_host(),
-				'env_type'            => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
-				'server_url'          => Connection::endpoint_url(),
-				'username'            => $user instanceof \WP_User ? $user->user_login : '',
-				'pw_available'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
-				'uap_active'          => $this->is_uap_active(),
+				'enabled'                 => Config::is_enabled(),
+				'active'                  => Config::can_boot(),
+				'prod_blocked'            => Config::is_blocked_by_production(),
+				'mcp_debug'               => Config::mcp_debug_enabled(),
+				'block_production'        => Config::block_production_enabled(),
+				'domain_lock_enabled'     => Config::domain_lock_enabled(),
+				'hide_production_warning' => Config::production_warning_hidden(),
+				'is_non_prod'             => Config::is_non_production_env(),
+				'locked_host'             => Config::locked_host(),
+				'declared_host'           => Config::declared_host(),
+				'env_type'                => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
+				'server_url'              => Connection::endpoint_url(),
+				'username'                => $user instanceof \WP_User ? $user->user_login : '',
+				'pw_available'            => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'uap_active'              => $this->is_uap_active(),
 			)
 		);
 	}
 
 	public function save_settings( WP_REST_Request $request ): WP_REST_Response {
-		$was_enabled = Config::is_enabled();
-		$enable      = (bool) $request->get_param( 'enabled' );
-		$allow_prod  = (bool) $request->get_param( 'production_override' );
-		$mcp_debug   = (bool) $request->get_param( 'mcp_debug' );
+		$enable       = (bool) $request->get_param( 'enabled' );
+		$block_prod   = (bool) $request->get_param( 'block_production' );
+		$domain_lock  = (bool) $request->get_param( 'domain_lock_enabled' );
+		$hide_warning = (bool) $request->get_param( 'hide_production_warning' );
+		$mcp_debug    = (bool) $request->get_param( 'mcp_debug' );
 
 		update_option( Config::ENABLED_OPTION, $enable, true );
-		update_option( Config::PRODUCTION_OVERRIDE_OPTION, $allow_prod, true );
+		update_option( Config::BLOCK_PRODUCTION_OPTION, $block_prod, true );
+		update_option( Config::DOMAIN_LOCK_OPTION, $domain_lock, true );
+		update_option( Config::HIDE_PRODUCTION_WARNING_OPTION, $hide_warning, true );
 		update_option( Config::MCP_DEBUG_OPTION, $mcp_debug, true );
 
 		/** This action is documented in src/Admin/ConnectionPage.php. */
 		do_action( 'agent_connector_for_wp_settings_saved' );
 
-		if ( $enable && ! $was_enabled ) {
+		// A host is normally pinned at activation; installs that predate that
+		// (or had the option wiped) get pinned when the lock is first enabled.
+		if ( $domain_lock && '' === Config::locked_host() ) {
 			Config::lock_to_current_host();
 		}
 
@@ -651,6 +690,16 @@ final class SettingsController extends WP_REST_Controller {
 			return (bool) wp_is_application_passwords_available_for_user( $user );
 		}
 		return true;
+	}
+
+	public function dismiss_production_warning(): WP_REST_Response {
+		update_option( Config::HIDE_PRODUCTION_WARNING_OPTION, true, true );
+		return new WP_REST_Response( array( 'dismissed' => true ) );
+	}
+
+	public function dismiss_uap_notice(): WP_REST_Response {
+		update_option( Config::HIDE_UAP_NOTICE_OPTION, true, true );
+		return new WP_REST_Response( array( 'dismissed' => true ) );
 	}
 
 	public function dismiss_gs_banner(): WP_REST_Response {

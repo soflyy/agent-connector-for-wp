@@ -1,6 +1,6 @@
 <?php
 /**
- * Environment gates and runtime configuration.
+ * Runtime configuration and the optional protection gates.
  *
  * @package AgentConnectorForWp
  */
@@ -12,29 +12,59 @@ namespace AgentConnectorForWp\Support;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Centralizes the mandatory opt-in gates and tunables.
+ * Centralizes the plugin's toggles and tunables.
  *
- * Nothing initializes unless the operator flicked the Enable toggle on the
- * Settings screen. As a second safety gate, if the site reports a production
- * environment type, enabling alone is not enough — the operator must also tick
- * an explicit production-override box. Off means off until a human says yes.
+ * The plugin is ON by default: activating it runs the MCP server. Instead of
+ * blocking the operator up front, we surface a site-wide admin warning (see
+ * Admin\ProductionNotice) whenever it runs on a production environment, and
+ * offer opt-in protections — "Block on production environments" and the domain
+ * lock — under Settings → Protection for operators who want hard gates.
+ *
+ * The one non-configurable gate is authentication: abilities only execute for
+ * super admins (see {@see has_admin_access()}, enforced by Support\Governance).
  */
 final class Config {
 
 	public const CAP = 'manage_options';
 
 	/**
-	 * Option storing the Settings-screen enable toggle (boolean).
+	 * Option storing the Settings-screen enable toggle (boolean). Default ON —
+	 * activating the plugin is the opt-in.
 	 */
 	public const ENABLED_OPTION = 'agent_connector_for_wp_enabled';
 
 	/**
-	 * Option storing the explicit "run on production anyway" override (boolean).
-	 *
-	 * Only consulted when the site reports a production environment type; on
-	 * non-production environments the Enable toggle alone is sufficient.
+	 * Option for the opt-in "Block on production environments" protection
+	 * (boolean, default off). When on, the plugin refuses to boot while
+	 * wp_get_environment_type() reports 'production'.
 	 */
-	public const PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
+	public const BLOCK_PRODUCTION_OPTION = 'agent_connector_for_wp_block_production';
+
+	/**
+	 * Option for the opt-in "Enable domain lock" protection (boolean, default
+	 * off). The host is pinned regardless (at activation / reconnect); this
+	 * toggle decides whether a mismatch actually blocks abilities.
+	 */
+	public const DOMAIN_LOCK_OPTION = 'agent_connector_for_wp_domain_lock_enabled';
+
+	/**
+	 * Option hiding the site-wide production warning notice (boolean, default
+	 * off = notice shows). Site-wide: one admin dismissing it hides it for all.
+	 */
+	public const HIDE_PRODUCTION_WARNING_OPTION = 'agent_connector_for_wp_hide_production_warning';
+
+	/**
+	 * Option hiding the "install Universal Abilities" nudge notice (boolean,
+	 * default off = notice shows while the pack is missing). Site-wide.
+	 */
+	public const HIDE_UAP_NOTICE_OPTION = 'agent_connector_for_wp_hide_uap_notice';
+
+	/**
+	 * Legacy option from the old opt-out model ("allow use on production").
+	 * Production use is now allowed by default, so this is deleted on
+	 * activation and never read.
+	 */
+	public const LEGACY_PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
 
 	/**
 	 * Option toggling the debug log of MCP traffic (boolean). When on, every MCP
@@ -46,66 +76,82 @@ final class Config {
 	public const MCP_DEBUG_OPTION = 'agent_connector_for_wp_mcp_debug';
 
 	/**
-	 * Option storing the host the plugin was last enabled / reconnected on.
+	 * Option storing the host the plugin was last activated / reconnected on.
 	 *
-	 * This is the domain lock: abilities refuse to run if the site's declared
-	 * home host no longer matches this value. Empty means "never locked", in
-	 * which case the lock is inert.
+	 * This is the domain lock's pin: when the lock is enabled, abilities refuse
+	 * to run if the site's declared home host no longer matches this value.
+	 * Empty means "never pinned".
 	 */
 	public const LOCKED_HOST_OPTION = 'agent_connector_for_wp_locked_host';
 
 	/**
-	 * The Enable toggle (box 1). This is the operator's intent to turn the
-	 * plugin on; whether it actually boots also depends on the environment gate.
+	 * The Enable toggle. Default ON: installing and activating the plugin is
+	 * the operator's opt-in, so it works out of the box.
 	 */
 	public static function is_enabled(): bool {
-		return (bool) get_option( self::ENABLED_OPTION, false );
+		return (bool) get_option( self::ENABLED_OPTION, true );
 	}
 
 	/**
 	 * Whether this site reports a non-production environment type.
 	 *
 	 * wp_get_environment_type() is one of 'local', 'development', 'staging', or
-	 * 'production', defaulting to 'production' when WP_ENVIRONMENT_TYPE is unset.
-	 * Anything other than 'production' is treated as safe to enable without the
-	 * extra override — and a site that never configured its environment type is
-	 * therefore (correctly) treated as production.
+	 * 'production', defaulting to 'production' when WP_ENVIRONMENT_TYPE is unset
+	 * — so a site that never configured its environment type is treated as
+	 * production (and gets the production warning notice).
 	 */
 	public static function is_non_production_env(): bool {
 		if ( ! function_exists( 'wp_get_environment_type' ) ) {
-			return false; // Can't prove it's non-production → require the override.
+			return false; // Can't prove it's non-production → treat as production.
 		}
 		return 'production' !== wp_get_environment_type();
 	}
 
 	/**
-	 * The production-override toggle (box 2). Only meaningful on production.
+	 * The opt-in "Block on production environments" protection.
 	 */
-	public static function production_override_enabled(): bool {
-		return (bool) get_option( self::PRODUCTION_OVERRIDE_OPTION, false );
+	public static function block_production_enabled(): bool {
+		return (bool) get_option( self::BLOCK_PRODUCTION_OPTION, false );
 	}
 
 	/**
-	 * Master boot decision. Two gates:
-	 *   1. The operator enabled the plugin (box 1), AND
-	 *   2. the environment is non-production, OR the operator explicitly ticked
-	 *      the production override (box 2).
+	 * Master boot decision: enabled, and not held back by the (opt-in)
+	 * production protection.
 	 */
 	public static function can_boot(): bool {
-		if ( ! self::is_enabled() ) {
-			return false;
-		}
-		if ( self::is_non_production_env() ) {
-			return true;
-		}
-		return self::production_override_enabled();
+		return self::is_enabled() && ! self::is_blocked_by_production();
 	}
 
 	/**
-	 * Enabled (box 1) but held back by the production gate (no override).
+	 * Enabled, but held back because the operator opted into "Block on
+	 * production environments" and this is a production environment.
 	 */
 	public static function is_blocked_by_production(): bool {
-		return self::is_enabled() && ! self::is_non_production_env() && ! self::production_override_enabled();
+		return self::is_enabled() && ! self::is_non_production_env() && self::block_production_enabled();
+	}
+
+	/**
+	 * Whether the site-wide production warning notice should render: the plugin
+	 * is running on a production environment and no one has dismissed the
+	 * warning (or checked "Disable production warning" in Settings).
+	 */
+	public static function should_show_production_warning(): bool {
+		return self::can_boot() && ! self::is_non_production_env() && ! self::production_warning_hidden();
+	}
+
+	/**
+	 * Whether the production warning notice has been hidden (site-wide).
+	 */
+	public static function production_warning_hidden(): bool {
+		return (bool) get_option( self::HIDE_PRODUCTION_WARNING_OPTION, false );
+	}
+
+	/**
+	 * Whether the "install Universal Abilities" nudge has been dismissed
+	 * (site-wide).
+	 */
+	public static function uap_notice_hidden(): bool {
+		return (bool) get_option( self::HIDE_UAP_NOTICE_OPTION, false );
 	}
 
 	/**
@@ -152,7 +198,15 @@ final class Config {
 	}
 
 	/**
-	 * The host the domain lock is pinned to, or '' if never locked.
+	 * The opt-in "Enable domain lock" protection. The pin is always maintained;
+	 * this decides whether a mismatch blocks abilities.
+	 */
+	public static function domain_lock_enabled(): bool {
+		return (bool) get_option( self::DOMAIN_LOCK_OPTION, false );
+	}
+
+	/**
+	 * The host the domain lock is pinned to, or '' if never pinned.
 	 */
 	public static function locked_host(): string {
 		return (string) get_option( self::LOCKED_HOST_OPTION, '' );
@@ -161,15 +215,15 @@ final class Config {
 	/**
 	 * Pin (or re-pin) the domain lock to the site's current declared host.
 	 *
-	 * Called whenever the operator enables the plugin or clicks "Reconnect".
+	 * Called on plugin activation and when the operator clicks "Reconnect".
 	 */
 	public static function lock_to_current_host(): void {
 		update_option( self::LOCKED_HOST_OPTION, self::declared_host(), false );
 	}
 
 	/**
-	 * Whether the domain lock is satisfied. True when no lock is set, or when the
-	 * pinned host still matches the declared host.
+	 * Whether the domain lock is satisfied. True when the lock is disabled, no
+	 * host was ever pinned, or the pinned host still matches the declared host.
 	 */
 	public static function domain_lock_ok(): bool {
 		return null === self::lock_mismatch_reason();
@@ -177,12 +231,16 @@ final class Config {
 
 	/**
 	 * Agent-actionable explanation of a domain-lock mismatch, or null when the
-	 * lock is satisfied (or inert).
+	 * lock is disabled, unpinned, or satisfied.
 	 *
 	 * The message is written for the agent calling an ability over MCP: it tells
 	 * the agent exactly which human action unblocks it.
 	 */
 	public static function lock_mismatch_reason(): ?string {
+		if ( ! self::domain_lock_enabled() ) {
+			return null;
+		}
+
 		$locked   = self::locked_host();
 		$declared = self::declared_host();
 
@@ -191,7 +249,7 @@ final class Config {
 		}
 
 		return sprintf(
-			'Agent Connector for WP is domain-locked. It was enabled on "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector for WP → Settings and click "Reconnect to this domain" to re-enable abilities here.',
+			'Agent Connector for WP is domain-locked. It was locked to "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector → Settings → Protection and click "Reconnect to this domain" to re-enable abilities here.',
 			$locked,
 			'' === $declared ? '(unknown)' : $declared
 		);
@@ -220,7 +278,9 @@ final class Config {
 	}
 
 	/**
-	 * Abilities should only execute for administrators/super admins.
+	 * Abilities should only execute for administrators/super admins. This gate
+	 * is not configurable — it is the plugin's authentication boundary, forced
+	 * onto every MCP-exposed ability by Support\Governance.
 	 */
 	public static function has_admin_access(): bool {
 		return current_user_can( self::CAP ) && function_exists( 'is_super_admin' ) && is_super_admin();
@@ -237,37 +297,18 @@ final class Config {
 	}
 
 	/**
-	 * Admin notice shown when the plugin is installed but not currently active,
-	 * pointing the operator at the always-reachable Settings screen.
+	 * One-time setup on plugin activation: switch the plugin on, pin the domain
+	 * lock to the current host (only if never pinned — an explicit Reconnect is
+	 * the way to re-pin after a domain change), and drop the legacy
+	 * production-override option from the old opt-out model.
 	 */
-	public static function render_gate_notice(): void {
-		if ( ! current_user_can( self::CAP ) ) {
-			return;
+	public static function activate(): void {
+		update_option( self::ENABLED_OPTION, true, true );
+
+		if ( '' === self::locked_host() ) {
+			self::lock_to_current_host();
 		}
 
-		$settings_url = admin_url( 'admin.php?page=agent-connector-for-wp' );
-
-		if ( self::is_blocked_by_production() ) {
-			$message = sprintf(
-				'It is enabled, but this is a <code>production</code> environment, so it stays inactive until you confirm the production override on the <a href="%s">Settings screen</a>.',
-				esc_url( $settings_url )
-			);
-		} else {
-			$message = sprintf(
-				'Enable it on the <a href="%s">Settings screen</a>.',
-				esc_url( $settings_url )
-			);
-		}
-
-		printf(
-			'<div class="notice notice-warning"><p><strong>Agent Connector for WP</strong> is installed but inactive. %s</p></div>',
-			wp_kses(
-				$message,
-				array(
-					'a'    => array( 'href' => array() ),
-					'code' => array(),
-				)
-			)
-		);
+		delete_option( self::LEGACY_PRODUCTION_OVERRIDE_OPTION );
 	}
 }
