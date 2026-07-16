@@ -61,8 +61,8 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
       <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-amber-600" />
+          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
+            <Package className="w-6 h-6 text-indigo-500" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-gray-900">Install Universal Abilities Plugin?</h2>
@@ -71,7 +71,7 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
         </div>
 
         <p className="text-base text-gray-700">
-          This companion plugin gives your AI agent powerful, low-level access to this WordPress server. Once installed and enabled, the agent can:
+          This companion plugin gives your AI agent complete access to this WordPress install. Once installed and enabled, the agent can:
         </p>
 
         <ul className="space-y-2 text-base text-gray-700">
@@ -88,10 +88,6 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
             </li>
           ))}
         </ul>
-
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-          <strong>Only install on development or staging sites</strong> you fully control. These abilities grant root-equivalent access to anyone who can authenticate with your MCP server.
-        </div>
 
         <div className="flex gap-3 justify-end">
           <button
