@@ -705,7 +705,13 @@ function GenerateStep({ selectedAgent, status, onBack }) {
           {!status.pwAvailable && (
             <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-              Application passwords require HTTPS and aren't available on this site.
+              <span>
+                Application passwords require HTTPS and aren't available on this site. On a
+                production environment WordPress only allows them over HTTPS; over plain HTTP they
+                work only when the site's environment type is <code className="font-mono">local</code>{' '}
+                (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
+                <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
+              </span>
             </div>
           )}
 
