@@ -47,7 +47,13 @@ final class UapNotice {
 			return;
 		}
 
-		$install_url = rest_url( 'agent-connector-for-wp/v1/uap/install' );
+		$install_url = add_query_arg(
+			array(
+				'page'     => ConnectionPage::MENU_SLUG,
+				'acfw_uap' => 'install',
+			),
+			admin_url( 'admin.php' )
+		) . '#/settings';
 		$dismiss_url = rest_url( 'agent-connector-for-wp/v1/dismiss-uap-notice' );
 		?>
 		<div class="notice notice-warning" id="acfw-uap-notice">
@@ -56,54 +62,26 @@ final class UapNotice {
 				<?php esc_html_e( 'Agent Connector is running, but agents only get the abilities your other plugins register. Install the Universal Abilities plugin to give your agent complete access to this WordPress install — shell, PHP, files, WP-CLI, and admin login.', 'agent-connector-for-wp' ); ?>
 			</p>
 			<p>
-				<button type="button" class="button button-primary" id="acfw-uap-notice-install">
+				<a class="button button-primary" href="<?php echo esc_url( $install_url ); ?>">
 					<?php esc_html_e( 'Install & Activate', 'agent-connector-for-wp' ); ?>
-				</button>
+				</a>
 				<button type="button" class="button" id="acfw-uap-notice-dismiss">
 					<?php esc_html_e( 'Dismiss', 'agent-connector-for-wp' ); ?>
 				</button>
-				<span id="acfw-uap-notice-error" style="color:#b32d2e;margin-left:8px;"></span>
 			</p>
 		</div>
 		<script>
 			( function () {
 				var notice  = document.getElementById( 'acfw-uap-notice' );
-				var install = document.getElementById( 'acfw-uap-notice-install' );
 				var dismiss = document.getElementById( 'acfw-uap-notice-dismiss' );
-				var errorEl = document.getElementById( 'acfw-uap-notice-error' );
-				if ( ! notice || ! install || ! dismiss ) {
+				if ( ! notice || ! dismiss ) {
 					return;
 				}
-				var nonce = <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>;
-
-				install.addEventListener( 'click', function () {
-					install.disabled = true;
-					dismiss.disabled = true;
-					install.textContent = <?php echo wp_json_encode( __( 'Installing…', 'agent-connector-for-wp' ) ); ?>;
-					errorEl.textContent = '';
-					fetch( <?php echo wp_json_encode( esc_url_raw( $install_url ) ); ?>, {
-						method: 'POST',
-						headers: { 'X-WP-Nonce': nonce },
-					} ).then( function ( res ) {
-						return res.json().then( function ( data ) {
-							if ( ! res.ok ) {
-								throw new Error( data && data.message ? data.message : 'Install failed.' );
-							}
-							window.location.reload();
-						} );
-					} ).catch( function ( err ) {
-						install.disabled = false;
-						dismiss.disabled = false;
-						install.textContent = <?php echo wp_json_encode( __( 'Install & Activate', 'agent-connector-for-wp' ) ); ?>;
-						errorEl.textContent = err && err.message ? err.message : 'Install failed.';
-					} );
-				} );
-
 				dismiss.addEventListener( 'click', function () {
 					dismiss.disabled = true;
 					fetch( <?php echo wp_json_encode( esc_url_raw( $dismiss_url ) ); ?>, {
 						method: 'POST',
-						headers: { 'X-WP-Nonce': nonce },
+						headers: { 'X-WP-Nonce': <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?> },
 					} ).finally( function () {
 						notice.remove();
 					} );

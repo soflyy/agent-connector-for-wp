@@ -130,6 +130,24 @@ export default function Settings({ status, onStatusChange }) {
   const [showUapDialog, setShowUapDialog] = useState(false)
   const [installingUap, setInstallingUap] = useState(false)
 
+  // The site-wide "install Universal Abilities" admin notice deep-links here
+  // with ?acfw_uap=install so the operator sees the same confirmation dialog
+  // as the in-app Install button. Open it once on arrival, then strip the
+  // param so a refresh doesn't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('acfw_uap') === 'install' && !uapActive) {
+      setShowUapDialog(true)
+      params.delete('acfw_uap')
+      const qs = params.toString()
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
+      )
+    }
+  }, [])
+
   async function setAndSave(key, val) {
     const newForm = { ...form, [key]: val }
     setForm(newForm)
