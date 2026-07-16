@@ -1,22 +1,23 @@
 # Agent Connector for WP
 
-Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the [WordPress AI plugin](https://wordpress.org/plugins/ai/), the MCP Abilities API, and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
+Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes is governed by its auth (super-admin), domain lock, and audit log, no matter which plugin registered it.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 
 ## What it adds
 
 Nothing, on its own — and that is the point. The plugin is the secured MCP
 gateway; abilities come from companion plugins:
 
-- **[Default Abilities](../universal-abilities-plugin/README.md)** — a separate,
-  optional companion plugin (installable in one click from the Connection
-  screen) that contributes the powerful built-in abilities below. Off by default.
+- **[Universal Abilities](../universal-abilities-plugin/README.md)** — a separate,
+  optional companion plugin (installable in one click from the Settings screen)
+  that contributes the powerful built-in abilities below. Not installed by
+  default; installing it is the opt-in.
 - **Ability packs** — generated plugins that expose a specific plugin's
   functionality (WooCommerce, Contact Form 7, …) to agents.
 - **Your own** abilities, via the [public registration API](#register-your-own-abilities).
 
-The abilities the **Default Abilities** pack contributes:
+The abilities the **Universal Abilities** pack contributes:
 
 | Ability | Purpose |
 | --- | --- |
@@ -31,12 +32,11 @@ The abilities the **Default Abilities** pack contributes:
 | `agent-connector-for-wp/process-exec` | Longer-running command execution (proxies shell-exec in v1). |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
 
-The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — and the Default Abilities pack once installed — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
+The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — and the Universal Abilities pack once installed — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
 
 ## Requirements
 
-- WordPress 7.0+
-- The WordPress AI plugin (provides the Abilities API)
+- WordPress 7.0+ (ships the Abilities API in core)
 - PHP 8.1+
 - WP-CLI available on the server (recommended)
 
@@ -57,6 +57,18 @@ wp plugin activate agent-connector-for-wp
 Dependencies (`vendor/`) are not committed to the repository — `composer install`
 fetches them. If you download a packaged release `.zip` (built by CI, with
 `vendor/` already bundled), skip the `composer install` step and just activate.
+
+## Updates
+
+The plugin updates itself from **GitHub Releases** (it is intentionally not on
+wordpress.org), through a bundled update checker — new versions appear on the
+normal Plugins screen and via auto-updates. The optional
+[Universal Abilities](../universal-abilities-plugin/README.md) pack and any
+installed ability packs are updated by **this** plugin too, from a published
+manifest, through the same Plugins-screen flow — so every update is managed in
+one place, and companion plugins ship no update code of their own. Update checks
+are best-effort and never block WordPress: a slow or unreachable GitHub simply
+means "no update offered" that cycle.
 
 ## Connect an agent
 
@@ -160,8 +172,9 @@ define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/path/to/audit.log' );
 ## Register your own abilities
 
 Third-party plugins can add abilities that are exposed over this plugin's MCP
-server and **automatically protected by its auth, domain lock, and audit log** —
-the companion plugin writes no permission or security code. Use the public API:
+server and **automatically protected by its super-admin auth and audit log (plus
+the domain lock when it's enabled)** — the companion plugin writes no permission
+or security code. Use the public API:
 
 ```php
 add_action( 'wp_abilities_api_init', function () {
