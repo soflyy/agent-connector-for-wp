@@ -120,6 +120,9 @@ add_action(
 			// Site-wide warning on every wp-admin page while running on a
 			// production environment, until explicitly dismissed.
 			( new Admin\ProductionNotice() )->register();
+			// Site-wide nudge while the Universal Abilities pack is missing —
+			// without it a connected agent has almost nothing to do.
+			( new Admin\UapNotice() )->register();
 		}
 
 		// REST API: settings, reconnect, connection generation.

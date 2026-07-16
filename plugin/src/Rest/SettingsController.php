@@ -158,6 +158,26 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
+			'/dismiss-uap-notice',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_uap_notice' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/dismiss-uap-notice',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'dismiss_uap_notice' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
 			'/dismiss-gs-banner',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -674,6 +694,11 @@ final class SettingsController extends WP_REST_Controller {
 
 	public function dismiss_production_warning(): WP_REST_Response {
 		update_option( Config::HIDE_PRODUCTION_WARNING_OPTION, true, true );
+		return new WP_REST_Response( array( 'dismissed' => true ) );
+	}
+
+	public function dismiss_uap_notice(): WP_REST_Response {
+		update_option( Config::HIDE_UAP_NOTICE_OPTION, true, true );
 		return new WP_REST_Response( array( 'dismissed' => true ) );
 	}
 

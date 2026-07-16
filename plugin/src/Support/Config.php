@@ -54,6 +54,12 @@ final class Config {
 	public const HIDE_PRODUCTION_WARNING_OPTION = 'agent_connector_for_wp_hide_production_warning';
 
 	/**
+	 * Option hiding the "install Universal Abilities" nudge notice (boolean,
+	 * default off = notice shows while the pack is missing). Site-wide.
+	 */
+	public const HIDE_UAP_NOTICE_OPTION = 'agent_connector_for_wp_hide_uap_notice';
+
+	/**
 	 * Legacy option from the old opt-out model ("allow use on production").
 	 * Production use is now allowed by default, so this is deleted on
 	 * activation and never read.
@@ -138,6 +144,14 @@ final class Config {
 	 */
 	public static function production_warning_hidden(): bool {
 		return (bool) get_option( self::HIDE_PRODUCTION_WARNING_OPTION, false );
+	}
+
+	/**
+	 * Whether the "install Universal Abilities" nudge has been dismissed
+	 * (site-wide).
+	 */
+	public static function uap_notice_hidden(): bool {
+		return (bool) get_option( self::HIDE_UAP_NOTICE_OPTION, false );
 	}
 
 	/**
