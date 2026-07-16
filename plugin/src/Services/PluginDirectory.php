@@ -63,15 +63,40 @@ final class PluginDirectory {
 	public const UNIVERSAL_ABILITIES_CACHE_KEY = 'agent_connector_for_wp_uap_index_cache';
 
 	/**
+	 * Failure-backoff markers. When a fetch fails and nothing is cached, we set a
+	 * short-lived marker so repeated calls in the same window skip the network
+	 * instead of each eating a timeout ("negative caching"). A forced refresh
+	 * (an explicit WP "Check Again") ignores the marker and retries.
+	 */
+	public const CACHE_FAIL_KEY               = 'agent_connector_for_wp_directory_fail';
+	public const UNIVERSAL_ABILITIES_FAIL_KEY = 'agent_connector_for_wp_uap_index_fail';
+
+	/**
+	 * How long to suppress refetching after a failure, in seconds.
+	 */
+	private const FAIL_BACKOFF = 10 * MINUTE_IN_SECONDS;
+
+	/**
 	 * Transient lifetime: 12 hours.
 	 */
 	public const CACHE_TTL = 12 * HOUR_IN_SECONDS;
 
 	/**
-	 * Network timeout for the manifest fetch, in seconds. Kept short so a slow or
-	 * unreachable host never stalls an admin page render for long.
+	 * Default network timeout for the manifest fetch, in seconds. Kept short so a
+	 * slow or unreachable host never stalls an admin page render for long.
+	 * Override with the `agent_connector_for_wp_manifest_timeout` filter.
 	 */
 	private const HTTP_TIMEOUT = 5;
+
+	/**
+	 * The manifest fetch timeout after the override filter, floored at 1s so it
+	 * can never be set to a blocking/never value.
+	 */
+	private static function http_timeout(): int {
+		$timeout = (int) apply_filters( 'agent_connector_for_wp_manifest_timeout', self::HTTP_TIMEOUT );
+
+		return max( 1, $timeout );
+	}
 
 	/**
 	 * The ability-pack manifest URL, after the override filter.
@@ -124,12 +149,25 @@ final class PluginDirectory {
 					'url'     => $url,
 				);
 			}
+
+			// Nothing cached AND we recently failed to fetch: skip the network so
+			// repeated background fires don't each eat a timeout. A forced check
+			// bypasses this.
+			if ( get_transient( self::CACHE_FAIL_KEY ) ) {
+				return array(
+					'entries' => array(),
+					'stale'   => false,
+					'error'   => __( 'The ability-pack list is currently unavailable.', 'agent-connector-for-wp' ),
+					'url'     => $url,
+				);
+			}
 		}
 
 		$fetched = self::fetch( $url );
 
 		if ( null !== $fetched ) {
 			set_transient( self::CACHE_KEY, array( 'entries' => $fetched['entries'] ), self::CACHE_TTL );
+			delete_transient( self::CACHE_FAIL_KEY );
 
 			return array(
 				'entries' => $fetched['entries'],
@@ -138,6 +176,9 @@ final class PluginDirectory {
 				'url'     => $url,
 			);
 		}
+
+		// Fetch failed — back off so we don't retry the network on every fire.
+		set_transient( self::CACHE_FAIL_KEY, 1, self::FAIL_BACKOFF );
 
 		// Network/parse failed — fall back to any (possibly stale) cached copy.
 		$cached = self::cached();
@@ -164,6 +205,8 @@ final class PluginDirectory {
 	public static function clear_cache(): void {
 		delete_transient( self::CACHE_KEY );
 		delete_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
+		delete_transient( self::CACHE_FAIL_KEY );
+		delete_transient( self::UNIVERSAL_ABILITIES_FAIL_KEY );
 	}
 
 	/**
@@ -200,6 +243,12 @@ final class PluginDirectory {
 			if ( is_array( $cached ) ) {
 				return $cached;
 			}
+
+			// Nothing cached AND we recently failed: skip the network. A forced
+			// check bypasses this.
+			if ( get_transient( self::UNIVERSAL_ABILITIES_FAIL_KEY ) ) {
+				return null;
+			}
 		}
 
 		$entry = self::normalize_universal_abilities_entry(
@@ -208,10 +257,12 @@ final class PluginDirectory {
 
 		if ( null !== $entry ) {
 			set_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY, $entry, self::CACHE_TTL );
+			delete_transient( self::UNIVERSAL_ABILITIES_FAIL_KEY );
 			return $entry;
 		}
 
-		// Network/parse failed — fall back to any (possibly stale) cached copy.
+		// Fetch failed — back off, then fall back to any (possibly stale) cached copy.
+		set_transient( self::UNIVERSAL_ABILITIES_FAIL_KEY, 1, self::FAIL_BACKOFF );
 		$cached = get_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
 		return is_array( $cached ) ? $cached : null;
 	}
@@ -281,7 +332,7 @@ final class PluginDirectory {
 		$response = wp_remote_get(
 			$url,
 			array(
-				'timeout'    => self::HTTP_TIMEOUT,
+				'timeout'    => self::http_timeout(),
 				'user-agent' => 'AgentConnectorForWp/' . ( defined( 'AGENT_CONNECTOR_FOR_WP_VERSION' ) ? AGENT_CONNECTOR_FOR_WP_VERSION : 'dev' ),
 				'headers'    => array( 'Accept' => 'application/json' ),
 			)
