@@ -32,6 +32,12 @@ final class PackUpdater {
 	/** Plugin header naming the host plugin a pack extends. */
 	private const TARGET_HEADER = 'Agent Connector Target';
 
+	/**
+	 * Option remembering the WordPress `last_checked` timestamp we last refreshed
+	 * our manifests against, so we refetch exactly once per real WP update check.
+	 */
+	private const SYNC_OPTION = 'agent_connector_for_wp_manifest_synced_checked';
+
 	public function register(): void {
 		add_filter( 'extra_plugin_headers', array( $this, 'declare_headers' ) );
 		add_filter( 'pre_set_site_transient_update_plugins', array( $this, 'inject_updates' ) );
@@ -62,6 +68,12 @@ final class PackUpdater {
 	/**
 	 * Inject available pack updates into the update_plugins transient.
 	 *
+	 * This runs inside WordPress's own update-check flow (the
+	 * pre_set_site_transient_update_plugins filter). It must NEVER break that
+	 * flow: any error is swallowed and the transient is handed back untouched, so
+	 * a bug or a bad network response here can only ever result in "no update
+	 * offered", never a broken Plugins screen or a failed core update check.
+	 *
 	 * @param mixed $transient The update_plugins site transient (object) or empty.
 	 *
 	 * @return mixed
@@ -71,12 +83,34 @@ final class PackUpdater {
 			return $transient;
 		}
 
+		try {
+			return $this->do_inject( $transient );
+		} catch ( \Throwable $e ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( 'Agent Connector pack updater skipped: ' . $e->getMessage() );
+			}
+			return $transient; // Hand WordPress back exactly what it gave us.
+		}
+	}
+
+	/**
+	 * The actual injection, wrapped by inject_updates() so nothing it does can
+	 * escape into WordPress's update flow.
+	 *
+	 * @param object $transient The update_plugins site transient.
+	 *
+	 * @return object
+	 */
+	private function do_inject( $transient ) {
 		$packs = $this->installed_packs();
 		if ( empty( $packs ) ) {
 			return $transient;
 		}
 
-		$by_slug = $this->entries_by_slug();
+		// Only hit the network when WordPress itself just ran a real update check
+		// (scheduled cron or a manual "Check Again"); otherwise serve cache.
+		$by_slug = $this->entries_by_slug( $this->should_refresh( $transient ) );
 		if ( empty( $by_slug ) ) {
 			return $transient;
 		}
@@ -156,10 +190,13 @@ final class PackUpdater {
 	 *     already detects it; adding its manifest entry here is all that's needed
 	 *     for it to update through the very same path.
 	 *
+	 * @param bool $force When true, refetch the manifests from the network
+	 *                    (bypassing the cache). Otherwise serve cache.
+	 *
 	 * @return array<string,array<string,string>>
 	 */
-	private function entries_by_slug(): array {
-		$result  = PluginDirectory::get();
+	private function entries_by_slug( bool $force = false ): array {
+		$result  = PluginDirectory::get( $force );
 		$by_slug = array();
 		foreach ( (array) $result['entries'] as $entry ) {
 			$slug = isset( $entry['ability_pack_slug'] ) ? (string) $entry['ability_pack_slug'] : '';
@@ -168,12 +205,45 @@ final class PackUpdater {
 			}
 		}
 
-		$uap = PluginDirectory::universal_abilities_entry();
+		$uap = PluginDirectory::universal_abilities_entry( $force );
 		if ( null !== $uap ) {
 			$by_slug[ PluginDirectory::UNIVERSAL_ABILITIES_SLUG ] = $uap;
 		}
 
 		return $by_slug;
+	}
+
+	/**
+	 * Whether to refetch the manifests from the network on this pass.
+	 *
+	 * True only when BOTH: (1) we're in a context where blocking I/O is
+	 * acceptable — admin, cron, or WP-CLI, never a front-end request — and
+	 * (2) WordPress's own `last_checked` timestamp has advanced since our last
+	 * refresh, i.e. WP just performed a real update check (scheduled or the
+	 * manual "Check Again"). This ties our manifest freshness to WP's own cadence
+	 * — one fetch per WP check, none in between — instead of an independent TTL.
+	 *
+	 * @param object $transient The update_plugins site transient.
+	 */
+	private function should_refresh( $transient ): bool {
+		$ok_context = is_admin()
+			|| ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() )
+			|| ( defined( 'WP_CLI' ) && WP_CLI );
+		if ( ! $ok_context ) {
+			return false;
+		}
+
+		$wp_checked = isset( $transient->last_checked ) ? (int) $transient->last_checked : 0;
+		if ( $wp_checked <= 0 ) {
+			return false;
+		}
+
+		if ( $wp_checked > (int) get_option( self::SYNC_OPTION, 0 ) ) {
+			update_option( self::SYNC_OPTION, $wp_checked, false );
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
