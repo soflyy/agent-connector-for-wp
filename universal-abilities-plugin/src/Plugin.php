@@ -53,8 +53,9 @@ final class Plugin {
 
 	/**
 	 * Register the default abilities. Called only when Agent Connector for WP is
-	 * active (its MCP server has booted) and the "Built-in abilities" toggle is on
-	 * — see Admin\Settings::active() and this pack's main plugin file.
+	 * active (its MCP server has booted) — see this pack's main plugin file.
+	 * There is no separate opt-in toggle: installing and activating this plugin
+	 * is the opt-in.
 	 */
 	public function register(): void {
 		add_action( 'wp_abilities_api_categories_init', array( $this, 'register_category' ) );
