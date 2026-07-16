@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Universal Abilities for Agent Connector
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
- * Description:       The Default Abilities pack for Agent Connector for WP. Adds the powerful built-in abilities — shell commands, PHP evaluation, filesystem read/write, WP-CLI, and a one-time admin login link — exposed over MCP to super admins. Install it to give a connected agent the same operational reach a super admin has.
+ * Description:       The companion pack that lets an AI agent actually do things on your site: run shell commands, evaluate PHP, read/write files, run WP-CLI, and log into wp-admin. Complete access to this WordPress install, exposed over MCP to super admins.
  * Version:           1.0.0
  * Requires at least: 7.0
  * Requires PHP:      8.1
