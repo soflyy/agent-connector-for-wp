@@ -116,8 +116,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add plugin/agent-connector-for-wp.php
           git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]"
+
+          # Push the bump commit, rebasing onto any concurrent push and retrying.
+          # The sibling release workflow (default-abilities-release.yml) also
+          # pushes a [skip ci] commit to this branch, so two releases triggered by
+          # one merge can race here. Our change touches a different file than
+          # theirs, so a rebase always applies cleanly and both releases land.
+          n=0
+          until git push origin "HEAD:${GITHUB_REF_NAME}"; do
+            n=$((n + 1))
+            if [ "$n" -ge 5 ]; then
+              echo "::error::could not push the release commit after $n attempts"
+              exit 1
+            fi
+            echo "Push rejected — rebasing onto ${GITHUB_REF_NAME} and retrying ($n)…"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          done
+
+          # Tag the commit that actually landed (after any rebase), then push it.
           git tag -a "${{ steps.ver.outputs.tag }}" -m "${{ steps.ver.outputs.tag }}"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "${{ steps.ver.outputs.tag }}"
 
       - name: Set up PHP
