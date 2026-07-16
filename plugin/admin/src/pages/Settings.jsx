@@ -298,52 +298,52 @@ export default function Settings({ status, onStatusChange }) {
             }
           />
 
-          {lockMismatch && (
-            <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-start gap-2.5 text-base text-red-700">
-              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <span>
-                Domain mismatch — abilities are blocked. Locked to{' '}
-                <code className="font-mono">{status.lockedHost}</code>, but this site reports{' '}
-                <code className="font-mono">{status.declaredHost || '(unknown)'}</code>.
-              </span>
-            </div>
+          {form.domainLockEnabled && (
+            <>
+              {lockMismatch && (
+                <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-start gap-2.5 text-base text-red-700">
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Domain mismatch — abilities are blocked. Locked to{' '}
+                    <code className="font-mono">{status.lockedHost}</code>, but this site reports{' '}
+                    <code className="font-mono">{status.declaredHost || '(unknown)'}</code>.
+                  </span>
+                </div>
+              )}
+              <Row
+                label="Locked to"
+                description="Abilities are blocked on any other domain."
+                control={
+                  <code className="text-sm text-gray-500 font-mono">
+                    {status.lockedHost || '(not locked)'}
+                  </code>
+                }
+              />
+              <Row
+                label="This site reports"
+                control={
+                  <code className="text-sm text-gray-500 font-mono">
+                    {status.declaredHost || '(unknown)'}
+                  </code>
+                }
+              />
+              <div className="px-6 py-5 space-y-3">
+                <button
+                  onClick={reconnect}
+                  disabled={reconnecting}
+                  className={[
+                    'flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium transition-colors',
+                    lockMismatch
+                      ? 'bg-red-600 hover:bg-red-500 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700',
+                  ].join(' ')}
+                >
+                  <RefreshCw className={`w-4 h-4 ${reconnecting ? 'animate-spin' : ''}`} />
+                  Reconnect to this domain
+                </button>
+              </div>
+            </>
           )}
-          <Row
-            label="Locked to"
-            description={
-              form.domainLockEnabled
-                ? 'Abilities are blocked on any other domain.'
-                : 'Set automatically when the plugin is activated. Not enforced while the domain lock is off.'
-            }
-            control={
-              <code className="text-sm text-gray-500 font-mono">
-                {status.lockedHost || '(not locked)'}
-              </code>
-            }
-          />
-          <Row
-            label="This site reports"
-            control={
-              <code className="text-sm text-gray-500 font-mono">
-                {status.declaredHost || '(unknown)'}
-              </code>
-            }
-          />
-          <div className="px-6 py-5 space-y-3">
-            <button
-              onClick={reconnect}
-              disabled={reconnecting}
-              className={[
-                'flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium transition-colors',
-                lockMismatch
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700',
-              ].join(' ')}
-            >
-              <RefreshCw className={`w-4 h-4 ${reconnecting ? 'animate-spin' : ''}`} />
-              Reconnect to this domain
-            </button>
-          </div>
 
           <Row
             label="Disable production warning"

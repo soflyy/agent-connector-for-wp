@@ -2,7 +2,6 @@ import React from 'react'
 import { Plug } from 'lucide-react'
 
 export default function Header({ page, onNavigate, status }) {
-  const isActive = status.active
   const isEnabled = status.enabled
 
   return (
@@ -43,20 +42,16 @@ export default function Header({ page, onNavigate, status }) {
             <span
               className={[
                 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full font-semibold',
-                isActive
-                  ? 'bg-green-500/20 text-green-400'
-                  : isEnabled
-                  ? 'bg-yellow-500/20 text-yellow-400'
-                  : 'bg-gray-700 text-gray-400',
+                isEnabled ? 'bg-green-500/20 text-green-400' : 'bg-gray-700 text-gray-400',
               ].join(' ')}
             >
               <span
                 className={[
                   'w-2 h-2 rounded-full',
-                  isActive ? 'bg-green-400' : isEnabled ? 'bg-yellow-400' : 'bg-gray-500',
+                  isEnabled ? 'bg-green-400' : 'bg-gray-500',
                 ].join(' ')}
               />
-              {isActive ? 'Active' : isEnabled ? 'Enabled' : 'Disabled'}
+              {isEnabled ? 'Enabled' : 'Disabled'}
             </span>
           </div>
         </div>
