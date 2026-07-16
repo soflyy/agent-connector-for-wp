@@ -1,15 +1,27 @@
-name: Release Default Abilities plugin
+name: Release Universal Abilities plugin
 
-# Builds the Default Abilities companion plugin (universal-abilities-plugin/) as a
-# standalone WordPress plugin zip and publishes it as the asset of a stable,
-# non-"latest" release tagged `universal-abilities-plugin`. That gives the zip a
-# permanent URL that the main plugin's one-click installer (Connection screen)
-# downloads from:
-#   https://github.com/<owner>/<repo>/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip
+# Builds the Universal Abilities companion plugin (universal-abilities-plugin/) as
+# a standalone WordPress plugin zip and publishes a VERSIONED release, then
+# refreshes a small stable manifest the main plugin reads for install + updates.
 #
-# The plugin ships no Composer dependencies — it reuses the main plugin's bundled
-# infrastructure at runtime — so the build is just stage + zip. The version is
-# stamped into the built zip from the plugin header; nothing is committed back.
+# Versioning mirrors the MAIN plugin (commit-back), not the ability packs
+# (stamp-only): Universal Abilities is a singleton, so one release = one bump
+# commit — the "many commits" problem that pushed packs to stamp-only doesn't
+# apply, and a user-facing plugin should carry its real version in its header.
+#
+# Per release:
+#   * tag    : universal-abilities-plugin-vX.Y.Z
+#   * release: same tag, asset universal-abilities-plugin.zip  (never clobbered)
+# The bump level comes from the merged PR title (Conventional Commits), or the
+# workflow_dispatch "bump" input.
+#
+# The install/update pointer is a one-object manifest published as the asset
+# index.json of a stable, non-"latest" release tagged `universal-abilities-index`:
+#   https://github.com/<owner>/<repo>/releases/download/universal-abilities-index/index.json
+# It always names the latest VERSIONED zip. Kept separate from pack-index so the
+# two release workflows never contend over one asset. The plugin ships no Composer
+# dependencies (it reuses the main plugin's bundled infrastructure), so the build
+# is just stage + zip.
 on:
   push:
     branches: [master]
@@ -17,48 +29,148 @@ on:
       - 'universal-abilities-plugin/**'
       - '.github/workflows/default-abilities-release.yml'
   workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Force bump level'
+        default: 'auto'
+        type: choice
+        options: [auto, patch, minor, major]
 
+# Push the bump commit + tag, create releases, and read the merged PR title.
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: default-abilities-release
+  group: universal-abilities-release
   cancel-in-progress: false
 
 env:
   PLUGIN_SLUG: universal-abilities-plugin
+  MAIN_FILE: universal-abilities-plugin/default-abilities-plugin.php
+  INDEX_TAG: universal-abilities-index
 
 jobs:
   release:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
+    # Never react to our own "[skip ci]" version-bump commit.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history + tags, needed to compute the next version
 
-      - name: Stage plugin files
+      - name: Determine next version
+        id: ver
+        run: |
+          set -euo pipefail
+
+          latest=$(git tag --list "${PLUGIN_SLUG}-v*" --sort=-v:refname | head -1 || true)
+
+          # No tag yet → seed the series at the current header version (first
+          # release establishes the baseline without a bump).
+          if [ -z "$latest" ]; then
+            header=$(grep -m1 -E "^[[:space:]]*\*[[:space:]]*Version:" "$MAIN_FILE" \
+              | sed -E "s/^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*//; s/[[:space:]]*$//")
+            new="${header:-1.0.0}"
+            echo "First release — baseline from header: $new"
+          else
+            title=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" --jq '.[0].title' 2>/dev/null || true)
+            if [ -z "${title}" ] || [ "${title}" = "null" ]; then
+              title=$(git log -1 --pretty=%s)
+            fi
+            body=$(git log -1 --pretty=%b)
+
+            level="${{ github.event.inputs.bump || 'auto' }}"
+            if [ "$level" = "auto" ]; then
+              if printf '%s' "$title" | grep -qE '^[a-zA-Z]+(\(.+\))?!:' || printf '%s' "$body" | grep -qE 'BREAKING[ -]CHANGE'; then
+                level="major"
+              elif printf '%s' "$title" | grep -qiE '^fix(\(.+\))?:'; then
+                level="patch"
+              else
+                level="minor"
+              fi
+            fi
+            echo "Bump: $level"
+
+            ver=${latest#${PLUGIN_SLUG}-v}
+            IFS='.' read -r MA MI PA <<< "$ver"
+            case "$level" in
+              major) MA=$((MA + 1)); MI=0; PA=0 ;;
+              minor) MI=$((MI + 1)); PA=0 ;;
+              patch) PA=$((PA + 1)) ;;
+            esac
+            new="${MA}.${MI}.${PA}"
+          fi
+
+          echo "New version: $new"
+          {
+            echo "version=$new"
+            echo "tag=${PLUGIN_SLUG}-v$new"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Sync version into source
+        run: |
+          set -euo pipefail
+          V="${{ steps.ver.outputs.version }}"
+          sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${V}/" "$MAIN_FILE"
+          sed -i -E "s/(define\( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION', ')[^']*(' \);)/\1${V}\2/" "$MAIN_FILE"
+          echo "---- changed lines ----"
+          grep -nE "Version:|AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION" "$MAIN_FILE"
+
+      - name: Commit, tag, and push
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$MAIN_FILE"
+          # Nothing to commit on a first release where the header already matches;
+          # still tag it so the series has a baseline.
+          git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]" || echo "No header change to commit."
+          git tag -a "${{ steps.ver.outputs.tag }}" -m "${{ steps.ver.outputs.tag }}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Build plugin zip
         run: |
           set -euo pipefail
           rm -rf dist && mkdir -p "dist/${PLUGIN_SLUG}"
           rsync -a --delete \
             --exclude='dist' --exclude='vendor' --exclude='node_modules' --exclude='.git' \
             "${PLUGIN_SLUG}/" "dist/${PLUGIN_SLUG}/"
-
-      - name: Create zip
-        run: |
-          set -euo pipefail
           cd dist && zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
 
-      - name: Publish to the stable universal-abilities-plugin release
+      - name: Publish the versioned release
         run: |
           set -euo pipefail
-          notes="The Default Abilities pack for Agent Connector for WP. Install in one click from wp-admin → Agent Connector for WP → Connection, or download the zip below."
-          if ! gh release view "${PLUGIN_SLUG}" >/dev/null 2>&1; then
-            gh release create "${PLUGIN_SLUG}" "dist/${PLUGIN_SLUG}.zip" \
-              --title "Default Abilities plugin" \
-              --notes "$notes" \
+          notes="Universal Abilities for Agent Connector — version ${{ steps.ver.outputs.version }}. Install in one click from wp-admin → Agent Connector → Settings, or download the zip below."
+          gh release create "${{ steps.ver.outputs.tag }}" "dist/${PLUGIN_SLUG}.zip" \
+            --title "${{ steps.ver.outputs.tag }}" \
+            --notes "$notes" \
+            --latest=false
+
+      - name: Refresh the stable install/update manifest
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          name=$(grep -m1 -E "^[[:space:]]*\*[[:space:]]*Plugin Name:" "$MAIN_FILE" \
+            | sed -E "s/^[[:space:]]*\*[[:space:]]*Plugin Name:[[:space:]]*//; s/[[:space:]]*$//")
+          dl="https://github.com/${repo}/releases/download/${{ steps.ver.outputs.tag }}/${PLUGIN_SLUG}.zip"
+          src="https://github.com/${repo}/tree/master/${PLUGIN_SLUG}"
+
+          jq -nc --arg slug "$PLUGIN_SLUG" --arg version "${{ steps.ver.outputs.version }}" \
+            --arg dl "$dl" --arg name "$name" --arg src "$src" \
+            '{slug:$slug, version:$version, download_url:$dl, name:$name, source_url:$src}' > index.json
+          echo "---- index.json ----"; cat index.json
+
+          if ! gh release view "$INDEX_TAG" >/dev/null 2>&1; then
+            gh release create "$INDEX_TAG" index.json \
+              --title "Universal Abilities index" \
+              --notes "Auto-generated manifest pointing at the latest Universal Abilities release. Consumed by the Agent Connector plugin for install + updates. Do not edit by hand." \
               --latest=false
           else
-            gh release upload "${PLUGIN_SLUG}" "dist/${PLUGIN_SLUG}.zip" --clobber
+            gh release upload "$INDEX_TAG" index.json --clobber
           fi

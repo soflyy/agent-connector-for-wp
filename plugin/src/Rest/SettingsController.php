@@ -652,8 +652,15 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
 		}
 
-		$plugin_file = 'universal-abilities-plugin/default-abilities-plugin.php';
-		$url         = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/universal-abilities-plugin/universal-abilities-plugin.zip';
+		// Resolve the latest versioned zip from the Universal Abilities manifest —
+		// the same source the updater uses, so first-install and updates share one
+		// source of truth (no hardcoded "latest" URL to clobber).
+		$entry = PluginDirectory::universal_abilities_entry();
+		$url   = null !== $entry ? (string) ( $entry['download_url'] ?? '' ) : '';
+
+		if ( '' === $url || ! self::is_pack_download_allowed( $url ) ) {
+			return new WP_Error( 'no_source', __( 'Could not find a download URL for Universal Abilities. Please try again later or install it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/misc.php';
@@ -663,11 +670,18 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'fs_unavailable', __( 'Direct filesystem access is not available on this server.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
 		}
 
-		$upgrader = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
+		$upgrader  = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
 		$installed = $upgrader->install( $url );
 
 		if ( is_wp_error( $installed ) || true !== $installed ) {
 			return new WP_Error( 'install_failed', __( 'Could not install Universal Abilities. Please try installing it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+		}
+
+		// Prefer the freshly-installed file the upgrader reports; fall back to the
+		// known main-file path (its folder slug is fixed by the release zip).
+		$plugin_file = (string) $upgrader->plugin_info();
+		if ( '' === $plugin_file ) {
+			$plugin_file = (string) ( PluginDirectory::universal_abilities_file() ?? 'universal-abilities-plugin/default-abilities-plugin.php' );
 		}
 
 		activate_plugin( $plugin_file, '', false, true );

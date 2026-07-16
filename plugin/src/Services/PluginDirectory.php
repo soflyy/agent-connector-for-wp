@@ -39,11 +39,28 @@ final class PluginDirectory {
 	public const DEFAULT_PACK_INDEX_URL = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/pack-index/index.json';
 
 	/**
+	 * Default Universal Abilities manifest URL — the stable
+	 * `universal-abilities-index` release asset, refreshed by
+	 * default-abilities-release.yml on every UAP release. A one-object JSON
+	 * ({slug, version, download_url, …}) pointing at the latest *versioned* zip.
+	 *
+	 * Kept as its own manifest (not merged into pack-index) so the two release
+	 * workflows never contend over a single asset. Override with the
+	 * `agent_connector_for_wp_universal_abilities_index_url` filter.
+	 */
+	public const DEFAULT_UNIVERSAL_ABILITIES_INDEX_URL = 'https://github.com/soflyy/agent-connector-for-wp/releases/download/universal-abilities-index/index.json';
+
+	/**
 	 * Transient holding the last successfully fetched + normalized manifest.
 	 *
 	 * @var array<string,mixed>|false
 	 */
 	public const CACHE_KEY = 'agent_connector_for_wp_directory_cache';
+
+	/**
+	 * Transient holding the last good Universal Abilities manifest entry.
+	 */
+	public const UNIVERSAL_ABILITIES_CACHE_KEY = 'agent_connector_for_wp_uap_index_cache';
 
 	/**
 	 * Transient lifetime: 12 hours.
@@ -142,20 +159,121 @@ final class PluginDirectory {
 	}
 
 	/**
-	 * Drop the cached manifest so the next read refetches.
+	 * Drop the cached manifests so the next read refetches.
 	 */
 	public static function clear_cache(): void {
 		delete_transient( self::CACHE_KEY );
+		delete_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
 	}
 
 	/**
-	 * Fetch + decode + normalize the manifest from the network.
+	 * The Universal Abilities manifest URL, after the override filter.
+	 */
+	public static function universal_abilities_index_url(): string {
+		/**
+		 * Filters the URL of the Universal Abilities manifest.
+		 *
+		 * @param string $url Default manifest URL.
+		 */
+		return (string) apply_filters(
+			'agent_connector_for_wp_universal_abilities_index_url',
+			self::DEFAULT_UNIVERSAL_ABILITIES_INDEX_URL
+		);
+	}
+
+	/**
+	 * The latest published Universal Abilities release, as
+	 * {slug, version, download_url, name, source_url}, or null when the manifest
+	 * is unreachable and nothing usable is cached.
+	 *
+	 * Cached in its own transient with the same best-effort, never-fatal policy as
+	 * the ability-pack manifest: a network/parse failure falls back to the last
+	 * good copy.
+	 *
+	 * @param bool $force When true, bypass the cache and refetch from the network.
+	 *
+	 * @return array{slug:string,version:string,download_url:string,name:string,source_url:string}|null
+	 */
+	public static function universal_abilities_entry( bool $force = false ): ?array {
+		if ( ! $force ) {
+			$cached = get_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+		}
+
+		$entry = self::normalize_universal_abilities_entry(
+			self::remote_json( self::universal_abilities_index_url() )
+		);
+
+		if ( null !== $entry ) {
+			set_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY, $entry, self::CACHE_TTL );
+			return $entry;
+		}
+
+		// Network/parse failed — fall back to any (possibly stale) cached copy.
+		$cached = get_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
+		return is_array( $cached ) ? $cached : null;
+	}
+
+	/**
+	 * Validate + normalize the Universal Abilities manifest object, or null when
+	 * it lacks the fields needed to offer an update (version + download URL).
+	 *
+	 * @param mixed $decoded Decoded JSON.
+	 *
+	 * @return array{slug:string,version:string,download_url:string,name:string,source_url:string}|null
+	 */
+	private static function normalize_universal_abilities_entry( $decoded ): ?array {
+		if ( ! is_array( $decoded ) ) {
+			return null;
+		}
+
+		$str = static function ( $value ): string {
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		$version      = $str( $decoded['version'] ?? '' );
+		$download_url = $str( $decoded['download_url'] ?? '' );
+
+		if ( '' === $version || '' === $download_url ) {
+			return null;
+		}
+
+		$slug = $str( $decoded['slug'] ?? '' );
+
+		return array(
+			'slug'         => '' !== $slug ? $slug : self::UNIVERSAL_ABILITIES_SLUG,
+			'version'      => $version,
+			'download_url' => $download_url,
+			'name'         => $str( $decoded['name'] ?? '' ),
+			'source_url'   => $str( $decoded['source_url'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Fetch + decode + normalize the ability-pack manifest from the network.
 	 *
 	 * @param string $url Manifest URL.
 	 *
 	 * @return array{entries:array<int,array<string,string>>}|null Normalized entries, or null on any failure.
 	 */
 	private static function fetch( string $url ): ?array {
+		$decoded = self::remote_json( $url );
+
+		return null === $decoded ? null : self::normalize( $decoded );
+	}
+
+	/**
+	 * GET a URL and decode it as JSON, or null on any network / HTTP / parse
+	 * failure. Shared by the ability-pack manifest and the Universal Abilities
+	 * manifest fetchers.
+	 *
+	 * @param string $url URL to fetch.
+	 *
+	 * @return mixed Decoded JSON (array/scalar) on success, or null on failure.
+	 */
+	private static function remote_json( string $url ) {
 		if ( '' === $url || ! function_exists( 'wp_remote_get' ) ) {
 			return null;
 		}
@@ -187,7 +305,7 @@ final class PluginDirectory {
 			return null;
 		}
 
-		return self::normalize( $decoded );
+		return $decoded;
 	}
 
 	/**
