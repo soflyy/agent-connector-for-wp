@@ -147,7 +147,14 @@ final class PackUpdater {
 	}
 
 	/**
-	 * Directory entries keyed by ability_pack_slug (cache-aware, manifest-backed).
+	 * Update sources keyed by folder slug (cache-aware, manifest-backed).
+	 *
+	 * Combines two manifests, both consumed the same way by inject_updates():
+	 *   - the ability-pack manifest (many entries, keyed by ability_pack_slug), and
+	 *   - the Universal Abilities manifest (one entry). Universal Abilities carries
+	 *     the same "Agent Connector" marker header as a pack, so installed_packs()
+	 *     already detects it; adding its manifest entry here is all that's needed
+	 *     for it to update through the very same path.
 	 *
 	 * @return array<string,array<string,string>>
 	 */
@@ -159,6 +166,11 @@ final class PackUpdater {
 			if ( '' !== $slug ) {
 				$by_slug[ $slug ] = $entry;
 			}
+		}
+
+		$uap = PluginDirectory::universal_abilities_entry();
+		if ( null !== $uap ) {
+			$by_slug[ PluginDirectory::UNIVERSAL_ABILITIES_SLUG ] = $uap;
 		}
 
 		return $by_slug;

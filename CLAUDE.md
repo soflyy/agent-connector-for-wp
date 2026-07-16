@@ -13,9 +13,14 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 | `bin/` | Dev scripts (`install.sh` symlinks `plugin/` + `universal-abilities-plugin/` into a WP install). | — |
 
 Each subproject has its own README/CONTRIBUTING. The PR-title release automation
-below applies **only** to `plugin/`; `universal-abilities-plugin/` is published by
-its own workflow (`.github/workflows/default-abilities-release.yml`) to the
-stable `universal-abilities-plugin` release on any change under that directory.
+below applies to both `plugin/` and `universal-abilities-plugin/` — the latter via
+its own workflow (`.github/workflows/default-abilities-release.yml`), which uses
+the same commit-back versioning (PR title → bump → tag `universal-abilities-plugin-vX.Y.Z`
+→ versioned release, never clobbered) and refreshes a stable
+`universal-abilities-index` manifest that the main plugin reads for one-click
+install and updates. Ability packs (`ability-packs/`) use stamp-only versioning
+instead (see `ability-packs-release.yml`). All three are consumed at runtime by
+the main plugin's updater — nothing self-updates.
 
 ## PR / commit titles drive releases
 
