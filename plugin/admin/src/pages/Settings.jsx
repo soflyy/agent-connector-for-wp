@@ -266,12 +266,6 @@ export default function Settings({ status, onStatusChange }) {
 
         {/* Protection */}
         <Section title="Protection" icon={Shield}>
-          <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 text-sm text-gray-500">
-            Optional safeguards, all off by default. Agent Connector works everywhere out of the
-            box — turn these on if you want hard limits, for example before pushing a staging
-            database to production.
-          </div>
-
           <Row
             label="Block on production environments"
             description={`Stops the MCP server entirely while wp_get_environment_type() reports "production". This site currently reports "${status.envType}".`}
