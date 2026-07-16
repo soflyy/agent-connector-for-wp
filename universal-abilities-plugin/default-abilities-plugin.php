@@ -3,7 +3,7 @@
  * Plugin Name:       Universal Abilities for Agent Connector
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       The companion pack that lets an AI agent actually do things on your site: run shell commands, evaluate PHP, read/write files, run WP-CLI, and log into wp-admin. Complete access to this WordPress install, exposed over MCP to super admins.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 7.0
  * Requires PHP:      8.1
  * Requires Plugins:  agent-connector-for-wp
@@ -29,7 +29,7 @@ namespace AgentConnectorForWp\DefaultAbilities;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION', '1.0.0' );
+define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION', '1.0.1' );
 define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_DIR', plugin_dir_path( __FILE__ ) );
 
