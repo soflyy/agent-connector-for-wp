@@ -135,12 +135,25 @@ to loosen that.
   there. The error tells the agent an administrator must reconnect from
   **Agent Connector → Settings → Protection**.
 
+### Logging
+
+Both logs are **off by default** — nothing is recorded unless you expressly turn
+it on under Settings → Debug:
+
+- **Log MCP events** — every MCP request (including raw JSON-RPC bodies) into a
+  database table, shown on the plugin's Log screen.
+- **Audit log file** — one JSON line per ability execution (ability, user, IP,
+  input summary) appended to `wp-content/agent-connector-for-wp-audit.log`.
+  Nothing in the plugin reads this file; it's an on-disk trail for operators.
+  The default path is usually **web-readable** — if you enable it, move it
+  outside the web root with the constant below.
+
 ### Optional tunables
 
 ```php
 define( 'AGENT_CONNECTOR_FOR_WP_TIMEOUT_MS', 60000 );         // command/eval timeout
 define( 'AGENT_CONNECTOR_FOR_WP_MAX_OUTPUT_BYTES', 2097152 );  // per-stream cap (2 MiB)
-define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/path/to/audit.log' );
+define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/var/log/ac4wp-audit.log' ); // audit file path (used only when the Audit log setting is on)
 ```
 
 ## Examples

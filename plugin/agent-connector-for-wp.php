@@ -209,9 +209,7 @@ add_action(
  * vX.Y.Z tag with the built `agent-connector-for-wp.zip` attached as a release
  * asset. The auto-release workflow does this automatically on merge to master.
  *
- * The repo is assumed PUBLIC. If it's made private, supply a GitHub token via
- * the `agent_connector_for_wp_github_auth_token` filter (or define the
- * AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN constant). No token is hardcoded.
+ * The repo is PUBLIC — the checker needs no authentication.
  *
  * Guarded to admin context: update checks only need to run in wp-admin, never on
  * every front-end request.
@@ -233,23 +231,6 @@ add_action(
 
 		// Default branch holding the stable tags/releases.
 		$update_checker->setBranch( 'master' );
-
-		/**
-		 * GitHub auth token for the update checker.
-		 *
-		 * The repo is public, so this is empty by default. To support a private
-		 * repo later, return a token here (or define
-		 * AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN). Never hardcode a token in source.
-		 *
-		 * @param string $token GitHub personal access token. Empty for public repos.
-		 */
-		$github_token = (string) apply_filters(
-			'agent_connector_for_wp_github_auth_token',
-			defined( 'AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN' ) ? (string) AGENT_CONNECTOR_FOR_WP_GITHUB_TOKEN : ''
-		);
-		if ( '' !== $github_token ) {
-			$update_checker->setAuthentication( $github_token );
-		}
 
 		// Install the built release ZIP (with bundled vendor/) attached to each
 		// GitHub Release — NOT the source tarball, which lacks vendor/.

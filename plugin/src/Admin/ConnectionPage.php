@@ -99,6 +99,7 @@ final class ConnectionPage {
 				'active'             => Config::can_boot(),
 				'prodBlocked'        => Config::is_blocked_by_production(),
 				'mcpDebug'           => Config::mcp_debug_enabled(),
+				'auditLog'           => Config::audit_log_enabled(),
 				'blockProduction'    => Config::block_production_enabled(),
 				'domainLockEnabled'  => Config::domain_lock_enabled(),
 				'hideProdWarning'    => Config::production_warning_hidden(),

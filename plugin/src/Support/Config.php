@@ -76,6 +76,16 @@ final class Config {
 	public const MCP_DEBUG_OPTION = 'agent_connector_for_wp_mcp_debug';
 
 	/**
+	 * Option toggling the append-only audit log FILE of ability executions
+	 * (boolean). Default OFF: the log records ability names, user logins, client
+	 * IPs, and input summaries — and the default path is inside wp-content, which
+	 * is typically web-readable — so writing it is a deliberate opt-in, exactly
+	 * like the MCP debug log above. Nothing in the plugin reads this file; it
+	 * exists for operators who want an on-disk trail.
+	 */
+	public const AUDIT_LOG_OPTION = 'agent_connector_for_wp_audit_log';
+
+	/**
 	 * Option storing the host the plugin was last activated / reconnected on.
 	 *
 	 * This is the domain lock's pin: when the lock is enabled, abilities refuse
@@ -287,7 +297,17 @@ final class Config {
 	}
 
 	/**
-	 * Absolute path to the audit log. Override with AGENT_CONNECTOR_FOR_WP_AUDIT_LOG.
+	 * Whether the operator opted in to the audit log file. Default OFF — see
+	 * AUDIT_LOG_OPTION.
+	 */
+	public static function audit_log_enabled(): bool {
+		return (bool) get_option( self::AUDIT_LOG_OPTION, false );
+	}
+
+	/**
+	 * Absolute path to the audit log. Override with AGENT_CONNECTOR_FOR_WP_AUDIT_LOG —
+	 * ideally to a location outside the web root, since the default lives in
+	 * wp-content and is typically web-readable.
 	 */
 	public static function audit_log_path(): string {
 		if ( defined( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG' ) && is_string( AGENT_CONNECTOR_FOR_WP_AUDIT_LOG ) ) {

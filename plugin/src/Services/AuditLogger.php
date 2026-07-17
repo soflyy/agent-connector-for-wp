@@ -15,9 +15,11 @@ use AgentConnectorForWp\Support\Helpers;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Writes one JSON line per invocation. This is an audit trail, not a security
+ * Writes one JSON line per invocation — when the operator has opted in via the
+ * "Audit log" setting (off by default). This is an audit trail, not a security
  * control — the plugin is high-trust by design — but it makes after-the-fact
- * review of what an agent did possible.
+ * review of what an agent did possible. Independent of logging, this class is
+ * also the execution chokepoint that enforces the domain lock (see run()).
  */
 final class AuditLogger {
 
@@ -30,6 +32,13 @@ final class AuditLogger {
 	 * @param int                  $duration Milliseconds.
 	 */
 	public static function log( string $ability, array $summary, string $status, int $duration = 0 ): void {
+		// Opt-in only: the log records user logins, client IPs, and input
+		// summaries, and its default path is web-readable (wp-content) — so
+		// nothing is written unless the operator expressly enabled it.
+		if ( ! Config::audit_log_enabled() ) {
+			return;
+		}
+
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 
 		$entry = array(
