@@ -169,16 +169,6 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/dismiss-uap-notice',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'dismiss_uap_notice' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
 			'/dismiss-gs-banner',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
