@@ -15,9 +15,12 @@ use AgentConnectorForWp\Support\Helpers;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Writes one JSON line per invocation. This is an audit trail, not a security
+ * Writes one JSON line per invocation — only when the operator has opted in by
+ * defining the AGENT_CONNECTOR_FOR_WP_AUDIT_LOG constant (a path; undefined by
+ * default, meaning nothing is written). This is an audit trail, not a security
  * control — the plugin is high-trust by design — but it makes after-the-fact
- * review of what an agent did possible.
+ * review of what an agent did possible. Independent of logging, this class is
+ * also the execution chokepoint that enforces the domain lock (see run()).
  */
 final class AuditLogger {
 
@@ -30,6 +33,14 @@ final class AuditLogger {
 	 * @param int                  $duration Milliseconds.
 	 */
 	public static function log( string $ability, array $summary, string $status, int $duration = 0 ): void {
+		// Opt-in only: no AGENT_CONNECTOR_FOR_WP_AUDIT_LOG constant, no log. The
+		// entries record user logins, client IPs, and input summaries, so nothing
+		// is written unless the operator expressly configured a destination.
+		$path = Config::audit_log_path();
+		if ( '' === $path ) {
+			return;
+		}
+
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 
 		$entry = array(
@@ -48,7 +59,6 @@ final class AuditLogger {
 			return;
 		}
 
-		$path = Config::audit_log_path();
 		// Suppress errors: logging must never break the operation it records.
 		@file_put_contents( $path, $line . "\n", FILE_APPEND | LOCK_EX ); // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
 	}

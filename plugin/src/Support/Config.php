@@ -287,13 +287,19 @@ final class Config {
 	}
 
 	/**
-	 * Absolute path to the audit log. Override with AGENT_CONNECTOR_FOR_WP_AUDIT_LOG.
+	 * Absolute path to the audit log file, or '' when audit logging is off.
+	 *
+	 * Defining the AGENT_CONNECTOR_FOR_WP_AUDIT_LOG constant IS the opt-in: there
+	 * is no default path and no setting. Undefined (the default) means nothing is
+	 * ever written — the log records user logins, client IPs, and input
+	 * summaries, so it only exists when an operator deliberately configured a
+	 * destination (ideally outside the web root).
 	 */
 	public static function audit_log_path(): string {
 		if ( defined( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG' ) && is_string( AGENT_CONNECTOR_FOR_WP_AUDIT_LOG ) ) {
-			return AGENT_CONNECTOR_FOR_WP_AUDIT_LOG;
+			return trim( AGENT_CONNECTOR_FOR_WP_AUDIT_LOG );
 		}
-		return rtrim( WP_CONTENT_DIR, '/\\' ) . '/agent-connector-for-wp-audit.log';
+		return '';
 	}
 
 	/**
