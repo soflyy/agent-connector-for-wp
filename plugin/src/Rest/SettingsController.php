@@ -50,7 +50,6 @@ final class SettingsController extends WP_REST_Controller {
 					'domain_lock_enabled'     => array( 'type' => 'boolean', 'default' => false ),
 					'hide_production_warning' => array( 'type' => 'boolean', 'default' => false ),
 					'mcp_debug'               => array( 'type' => 'boolean', 'default' => false ),
-					'audit_log'               => array( 'type' => 'boolean', 'default' => false ),
 				),
 			)
 		);
@@ -235,7 +234,6 @@ final class SettingsController extends WP_REST_Controller {
 				'active'                  => Config::can_boot(),
 				'prod_blocked'            => Config::is_blocked_by_production(),
 				'mcp_debug'               => Config::mcp_debug_enabled(),
-				'audit_log'               => Config::audit_log_enabled(),
 				'block_production'        => Config::block_production_enabled(),
 				'domain_lock_enabled'     => Config::domain_lock_enabled(),
 				'hide_production_warning' => Config::production_warning_hidden(),
@@ -257,14 +255,12 @@ final class SettingsController extends WP_REST_Controller {
 		$domain_lock  = (bool) $request->get_param( 'domain_lock_enabled' );
 		$hide_warning = (bool) $request->get_param( 'hide_production_warning' );
 		$mcp_debug    = (bool) $request->get_param( 'mcp_debug' );
-		$audit_log    = (bool) $request->get_param( 'audit_log' );
 
 		update_option( Config::ENABLED_OPTION, $enable, true );
 		update_option( Config::BLOCK_PRODUCTION_OPTION, $block_prod, true );
 		update_option( Config::DOMAIN_LOCK_OPTION, $domain_lock, true );
 		update_option( Config::HIDE_PRODUCTION_WARNING_OPTION, $hide_warning, true );
 		update_option( Config::MCP_DEBUG_OPTION, $mcp_debug, true );
-		update_option( Config::AUDIT_LOG_OPTION, $audit_log, true );
 
 		/** This action is documented in src/Admin/ConnectionPage.php. */
 		do_action( 'agent_connector_for_wp_settings_saved' );

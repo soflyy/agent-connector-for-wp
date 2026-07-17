@@ -121,7 +121,6 @@ export default function Settings({ status, onStatusChange }) {
     domainLockEnabled: status.domainLockEnabled,
     hideProdWarning: status.hideProdWarning,
     mcpDebug: status.mcpDebug,
-    auditLog: status.auditLog,
   })
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState(null)
@@ -161,7 +160,6 @@ export default function Settings({ status, onStatusChange }) {
         domain_lock_enabled: newForm.domainLockEnabled,
         hide_production_warning: newForm.hideProdWarning,
         mcp_debug: newForm.mcpDebug,
-        audit_log: newForm.auditLog,
       })
       onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setSaveStatus('saved')
@@ -380,13 +378,6 @@ export default function Settings({ status, onStatusChange }) {
             description="Records every MCP request — including raw JSON-RPC bodies — in the database. Bodies can contain sensitive data. Leave off unless debugging."
             control={
               <Toggle checked={form.mcpDebug} onChange={(v) => setAndSave('mcpDebug', v)} />
-            }
-          />
-          <Row
-            label="Audit log file"
-            description="Appends one line per ability execution (ability, user, IP, input summary) to wp-content/agent-connector-for-wp-audit.log. That path is usually web-readable — if you enable this, consider moving it outside the web root with the AGENT_CONNECTOR_FOR_WP_AUDIT_LOG constant."
-            control={
-              <Toggle checked={form.auditLog} onChange={(v) => setAndSave('auditLog', v)} />
             }
           />
         </Section>

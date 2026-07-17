@@ -137,23 +137,23 @@ to loosen that.
 
 ### Logging
 
-Both logs are **off by default** — nothing is recorded unless you expressly turn
-it on under Settings → Debug:
+Both logs are **off by default** — nothing is recorded unless you expressly opt
+in:
 
-- **Log MCP events** — every MCP request (including raw JSON-RPC bodies) into a
-  database table, shown on the plugin's Log screen.
+- **Log MCP events** (Settings → Debug) — every MCP request (including raw
+  JSON-RPC bodies) into a database table, shown on the plugin's Log screen.
 - **Audit log file** — one JSON line per ability execution (ability, user, IP,
-  input summary) appended to `wp-content/agent-connector-for-wp-audit.log`.
-  Nothing in the plugin reads this file; it's an on-disk trail for operators.
-  The default path is usually **web-readable** — if you enable it, move it
-  outside the web root with the constant below.
+  input summary). There is no setting and no default path: **defining the
+  `AGENT_CONNECTOR_FOR_WP_AUDIT_LOG` constant is the opt-in** — leave it
+  undefined and nothing is ever written. Point it outside the web root; nothing
+  in the plugin reads this file, it's an on-disk trail for operators.
 
 ### Optional tunables
 
 ```php
 define( 'AGENT_CONNECTOR_FOR_WP_TIMEOUT_MS', 60000 );         // command/eval timeout
 define( 'AGENT_CONNECTOR_FOR_WP_MAX_OUTPUT_BYTES', 2097152 );  // per-stream cap (2 MiB)
-define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/var/log/ac4wp-audit.log' ); // audit file path (used only when the Audit log setting is on)
+define( 'AGENT_CONNECTOR_FOR_WP_AUDIT_LOG', '/var/log/ac4wp-audit.log' ); // defining this enables the audit log
 ```
 
 ## Examples
