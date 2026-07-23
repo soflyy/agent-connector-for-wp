@@ -44,6 +44,10 @@ jobs:
           rsync -a --delete \
             --exclude='dist' \
             --exclude='vendor' \
+            --exclude='admin/node_modules' \
+            --exclude='.git' \
+            --exclude='.gitignore' \
+            --exclude='.gitattributes' \
             ./ "dist/${PLUGIN_SLUG}/"
           cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
 

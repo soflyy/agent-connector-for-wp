@@ -10,9 +10,9 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\Rest;
 
 use AgentConnectorForWp\Observability\EventsTable;
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\Helpers;
 use WP_Application_Passwords;
 use WP_Error;
 use WP_REST_Controller;
@@ -74,75 +74,6 @@ final class SettingsController extends WP_REST_Controller {
 				'args'                => array(
 					'name' => array( 'type' => 'string', 'default' => '' ),
 				),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/directory',
-			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => array( $this, 'get_directory' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/directory/refresh',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'refresh_directory' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/directory/install',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'install_pack' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'pack_slug' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
-				),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/directory/activate',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'activate_pack' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'pack_slug' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
-				),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/directory/deactivate',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'deactivate_pack' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-				'args'                => array(
-					'pack_slug' => array( 'type' => 'string', 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ),
-				),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
-			'/uap/install',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'install_uap' ),
-				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
 
@@ -325,98 +256,6 @@ final class SettingsController extends WP_REST_Controller {
 		return new WP_REST_Response( $result );
 	}
 
-	public function get_directory( WP_REST_Request $request ): WP_REST_Response {
-		return new WP_REST_Response( $this->directory_data() );
-	}
-
-	public function refresh_directory( WP_REST_Request $request ): WP_REST_Response {
-		PluginDirectory::clear_cache();
-		PluginDirectory::get( true );
-		return new WP_REST_Response( $this->directory_data() );
-	}
-
-	public function install_pack( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
-			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
-		}
-
-		$slug  = (string) $request->get_param( 'pack_slug' );
-		$entry = $this->find_directory_entry( $slug );
-		$url   = null !== $entry ? (string) ( $entry['download_url'] ?? '' ) : '';
-
-		if ( '' === $url || ! self::is_pack_download_allowed( $url ) ) {
-			return new WP_Error( 'invalid_pack', __( 'Could not find a valid download URL for this pack.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/misc.php';
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-		if ( 'direct' !== get_filesystem_method() ) {
-			return new WP_Error( 'fs_unavailable', __( 'This site cannot install plugins directly (no direct filesystem access).', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		$upgrader = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
-		$result   = $upgrader->install( $url );
-
-		if ( is_wp_error( $result ) || true !== $result ) {
-			return new WP_Error( 'install_failed', __( 'Could not install the ability pack.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		$plugin_file = (string) $upgrader->plugin_info();
-		if ( '' === $plugin_file ) {
-			$plugin_file = (string) ( PluginDirectory::installed_file_for_slug( $slug ) ?? '' );
-		}
-
-		if ( '' !== $plugin_file ) {
-			activate_plugin( $plugin_file, '', false, true );
-		}
-
-		PluginDirectory::clear_cache();
-		return new WP_REST_Response( array( 'success' => true, 'directory' => $this->directory_data() ) );
-	}
-
-	public function activate_pack( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return new WP_Error( 'forbidden', __( 'You do not have permission to activate plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
-		}
-
-		$slug = (string) $request->get_param( 'pack_slug' );
-		$file = PluginDirectory::installed_file_for_slug( $slug );
-		if ( null === $file ) {
-			return new WP_Error( 'not_found', __( 'Plugin not found.', 'agent-connector-for-wp' ), array( 'status' => 404 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		$result = activate_plugin( $file, '', false, true );
-
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-
-		PluginDirectory::clear_cache();
-		return new WP_REST_Response( array( 'success' => true, 'directory' => $this->directory_data() ) );
-	}
-
-	public function deactivate_pack( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return new WP_Error( 'forbidden', __( 'You do not have permission to deactivate plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
-		}
-
-		$slug = (string) $request->get_param( 'pack_slug' );
-		$file = PluginDirectory::installed_file_for_slug( $slug );
-		if ( null === $file ) {
-			return new WP_Error( 'not_found', __( 'Plugin not found.', 'agent-connector-for-wp' ), array( 'status' => 404 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		deactivate_plugins( $file, true );
-
-		PluginDirectory::clear_cache();
-		return new WP_REST_Response( array( 'success' => true, 'directory' => $this->directory_data() ) );
-	}
-
 	public function get_registered_abilities( WP_REST_Request $request ): WP_REST_Response {
 		$all       = function_exists( 'wp_get_abilities' ) ? (array) wp_get_abilities() : array();
 		$abilities = array();
@@ -449,52 +288,6 @@ final class SettingsController extends WP_REST_Controller {
 		);
 
 		return new WP_REST_Response( array( 'abilities' => $abilities, 'total' => count( $abilities ) ) );
-	}
-
-	private function directory_data(): array {
-		$result = PluginDirectory::installed_overview();
-		return array(
-			'rows'       => $result['rows'],
-			'stale'      => $result['stale'],
-			'error'      => $result['error'],
-			'url'        => $result['url'],
-			'total'      => $result['total'],
-			'can_manage' => current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ),
-		);
-	}
-
-	private function find_directory_entry( string $slug ): ?array {
-		if ( '' === $slug ) {
-			return null;
-		}
-		foreach ( PluginDirectory::get()['entries'] as $entry ) {
-			if ( isset( $entry['ability_pack_slug'] ) && $entry['ability_pack_slug'] === $slug ) {
-				return $entry;
-			}
-		}
-		return null;
-	}
-
-	private static function is_pack_download_allowed( string $url ): bool {
-		$parts = wp_parse_url( $url );
-		if ( empty( $parts['scheme'] ) || 'https' !== strtolower( (string) $parts['scheme'] ) || empty( $parts['host'] ) ) {
-			return false;
-		}
-		$host    = strtolower( (string) $parts['host'] );
-		$allowed = (array) apply_filters(
-			'agent_connector_for_wp_pack_download_hosts',
-			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com' )
-		);
-		foreach ( $allowed as $h ) {
-			$h = strtolower( (string) $h );
-			if ( '' === $h ) {
-				continue;
-			}
-			if ( $host === $h || substr( $host, - strlen( '.' . $h ) ) === '.' . $h ) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	public function get_logs( WP_REST_Request $request ): WP_REST_Response {
@@ -531,22 +324,26 @@ final class SettingsController extends WP_REST_Controller {
 
 		$where_sql = empty( $where ) ? '' : 'WHERE ' . implode( ' AND ', $where );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$total = empty( $where_values )
-			? (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` {$where_sql}" )
-			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` {$where_sql}", $where_values ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- bespoke log table, no core API covers it.
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders, PluginCheck.Security.DirectDB -- $where_sql is built above from literal SQL fragments and %s placeholders only; the table name (%i) and every value go through $wpdb->prepare().
+		$total = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i {$where_sql}",
+				array_merge( array( $table ), $where_values )
+			)
+		);
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, created_at, event, method, tool_name, prompt_name, status, duration_ms, user_id FROM `{$table}` {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
-				array_merge( $where_values, array( $per_page, $offset ) )
+				"SELECT id, created_at, event, method, tool_name, prompt_name, status, duration_ms, user_id FROM %i {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
+				array_merge( array( $table ), $where_values, array( $per_page, $offset ) )
 			),
 			ARRAY_A
 		);
 
-		$distinct_events   = $wpdb->get_col( "SELECT DISTINCT `event` FROM `{$table}` ORDER BY `event` ASC" ) ?: array();
-		$distinct_statuses = $wpdb->get_col( "SELECT DISTINCT `status` FROM `{$table}` WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC" ) ?: array();
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$distinct_events   = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT `event` FROM %i ORDER BY `event` ASC', $table ) ) ?: array();
+		$distinct_statuses = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT `status` FROM %i WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC", $table ) ) ?: array();
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders, PluginCheck.Security.DirectDB
 
 		return new WP_REST_Response( array(
 			'rows'              => array_map( array( $this, 'format_log_row' ), $rows ?: array() ),
@@ -564,8 +361,8 @@ final class SettingsController extends WP_REST_Controller {
 		$id    = (int) $request->get_param( 'id' );
 		$table = EventsTable::name();
 
-		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->prepare( "SELECT * FROM `{$table}` WHERE `id` = %d", $id ),
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- bespoke log table, no core API covers it.
+			$wpdb->prepare( 'SELECT * FROM %i WHERE `id` = %d', $table, $id ),
 			ARRAY_A
 		);
 
@@ -595,7 +392,7 @@ final class SettingsController extends WP_REST_Controller {
 
 		EventsTable::maybe_create();
 		$table = EventsTable::name();
-		$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- bespoke log table, no core API covers it.
 
 		return new WP_REST_Response( array( 'success' => true ) );
 	}
@@ -620,67 +417,8 @@ final class SettingsController extends WP_REST_Controller {
 		);
 	}
 
-	public function install_uap( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
-			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-
-		// Already active — nothing to do.
-		if ( PluginDirectory::is_universal_abilities_active() ) {
-			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
-		}
-
-		// Installed but inactive — activate the existing copy instead of downloading a duplicate.
-		$existing = PluginDirectory::universal_abilities_file();
-		if ( null !== $existing ) {
-			$result = activate_plugin( $existing, '', false, true );
-			if ( is_wp_error( $result ) ) {
-				return $result;
-			}
-			return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
-		}
-
-		// Resolve the latest versioned zip from the Universal Abilities manifest —
-		// the same source the updater uses, so first-install and updates share one
-		// source of truth (no hardcoded "latest" URL to clobber).
-		$entry = PluginDirectory::universal_abilities_entry();
-		$url   = null !== $entry ? (string) ( $entry['download_url'] ?? '' ) : '';
-
-		if ( '' === $url || ! self::is_pack_download_allowed( $url ) ) {
-			return new WP_Error( 'no_source', __( 'Could not find a download URL for Universal Abilities. Please try again later or install it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/misc.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-		if ( 'direct' !== get_filesystem_method() ) {
-			return new WP_Error( 'fs_unavailable', __( 'Direct filesystem access is not available on this server.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		$upgrader  = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
-		$installed = $upgrader->install( $url );
-
-		if ( is_wp_error( $installed ) || true !== $installed ) {
-			return new WP_Error( 'install_failed', __( 'Could not install Universal Abilities. Please try installing it manually.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		// Prefer the freshly-installed file the upgrader reports; fall back to the
-		// known main-file path (its folder slug is fixed by the release zip).
-		$plugin_file = (string) $upgrader->plugin_info();
-		if ( '' === $plugin_file ) {
-			$plugin_file = (string) ( PluginDirectory::universal_abilities_file() ?? 'universal-abilities-plugin/default-abilities-plugin.php' );
-		}
-
-		activate_plugin( $plugin_file, '', false, true );
-
-		return new WP_REST_Response( array( 'success' => true, 'uap_active' => true ) );
-	}
-
 	private function is_uap_active(): bool {
-		return PluginDirectory::is_universal_abilities_active();
+		return Helpers::is_universal_abilities_active();
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

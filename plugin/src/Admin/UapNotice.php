@@ -9,8 +9,8 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
+use AgentConnectorForWp\Support\Helpers;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,11 +20,14 @@ defined( 'ABSPATH' ) || exit;
  *
  * Without the pack, a connected agent only has whatever abilities other
  * plugins happen to register — usually nothing — so the plugin looks broken.
- * This notice explains that and offers a one-click Install & Activate (the
- * same REST route the Settings screen uses). Dismiss is site-wide: one admin
- * dismissing hides it for all.
+ * This notice explains that and links to where the optional companion plugin
+ * can be downloaded. Dismiss is site-wide: one admin dismissing hides it for
+ * all.
  */
 final class UapNotice {
+
+	/** Where the optional Universal Abilities companion plugin lives. */
+	public const UNIVERSAL_ABILITIES_URL = 'https://wpagentconnector.com/universal-abilities';
 
 	public function register(): void {
 		add_action( 'admin_notices', array( $this, 'render' ) );
@@ -36,7 +39,7 @@ final class UapNotice {
 			! current_user_can( Config::CAP )
 			|| ! Config::can_boot()
 			|| Config::uap_notice_hidden()
-			|| PluginDirectory::is_universal_abilities_active()
+			|| Helpers::is_universal_abilities_active()
 		) {
 			return;
 		}
@@ -47,23 +50,16 @@ final class UapNotice {
 			return;
 		}
 
-		$install_url = add_query_arg(
-			array(
-				'page'     => ConnectionPage::MENU_SLUG,
-				'acfw_uap' => 'install',
-			),
-			admin_url( 'admin.php' )
-		) . '#/settings';
 		$dismiss_url = rest_url( 'agent-connector-for-wp/v1/dismiss-uap-notice' );
 		?>
 		<div class="notice notice-warning" id="acfw-uap-notice">
 			<p>
 				<strong><?php esc_html_e( 'Your agent can\'t do much yet.', 'agent-connector-for-wp' ); ?></strong>
-				<?php esc_html_e( 'Agent Connector is running, but agents only get the abilities your other plugins register. Install the Universal Abilities plugin to give your agent complete access to this WordPress install — shell, PHP, files, WP-CLI, and admin login.', 'agent-connector-for-wp' ); ?>
+				<?php esc_html_e( 'Agent Connector is running, but agents only get the abilities your other plugins register. Install the optional Universal Abilities plugin to give your agent complete access to this WordPress install — shell, PHP, files, WP-CLI, and admin login.', 'agent-connector-for-wp' ); ?>
 			</p>
 			<p>
-				<a class="button button-primary" href="<?php echo esc_url( $install_url ); ?>">
-					<?php esc_html_e( 'Install & Activate', 'agent-connector-for-wp' ); ?>
+				<a class="button button-primary" href="<?php echo esc_url( self::UNIVERSAL_ABILITIES_URL ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php esc_html_e( 'Get Universal Abilities', 'agent-connector-for-wp' ); ?>
 				</a>
 				<button type="button" class="button" id="acfw-uap-notice-dismiss">
 					<?php esc_html_e( 'Dismiss', 'agent-connector-for-wp' ); ?>

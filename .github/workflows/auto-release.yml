@@ -104,17 +104,20 @@ jobs:
           set -euo pipefail
           V="${{ steps.ver.outputs.version }}"
           php="plugin/agent-connector-for-wp.php"
+          readme="plugin/readme.txt"
           sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${V}/" "$php"
           sed -i -E "s/(define\( 'AGENT_CONNECTOR_FOR_WP_VERSION', ')[^']*(' \);)/\1${V}\2/" "$php"
+          sed -i -E "s/^(Stable tag:[[:space:]]+).*/\1${V}/" "$readme"
           echo "---- changed lines ----"
           grep -nE "Version:|AGENT_CONNECTOR_FOR_WP_VERSION" "$php"
+          grep -nE "^Stable tag:" "$readme"
 
       - name: Commit, tag, and push
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add plugin/agent-connector-for-wp.php
+          git add plugin/agent-connector-for-wp.php plugin/readme.txt
           git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]"
 
           # Push the bump commit, rebasing onto any concurrent push and retrying.

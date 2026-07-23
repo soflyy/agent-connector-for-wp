@@ -74,6 +74,30 @@ final class Helpers {
 	}
 
 	/**
+	 * The Universal Abilities companion plugin's folder slug.
+	 */
+	public const UNIVERSAL_ABILITIES_SLUG = 'universal-abilities-plugin';
+
+	/**
+	 * Whether the optional Universal Abilities companion plugin is installed AND
+	 * active. Purely local: scans the installed-plugins list, no network.
+	 */
+	public static function is_universal_abilities_active(): bool {
+		if ( ! function_exists( 'get_plugins' ) || ! function_exists( 'is_plugin_active' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		foreach ( array_keys( (array) get_plugins() ) as $file ) {
+			$slug = false !== strpos( $file, '/' ) ? dirname( $file ) : preg_replace( '/\.php$/', '', $file );
+			if ( self::UNIVERSAL_ABILITIES_SLUG === $slug && is_plugin_active( $file ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Best-effort current client IP for the audit trail.
 	 */
 	public static function client_ip(): string {

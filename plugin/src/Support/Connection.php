@@ -41,7 +41,7 @@ final class Connection {
 	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
-		$host      = (string) parse_url( get_site_url(), PHP_URL_HOST );
+		$host      = (string) wp_parse_url( get_site_url(), PHP_URL_HOST );
 		$host_slug = trim( (string) preg_replace( '/[^a-zA-Z0-9]+/', '-', strtolower( $host ) ), '-' );
 		$name_slug = sanitize_title( (string) get_bloginfo( 'name' ) );
 

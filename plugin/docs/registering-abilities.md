@@ -160,7 +160,7 @@ verbatim:
 
 A full, copy-pasteable single-file plugin that registers one ability. The same
 file ships as a reference under
-[`examples/acfw-ability-pack-hello/`](../examples/acfw-ability-pack-hello/acfw-ability-pack-hello.php).
+[`examples/acfw-ability-pack-hello/`](../../examples/acfw-ability-pack-hello/acfw-ability-pack-hello.php).
 
 ```php
 <?php

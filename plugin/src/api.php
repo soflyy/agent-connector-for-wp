@@ -119,6 +119,7 @@ if ( ! function_exists( 'acfw_register_ability' ) ) {
 	 * @param array<string,mixed> $args Ability definition. See the canonical function.
 	 * @return void
 	 */
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- acfw_ is this plugin's documented short prefix; the function is function_exists-guarded.
 	function acfw_register_ability( string $name, array $args ): void {
 		agent_connector_for_wp_register_ability( $name, $args );
 	}

@@ -2,12 +2,12 @@
 /**
  * Host-managed updates for installed ability packs.
  *
- * @package AgentConnectorForWp
+ * @package AgentConnectorForWpDefaultAbilities
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Services;
+namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -21,8 +21,8 @@ defined( 'ABSPATH' ) || exit;
  * and injects the results into WordPress's `update_plugins` site transient so the
  * normal Plugins-screen update flow (and auto-updates) handle the rest.
  *
- * Nothing here touches the plugin-update-checker library — that stays dedicated to
- * the main agent-connector-for-wp plugin.
+ * This plugin itself carries the same marker header as a pack, so it keeps
+ * itself updated through the very same path (via its own manifest entry).
  */
 final class PackUpdater {
 

@@ -2,12 +2,12 @@
 /**
  * Client for the published "ability pack" manifest.
  *
- * @package AgentConnectorForWp
+ * @package AgentConnectorForWpDefaultAbilities
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Services;
+namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -157,7 +157,7 @@ final class PluginDirectory {
 				return array(
 					'entries' => array(),
 					'stale'   => false,
-					'error'   => __( 'The ability-pack list is currently unavailable.', 'agent-connector-for-wp' ),
+					'error'   => __( 'The ability-pack list is currently unavailable.', 'universal-abilities-plugin' ),
 					'url'     => $url,
 				);
 			}
@@ -186,7 +186,7 @@ final class PluginDirectory {
 			return array(
 				'entries' => $cached['entries'],
 				'stale'   => true,
-				'error'   => __( 'Could not refresh the ability-pack list; showing the last cached copy.', 'agent-connector-for-wp' ),
+				'error'   => __( 'Could not refresh the ability-pack list; showing the last cached copy.', 'universal-abilities-plugin' ),
 				'url'     => $url,
 			);
 		}
@@ -194,7 +194,7 @@ final class PluginDirectory {
 		return array(
 			'entries' => array(),
 			'stale'   => false,
-			'error'   => __( 'The ability-pack list is currently unavailable.', 'agent-connector-for-wp' ),
+			'error'   => __( 'The ability-pack list is currently unavailable.', 'universal-abilities-plugin' ),
 			'url'     => $url,
 		);
 	}
@@ -333,7 +333,7 @@ final class PluginDirectory {
 			$url,
 			array(
 				'timeout'    => self::http_timeout(),
-				'user-agent' => 'AgentConnectorForWp/' . ( defined( 'AGENT_CONNECTOR_FOR_WP_VERSION' ) ? AGENT_CONNECTOR_FOR_WP_VERSION : 'dev' ),
+				'user-agent' => 'AgentConnectorForWpDefaultAbilities/' . ( defined( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION' ) ? AGENT_CONNECTOR_DEFAULT_ABILITIES_VERSION : 'dev' ),
 				'headers'    => array( 'Accept' => 'application/json' ),
 			)
 		);

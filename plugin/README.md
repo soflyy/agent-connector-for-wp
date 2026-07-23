@@ -10,7 +10,7 @@ Nothing, on its own — and that is the point. The plugin is the secured MCP
 gateway; abilities come from companion plugins:
 
 - **[Universal Abilities](../universal-abilities-plugin/README.md)** — a separate,
-  optional companion plugin (installable in one click from the Settings screen)
+  optional companion plugin (available from [wpagentconnector.com/universal-abilities](https://wpagentconnector.com/universal-abilities))
   that contributes the powerful built-in abilities below. Not installed by
   default; installing it is the opt-in.
 - **Ability packs** — generated plugins that expose a specific plugin's
@@ -106,9 +106,10 @@ wp-admin. There is no enabling constant.
 - **Universal Abilities** — the powerful abilities (shell, PHP eval, filesystem,
   WP-CLI, env-inspect, admin-login) live in the separate
   **[Universal Abilities](../universal-abilities-plugin/README.md)** plugin, **off
-  by default**. If it isn't installed, the Settings screen offers a one-click
-  **Install** button. Leave it off — or uninstalled — to expose only abilities
-  from other plugins.
+  by default**. If it isn't installed, the Settings screen links to
+  [wpagentconnector.com/universal-abilities](https://wpagentconnector.com/universal-abilities)
+  where it can be downloaded. Leave it off — or uninstalled — to expose only
+  abilities from other plugins.
 
 ## Protection
 
@@ -207,7 +208,7 @@ add_action( 'wp_abilities_api_init', function () {
 
 Full guide, schema conventions, audit-redaction contract, and the companion
 "ability pack" plugin convention: **[`docs/registering-abilities.md`](docs/registering-abilities.md)**.
-A runnable reference pack lives in [`examples/acfw-ability-pack-hello/`](examples/acfw-ability-pack-hello/).
+A runnable reference pack lives in [`examples/acfw-ability-pack-hello/`](../examples/acfw-ability-pack-hello/).
 
 ## Philosophy
 

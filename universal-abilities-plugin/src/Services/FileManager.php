@@ -11,7 +11,7 @@ namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Helpers;
-use AgentConnectorForWp\Support\Sandbox;
+use AgentConnectorForWp\DefaultAbilities\Support\Sandbox;
 
 defined( 'ABSPATH' ) || exit;
 

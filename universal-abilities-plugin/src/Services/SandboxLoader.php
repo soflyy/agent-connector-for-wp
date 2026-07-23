@@ -3,15 +3,15 @@
  * Loads AI-written PHP "plugins" from the sandbox directory each request, with
  * crash recovery (safe mode) and an admin recovery flow.
  *
- * @package AgentConnectorForWp
+ * @package AgentConnectorForWpDefaultAbilities
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Services;
+namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 use AgentConnectorForWp\Support\Config;
-use AgentConnectorForWp\Support\Sandbox;
+use AgentConnectorForWp\DefaultAbilities\Support\Sandbox;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -157,7 +157,7 @@ final class SandboxLoader {
 				$message = isset( $data['message'] ) ? (string) $data['message'] : '';
 				$details = sprintf(
 					' %s <code>%s</code>%s',
-					esc_html__( 'The crash was attributed to:', 'agent-connector-for-wp' ),
+					esc_html__( 'The crash was attributed to:', 'universal-abilities-plugin' ),
 					esc_html( $file ),
 					'' === $message ? '' : ' — ' . esc_html( $message )
 				);
@@ -173,17 +173,17 @@ final class SandboxLoader {
 				wp_nonce_field( self::CLEAR_ACTION, '_wpnonce', true, false ),
 				sprintf(
 					'<button type="submit" class="button button-small">%s</button>',
-					esc_html__( 'Clear safe mode', 'agent-connector-for-wp' )
+					esc_html__( 'Clear safe mode', 'universal-abilities-plugin' )
 				)
 			);
 		}
 
 		printf(
 			'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s%3$s</p><p>%4$s%5$s</p></div>',
-			esc_html__( 'Agent Connector for WP — sandbox safe mode is active.', 'agent-connector-for-wp' ),
-			esc_html__( 'A sandbox PHP file caused a fatal error, so all sandbox files are temporarily disabled to keep the site up.', 'agent-connector-for-wp' ),
+			esc_html__( 'Agent Connector for WP — sandbox safe mode is active.', 'universal-abilities-plugin' ),
+			esc_html__( 'A sandbox PHP file caused a fatal error, so all sandbox files are temporarily disabled to keep the site up.', 'universal-abilities-plugin' ),
 			wp_kses( $details, array( 'code' => array() ) ),
-			esc_html__( 'To recover: fix or delete the broken file in the sandbox directory, then clear safe mode by deleting the ".crashed" marker (or use the button).', 'agent-connector-for-wp' ),
+			esc_html__( 'To recover: fix or delete the broken file in the sandbox directory, then clear safe mode by deleting the ".crashed" marker (or use the button).', 'universal-abilities-plugin' ),
 			wp_kses(
 				$clear_button,
 				array(
@@ -215,7 +215,7 @@ final class SandboxLoader {
 	 */
 	public function handle_clear_safe_mode(): void {
 		if ( ! current_user_can( Config::CAP ) ) {
-			wp_die( esc_html__( 'You do not have permission to do this.', 'agent-connector-for-wp' ), '', array( 'response' => 403 ) );
+			wp_die( esc_html__( 'You do not have permission to do this.', 'universal-abilities-plugin' ), '', array( 'response' => 403 ) );
 		}
 		check_admin_referer( self::CLEAR_ACTION );
 

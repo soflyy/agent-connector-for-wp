@@ -38,9 +38,9 @@ define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_DIR', plugin_dir_path( __FILE__ ) );
  * namespace, rooted at src/.
  *
  * The shared infrastructure these classes lean on (Support\Config,
- * Services\AuditLogger, Support\Helpers, Support\Sandbox) belongs to the main
- * Agent Connector for WP plugin and is loaded by ITS autoloader — this pack
- * declares "Requires Plugins: agent-connector-for-wp" so that always runs first.
+ * Services\AuditLogger, Support\Helpers) belongs to the main Agent Connector
+ * for WP plugin and is loaded by ITS autoloader — this pack declares
+ * "Requires Plugins: agent-connector-for-wp" so that always runs first.
  */
 spl_autoload_register(
 	static function ( string $class ): void {
@@ -73,13 +73,31 @@ add_action(
 			return;
 		}
 
+		if ( is_admin() ) {
+			// Browser of available companion "ability pack" plugins (with install),
+			// as a submenu of the host plugin's admin menu.
+			( new Admin\PacksPage() )->register();
+		}
+
+		// Keep this plugin and installed ability packs updatable from GitHub in
+		// every context (admin + cron), independent of whether the host MCP
+		// server is switched "on".
+		( new Services\PackUpdater() )->register();
+
+		if ( ! class_exists( \AgentConnectorForWp\Support\Config::class ) || ! \AgentConnectorForWp\Support\Config::can_boot() ) {
+			return;
+		}
+
+		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
+		// crash recovery (safe mode) so a fatal in generated code can't take the
+		// site down. See Services\SandboxLoader.
+		( new Services\SandboxLoader() )->run();
+
 		// Register abilities whenever the host MCP server is active.
 		// No separate opt-in toggle: if this plugin is installed and active, the
 		// abilities are on. The operator controls exposure by activating/deactivating
 		// this plugin.
-		if ( class_exists( \AgentConnectorForWp\Support\Config::class ) && \AgentConnectorForWp\Support\Config::can_boot() ) {
-			( new Plugin() )->register();
-		}
+		( new Plugin() )->register();
 	},
 	// Run after the main plugin's own plugins_loaded boot (default priority 10).
 	11

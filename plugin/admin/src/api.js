@@ -22,16 +22,14 @@ async function request(path, options = {}) {
 // Replace with the actual getting started / demo video URL when ready.
 export const DEMO_URL = ''
 
+// Where the optional Universal Abilities companion plugin lives.
+export const UNIVERSAL_ABILITIES_URL = 'https://wpagentconnector.com/universal-abilities'
+
 export const api = {
   getStatus: () => request('/status'),
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
   reconnect: () => request('/reconnect', { method: 'POST' }),
   generate: (params = {}) => request('/generate', { method: 'POST', body: JSON.stringify(params) }),
-  getDirectory: () => request('/directory'),
-  refreshDirectory: () => request('/directory/refresh', { method: 'POST' }),
-  installPack: (pack_slug) => request('/directory/install', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  activatePack: (pack_slug) => request('/directory/activate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  deactivatePack: (pack_slug) => request('/directory/deactivate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
   getRegisteredAbilities: () => request('/registered-abilities'),
   getLogs: (params = {}) => {
     const qs = new URLSearchParams(
@@ -41,7 +39,6 @@ export const api = {
   },
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
-  installUap: () => request('/uap/install', { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 

@@ -3,12 +3,12 @@
  * Sandbox path model: where AI-written PHP lives and how the PHP-execution
  * boundary is enforced.
  *
- * @package AgentConnectorForWp
+ * @package AgentConnectorForWpDefaultAbilities
  */
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Support;
+namespace AgentConnectorForWp\DefaultAbilities\Support;
 
 defined( 'ABSPATH' ) || exit;
 

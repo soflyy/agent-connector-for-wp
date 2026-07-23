@@ -32,9 +32,10 @@ installed.
 ## Install & enable
 
 1. Install + activate Agent Connector for WP (this plugin **requires** it).
-2. In **wp-admin → Agent Connector → Settings**, under *Universal Abilities
-   Plugin*, click **Install** (one-click install of this plugin) — or install it
-   manually.
+2. Download this plugin from
+   [wpagentconnector.com/universal-abilities](https://wpagentconnector.com/universal-abilities)
+   and install the zip via **wp-admin → Plugins → Add New → Upload Plugin** — the
+   host plugin's Settings screen links there too.
 
 That's it — installing and activating this plugin **is** the opt-in. The
 abilities are registered whenever the host plugin's MCP server is active;

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2, Download } from 'lucide-react'
-import { api, normalizeStatus } from '../api'
+import React, { useState } from 'react'
+import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2 } from 'lucide-react'
+import { api, normalizeStatus, UNIVERSAL_ABILITIES_URL } from '../api'
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -50,70 +50,6 @@ function Row({ label, description, control, danger }) {
   )
 }
 
-function UapInstallDialog({ onConfirm, onCancel, installing }) {
-  useEffect(() => {
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = '' }
-  }, [])
-
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-      <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 space-y-6">
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
-            <Package className="w-6 h-6 text-indigo-500" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Install Universal Abilities Plugin?</h2>
-            <p className="mt-1 text-sm text-gray-500">Universal Abilities for Agent Connector</p>
-          </div>
-        </div>
-
-        <p className="text-base text-gray-700">
-          This companion plugin gives your AI agent complete access to this WordPress install. Once installed and enabled, the agent can:
-        </p>
-
-        <ul className="space-y-2 text-base text-gray-700">
-          {[
-            ['Run arbitrary shell commands', 'Full command-line access to the server'],
-            ['Evaluate PHP code', 'Execute any PHP in the WordPress context'],
-            ['Read, write, and delete files', 'Full filesystem access'],
-            ['Run WP-CLI commands', 'Any wp-cli command on your install'],
-            ['Create one-time admin login links', 'Let your agent log into your wp-admin'],
-          ].map(([title, desc]) => (
-            <li key={title} className="flex items-start gap-3">
-              <span className="mt-1 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-              <span><span className="font-semibold">{title}</span> — {desc}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex gap-3 justify-end">
-          <button
-            onClick={onCancel}
-            disabled={installing}
-            className="px-5 py-2.5 rounded-lg text-base font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={installing}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors disabled:opacity-50"
-          >
-            {installing ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" /> Installing…</>
-            ) : (
-              <><Download className="w-4 h-4" /> Install & Activate</>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function Settings({ status, onStatusChange }) {
   const [form, setForm] = useState({
     enabled: status.enabled,
@@ -126,27 +62,7 @@ export default function Settings({ status, onStatusChange }) {
   const [saveError, setSaveError] = useState(null)
   const [reconnecting, setReconnecting] = useState(false)
   const [reconnectNotice, setReconnectNotice] = useState(null)
-  const [uapActive, setUapActive] = useState(status.uapActive ?? false)
-  const [showUapDialog, setShowUapDialog] = useState(false)
-  const [installingUap, setInstallingUap] = useState(false)
-
-  // The site-wide "install Universal Abilities" admin notice deep-links here
-  // with ?acfw_uap=install so the operator sees the same confirmation dialog
-  // as the in-app Install button. Open it once on arrival, then strip the
-  // param so a refresh doesn't reopen it.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('acfw_uap') === 'install' && !uapActive) {
-      setShowUapDialog(true)
-      params.delete('acfw_uap')
-      const qs = params.toString()
-      window.history.replaceState(
-        null,
-        '',
-        window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash,
-      )
-    }
-  }, [])
+  const uapActive = status.uapActive ?? false
 
   async function setAndSave(key, val) {
     const newForm = { ...form, [key]: val }
@@ -184,33 +100,11 @@ export default function Settings({ status, onStatusChange }) {
     }
   }
 
-  async function installUap() {
-    setInstallingUap(true)
-    try {
-      await api.installUap()
-      setUapActive(true)
-      setShowUapDialog(false)
-    } catch (e) {
-      setShowUapDialog(false)
-      setSaveStatus('error')
-      setSaveError(e.message)
-    } finally {
-      setInstallingUap(false)
-    }
-  }
-
   const lockMismatch =
     form.domainLockEnabled && status.lockedHost !== '' && status.lockedHost !== status.declaredHost
 
   return (
     <>
-      {showUapDialog && (
-        <UapInstallDialog
-          onConfirm={installUap}
-          onCancel={() => setShowUapDialog(false)}
-          installing={installingUap}
-        />
-      )}
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -259,19 +153,21 @@ export default function Settings({ status, onStatusChange }) {
 
           <Row
             label="Universal Abilities Plugin"
-            description="Shell, PHP eval, filesystem, WP-CLI, and admin login link — exposed over MCP."
+            description="Shell, PHP eval, filesystem, WP-CLI, and admin login link — exposed over MCP. An optional companion plugin, installed separately."
             control={
               uapActive ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-500/15 text-green-700">
                   <CheckCircle2 className="w-4 h-4" /> Active
                 </span>
               ) : (
-                <button
-                  onClick={() => setShowUapDialog(true)}
+                <a
+                  href={UNIVERSAL_ABILITIES_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
                 >
-                  <Package className="w-4 h-4" /> Install
-                </button>
+                  <Package className="w-4 h-4" /> Get Universal Abilities
+                </a>
               )
             }
           />
