@@ -161,14 +161,16 @@ final class DatabaseObservabilityHandler implements McpObservabilityHandlerInter
 		global $wpdb;
 
 		// Subquery alias `t` is required so MySQL doesn't refuse the
-		// self-referencing DELETE … (SELECT … FROM same_table).
-		$sql = "DELETE FROM `{$table}` WHERE `id` NOT IN (
-				SELECT id FROM (
-					SELECT `id` FROM `{$table}` ORDER BY `id` DESC LIMIT %d
-				) AS t
-			)";
-
-		$wpdb->query( $wpdb->prepare( $sql, self::MAX_ROWS ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// self-referencing DELETE … (SELECT … FROM same_table). The table name is
+		// passed as an identifier via the %i placeholder.
+		$wpdb->query( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare(
+				'DELETE FROM %i WHERE `id` NOT IN ( SELECT id FROM ( SELECT `id` FROM %i ORDER BY `id` DESC LIMIT %d ) AS t )',
+				$table,
+				$table,
+				self::MAX_ROWS
+			)
+		);
 	}
 
 	/**

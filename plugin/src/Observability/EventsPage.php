@@ -74,7 +74,7 @@ final class EventsPage {
 
 		global $wpdb;
 		$table = EventsTable::name();
-		$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( "TRUNCATE TABLE %i", $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -93,7 +93,7 @@ final class EventsPage {
 	 */
 	public function render_page(): void {
 		if ( ! current_user_can( Config::CAP ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'agent-connector-for-wp' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'agent-connector' ) );
 		}
 
 		EventsTable::maybe_create();
@@ -101,7 +101,7 @@ final class EventsPage {
 		$event_id = isset( $_GET['event'] ) ? (int) $_GET['event'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 
 		echo '<div class="wrap">';
-		echo '<h1>' . esc_html__( 'MCP Events', 'agent-connector-for-wp' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'MCP Events', 'agent-connector' ) . '</h1>';
 
 		if ( ! Config::mcp_debug_enabled() ) {
 			$settings_url = add_query_arg( array( 'page' => ConnectionPage::MENU_SLUG ), admin_url( 'admin.php' ) );
@@ -110,7 +110,7 @@ final class EventsPage {
 				wp_kses(
 					sprintf(
 						/* translators: %s: Connection screen URL. */
-						__( 'MCP event logging is off — new events are not being recorded. Turn on the Debug setting on the <a href="%s">Connection screen</a> to start logging.', 'agent-connector-for-wp' ),
+						__( 'MCP event logging is off — new events are not being recorded. Turn on the Debug setting on the <a href="%s">Connection screen</a> to start logging.', 'agent-connector' ),
 						esc_url( $settings_url )
 					),
 					array( 'a' => array( 'href' => array() ) )
@@ -120,7 +120,7 @@ final class EventsPage {
 
 		if ( isset( $_GET['cleared'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			echo '<div class="notice notice-success is-dismissible"><p>'
-				. esc_html__( 'MCP event log cleared.', 'agent-connector-for-wp' )
+				. esc_html__( 'MCP event log cleared.', 'agent-connector' )
 				. '</p></div>';
 		}
 
@@ -169,24 +169,27 @@ final class EventsPage {
 
 		$where_sql = empty( $where ) ? '' : 'WHERE ' . implode( ' AND ', $where );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$total = empty( $where_values )
-			? (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` {$where_sql}" )
-			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` {$where_sql}", $where_values ) );
+		// Reads from the plugin's own observability table. The table name is passed
+		// as an identifier via the %i placeholder; the WHERE clause is built only
+		// from static column names and %s placeholders. Admin-only and uncached.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
+		$total = (int) $wpdb->get_var(
+			$wpdb->prepare( "SELECT COUNT(*) FROM %i {$where_sql}", array_merge( array( $table ), $where_values ) )
+		);
 
-		$list_sql_values = array_merge( $where_values, array( self::PER_PAGE, $offset ) );
+		$list_sql_values = array_merge( array( $table ), $where_values, array( self::PER_PAGE, $offset ) );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM `{$table}` {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
+				"SELECT * FROM %i {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
 				$list_sql_values
 			),
 			ARRAY_A
 		);
 
-		$distinct_events   = $wpdb->get_col( "SELECT DISTINCT `event` FROM `{$table}` ORDER BY `event` ASC" );
-		$distinct_statuses = $wpdb->get_col( "SELECT DISTINCT `status` FROM `{$table}` WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC" );
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$distinct_events   = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT `event` FROM %i ORDER BY `event` ASC", $table ) );
+		$distinct_statuses = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT `status` FROM %i WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC", $table ) );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 		$this->render_filter_form( $event_filter, $status_filter, $distinct_events ?: array(), $distinct_statuses ?: array() );
 		$this->render_clear_log_form( $total );
@@ -205,9 +208,9 @@ final class EventsPage {
 		echo '<input type="hidden" name="page" value="' . esc_attr( self::PAGE_SLUG ) . '" />';
 
 		echo '<label for="acfw-mcp-event-filter" class="screen-reader-text">'
-			. esc_html__( 'Filter by event', 'agent-connector-for-wp' ) . '</label>';
+			. esc_html__( 'Filter by event', 'agent-connector' ) . '</label>';
 		echo '<select id="acfw-mcp-event-filter" name="event_filter" style="margin-right: 8px;">';
-		echo '<option value="">' . esc_html__( 'All events (excluding lifecycle)', 'agent-connector-for-wp' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All events (excluding lifecycle)', 'agent-connector' ) . '</option>';
 		foreach ( $events as $event ) {
 			$event = (string) $event;
 			printf(
@@ -220,9 +223,9 @@ final class EventsPage {
 		echo '</select>';
 
 		echo '<label for="acfw-mcp-status-filter" class="screen-reader-text">'
-			. esc_html__( 'Filter by status', 'agent-connector-for-wp' ) . '</label>';
+			. esc_html__( 'Filter by status', 'agent-connector' ) . '</label>';
 		echo '<select id="acfw-mcp-status-filter" name="status_filter" style="margin-right: 8px;">';
-		echo '<option value="">' . esc_html__( 'All statuses', 'agent-connector-for-wp' ) . '</option>';
+		echo '<option value="">' . esc_html__( 'All statuses', 'agent-connector' ) . '</option>';
 		foreach ( $statuses as $status ) {
 			$status = (string) $status;
 			printf(
@@ -234,7 +237,7 @@ final class EventsPage {
 		}
 		echo '</select>';
 
-		submit_button( __( 'Filter', 'agent-connector-for-wp' ), 'secondary', '', false );
+		submit_button( __( 'Filter', 'agent-connector' ), 'secondary', '', false );
 		echo '</form>';
 	}
 
@@ -244,14 +247,14 @@ final class EventsPage {
 	 * @param int $total Number of events currently logged.
 	 */
 	private function render_clear_log_form( int $total ): void {
-		$confirm = esc_js( __( 'Clear all MCP events? This cannot be undone.', 'agent-connector-for-wp' ) );
+		$confirm = esc_js( __( 'Clear all MCP events? This cannot be undone.', 'agent-connector' ) );
 
 		echo '<form method="post" style="margin: 16px 0;" onsubmit="return confirm(\'' . $confirm . '\');">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		wp_nonce_field( self::CLEAR_ACTION );
 		echo '<input type="hidden" name="' . esc_attr( self::CLEAR_ACTION ) . '" value="1" />';
 		/* translators: %d: number of events currently logged. */
-		echo '<p>' . esc_html( sprintf( _n( '%d event logged.', '%d events logged.', $total, 'agent-connector-for-wp' ), $total ) ) . ' ';
-		submit_button( __( 'Clear log', 'agent-connector-for-wp' ), 'delete', '', false );
+		echo '<p>' . esc_html( sprintf( _n( '%d event logged.', '%d events logged.', $total, 'agent-connector' ), $total ) ) . ' ';
+		submit_button( __( 'Clear log', 'agent-connector' ), 'delete', '', false );
 		echo '</p></form>';
 	}
 
@@ -263,19 +266,19 @@ final class EventsPage {
 	private function render_events_table( array $rows ): void {
 		echo '<table class="wp-list-table widefat fixed striped">';
 		echo '<thead><tr>';
-		echo '<th style="width: 160px;">' . esc_html__( 'Time', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 120px;">' . esc_html__( 'Event', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 160px;">' . esc_html__( 'Method', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th>' . esc_html__( 'Tool / Prompt', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 90px;">' . esc_html__( 'Status', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 90px;">' . esc_html__( 'Duration', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 110px;">' . esc_html__( 'User', 'agent-connector-for-wp' ) . '</th>';
-		echo '<th style="width: 70px;">' . esc_html__( 'Details', 'agent-connector-for-wp' ) . '</th>';
+		echo '<th style="width: 160px;">' . esc_html__( 'Time', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 120px;">' . esc_html__( 'Event', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 160px;">' . esc_html__( 'Method', 'agent-connector' ) . '</th>';
+		echo '<th>' . esc_html__( 'Tool / Prompt', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 90px;">' . esc_html__( 'Status', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 90px;">' . esc_html__( 'Duration', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 110px;">' . esc_html__( 'User', 'agent-connector' ) . '</th>';
+		echo '<th style="width: 70px;">' . esc_html__( 'Details', 'agent-connector' ) . '</th>';
 		echo '</tr></thead>';
 		echo '<tbody>';
 
 		if ( empty( $rows ) ) {
-			echo '<tr><td colspan="8">' . esc_html__( 'No MCP events recorded yet.', 'agent-connector-for-wp' ) . '</td></tr>';
+			echo '<tr><td colspan="8">' . esc_html__( 'No MCP events recorded yet.', 'agent-connector' ) . '</td></tr>';
 		} else {
 			foreach ( $rows as $row ) {
 				$this->render_event_row( $row );
@@ -323,7 +326,7 @@ final class EventsPage {
 		echo '<td>' . $this->render_status_badge( $status ) . '</td>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		echo '<td>' . esc_html( $this->format_duration( $duration_ms ) ) . '</td>';
 		echo '<td>' . esc_html( '' !== $user_label ? $user_label : '—' ) . '</td>';
-		echo '<td><a href="' . esc_url( $detail_url ) . '">' . esc_html__( 'View', 'agent-connector-for-wp' ) . '</a></td>';
+		echo '<td><a href="' . esc_url( $detail_url ) . '">' . esc_html__( 'View', 'agent-connector' ) . '</a></td>';
 		echo '</tr>';
 	}
 
@@ -398,17 +401,17 @@ final class EventsPage {
 
 		$table = EventsTable::name();
 
-		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->prepare( "SELECT * FROM `{$table}` WHERE `id` = %d", $event_id ),
+		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->prepare( "SELECT * FROM %i WHERE `id` = %d", $table, $event_id ),
 			ARRAY_A
 		);
 
 		$back_url = add_query_arg( array( 'page' => self::PAGE_SLUG ), admin_url( 'admin.php' ) );
 
-		echo '<p><a href="' . esc_url( $back_url ) . '">&larr; ' . esc_html__( 'Back to events', 'agent-connector-for-wp' ) . '</a></p>';
+		echo '<p><a href="' . esc_url( $back_url ) . '">&larr; ' . esc_html__( 'Back to events', 'agent-connector' ) . '</a></p>';
 
 		if ( ! $row ) {
-			echo '<p>' . esc_html__( 'Event not found.', 'agent-connector-for-wp' ) . '</p>';
+			echo '<p>' . esc_html__( 'Event not found.', 'agent-connector' ) . '</p>';
 			return;
 		}
 
@@ -421,28 +424,28 @@ final class EventsPage {
 		}
 
 		/* translators: %d: event ID. */
-		echo '<h2>' . esc_html( sprintf( __( 'Event #%d', 'agent-connector-for-wp' ), $event_id ) ) . '</h2>';
+		echo '<h2>' . esc_html( sprintf( __( 'Event #%d', 'agent-connector' ), $event_id ) ) . '</h2>';
 
 		echo '<table class="widefat striped" style="max-width: 900px;">';
 		echo '<tbody>';
 
 		$fields = array(
-			'created_at'     => __( 'Time (UTC)', 'agent-connector-for-wp' ),
-			'event'          => __( 'Event', 'agent-connector-for-wp' ),
-			'method'         => __( 'Method', 'agent-connector-for-wp' ),
-			'server_id'      => __( 'Server ID', 'agent-connector-for-wp' ),
-			'transport'      => __( 'Transport', 'agent-connector-for-wp' ),
-			'status'         => __( 'Status', 'agent-connector-for-wp' ),
-			'tool_name'      => __( 'Tool', 'agent-connector-for-wp' ),
-			'prompt_name'    => __( 'Prompt', 'agent-connector-for-wp' ),
-			'resource_uri'   => __( 'Resource URI', 'agent-connector-for-wp' ),
-			'session_id'     => __( 'Session ID', 'agent-connector-for-wp' ),
-			'request_id'     => __( 'Request ID', 'agent-connector-for-wp' ),
-			'user_id'        => __( 'User ID', 'agent-connector-for-wp' ),
-			'error_code'     => __( 'Error code', 'agent-connector-for-wp' ),
-			'error_category' => __( 'Error category', 'agent-connector-for-wp' ),
-			'failure_reason' => __( 'Failure reason', 'agent-connector-for-wp' ),
-			'duration_ms'    => __( 'Duration', 'agent-connector-for-wp' ),
+			'created_at'     => __( 'Time (UTC)', 'agent-connector' ),
+			'event'          => __( 'Event', 'agent-connector' ),
+			'method'         => __( 'Method', 'agent-connector' ),
+			'server_id'      => __( 'Server ID', 'agent-connector' ),
+			'transport'      => __( 'Transport', 'agent-connector' ),
+			'status'         => __( 'Status', 'agent-connector' ),
+			'tool_name'      => __( 'Tool', 'agent-connector' ),
+			'prompt_name'    => __( 'Prompt', 'agent-connector' ),
+			'resource_uri'   => __( 'Resource URI', 'agent-connector' ),
+			'session_id'     => __( 'Session ID', 'agent-connector' ),
+			'request_id'     => __( 'Request ID', 'agent-connector' ),
+			'user_id'        => __( 'User ID', 'agent-connector' ),
+			'error_code'     => __( 'Error code', 'agent-connector' ),
+			'error_category' => __( 'Error category', 'agent-connector' ),
+			'failure_reason' => __( 'Failure reason', 'agent-connector' ),
+			'duration_ms'    => __( 'Duration', 'agent-connector' ),
 		);
 
 		foreach ( $fields as $key => $label ) {
@@ -467,13 +470,13 @@ final class EventsPage {
 		$input_body  = isset( $row['input_body'] ) ? (string) $row['input_body'] : '';
 		$output_body = isset( $row['output_body'] ) ? (string) $row['output_body'] : '';
 
-		$this->render_body_block( __( 'Input (JSON-RPC request)', 'agent-connector-for-wp' ), $input_body );
-		$this->render_body_block( __( 'Output (JSON-RPC response)', 'agent-connector-for-wp' ), $output_body );
+		$this->render_body_block( __( 'Input (JSON-RPC request)', 'agent-connector' ), $input_body );
+		$this->render_body_block( __( 'Output (JSON-RPC response)', 'agent-connector' ), $output_body );
 
-		echo '<h3>' . esc_html__( 'Tags', 'agent-connector-for-wp' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Tags', 'agent-connector' ) . '</h3>';
 
 		if ( empty( $tags ) ) {
-			echo '<p>' . esc_html__( 'No tags recorded.', 'agent-connector-for-wp' ) . '</p>';
+			echo '<p>' . esc_html__( 'No tags recorded.', 'agent-connector' ) . '</p>';
 		} else {
 			echo '<table class="widefat striped" style="max-width: 900px;">';
 			echo '<tbody>';
@@ -499,7 +502,7 @@ final class EventsPage {
 		echo '<h3>' . esc_html( $label ) . '</h3>';
 
 		if ( '' === $body ) {
-			echo '<p><em>' . esc_html__( 'Not captured.', 'agent-connector-for-wp' ) . '</em></p>';
+			echo '<p><em>' . esc_html__( 'Not captured.', 'agent-connector' ) . '</em></p>';
 			return;
 		}
 

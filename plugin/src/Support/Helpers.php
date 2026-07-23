@@ -47,7 +47,7 @@ final class Helpers {
 		}
 		return array(
 			'encoding' => 'base64',
-			'data'     => base64_encode( $bytes ),
+			'data'     => base64_encode( $bytes ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Binary-safe transport encoding, not obfuscation.
 		);
 	}
 

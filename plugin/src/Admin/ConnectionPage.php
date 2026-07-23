@@ -14,7 +14,6 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use WP_Application_Passwords;
@@ -35,8 +34,8 @@ final class ConnectionPage {
 
 	public function register_menu(): void {
 		$this->hook_suffix = (string) add_menu_page(
-			__( 'Agent Connector', 'agent-connector-for-wp' ),
-			__( 'Agent Connector', 'agent-connector-for-wp' ),
+			__( 'Agent Connector', 'agent-connector' ),
+			__( 'Agent Connector', 'agent-connector' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' ),
@@ -46,8 +45,8 @@ final class ConnectionPage {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Agent Connector — Connection', 'agent-connector-for-wp' ),
-			__( 'Connection', 'agent-connector-for-wp' ),
+			__( 'Agent Connector — Connection', 'agent-connector' ),
+			__( 'Connection', 'agent-connector' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' )
@@ -109,8 +108,7 @@ final class ConnectionPage {
 				'siteName'           => (string) get_bloginfo( 'name' ),
 				'username'           => $user instanceof \WP_User ? $user->user_login : '',
 				'pwAvailable'        => $this->pw_available( $user instanceof \WP_User ? $user : null ),
-				'uapActive'          => $this->is_uap_active(),
-				'showGsBanner'       => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
+				'showGsBanner'       => ! get_user_meta( get_current_user_id(), 'agent_connector_for_wp_gs_banner_dismissed', true ),
 			)
 		);
 
@@ -140,10 +138,6 @@ final class ConnectionPage {
 			return;
 		}
 		echo '<div id="agent-connector-for-wp-app"></div>';
-	}
-
-	private function is_uap_active(): bool {
-		return PluginDirectory::is_universal_abilities_active();
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {
