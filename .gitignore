@@ -3,6 +3,9 @@
 # tracked so builds are reproducible.
 /plugin/vendor/
 
+# npm dependencies — installed via `npm ci` when rebuilding the admin app
+node_modules/
+
 # Build artifacts
 /plugin/dist/
 /dist/
