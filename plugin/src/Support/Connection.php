@@ -18,20 +18,20 @@ defined( 'ABSPATH' ) || exit;
  * registering its own. Its abilities (all flagged mcp.public=true) are surfaced
  * there automatically, reachable through the adapter's discover/execute tools.
  *
- * Primary (recommended) connection path: OAuth 2.1. An OAuth-capable client is
- * given only {@see self::endpoint_url()} and self-discovers auth via this site's
+ * OAuth path (the default): an OAuth-capable client is given only
+ * {@see self::endpoint_url()} and self-discovers auth via this site's
  * .well-known metadata, self-registers, and prompts an administrator to approve.
  * No application password and no local proxy are involved. See src/OAuth/Server.php
  * and the Connect page's OAuth flow (admin/src/pages/Connect.jsx::buildOAuth).
  *
- * Legacy (fallback) path: the artifacts below drive Automattic's
+ * Application-password path: the artifacts below drive Automattic's
  * mcp-wordpress-remote proxy
  * (https://www.npmjs.com/package/@automattic/mcp-wordpress-remote), a small
  * stdio MCP server the agent runs locally via npx. The proxy connects to this
  * site's MCP endpoint and authenticates with the operator's WordPress
- * application password. It remains available for clients that cannot yet reach
- * a remote MCP server directly (stdio-only clients), but the Connect page now
- * buries it beneath the OAuth flow.
+ * application password. The Connect page offers both methods side by side —
+ * OAuth is preselected, except on local environments (which hosted agents
+ * can't reach to complete OAuth), where the application password leads.
  */
 final class Connection {
 
@@ -92,7 +92,8 @@ final class Connection {
 	/**
 	 * Environment variables the mcp-wordpress-remote proxy needs.
 	 *
-	 * Used only by the legacy proxy connection path (see class docblock). WP_API_URL
+	 * Used only by the application-password (proxy) connection path (see class
+	 * docblock). WP_API_URL
 	 * must be the full endpoint path (the proxy treats a bare domain as a legacy
 	 * install). OAUTH_ENABLED is disabled here because this path authenticates with
 	 * an application password via the proxy rather than the interactive OAuth 2.1

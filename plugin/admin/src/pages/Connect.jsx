@@ -1,10 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
-  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings,
+  AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
+
+// Which auth method the Connect page leads with. OAuth is the default, but on
+// local environments — where hosted agents can't reach the site to complete the
+// OAuth flow — the application-password + proxy method is shown first instead.
+// Both methods are always available; this only picks the initial selection.
+function isLocalEnvironment() {
+  if (initial.envType === 'local') return true
+  try {
+    const host = new URL(initial.serverUrl).hostname
+    return /^(localhost|127(\.\d{1,3}){3}|\[?::1\]?)$/i.test(host)
+      || /\.(local|test|localhost)$/i.test(host)
+  } catch {
+    return false
+  }
+}
 
 const AGENTS = [
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc' },
@@ -559,7 +574,7 @@ function WelcomeStep({ status, onStart }) {
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
           <p className="text-gray-500 leading-relaxed">
-            Give any AI agent access to this WordPress site over MCP. Connect over OAuth — sign in and approve, no password to copy. It takes about 30 seconds.
+            Give any AI agent access to this WordPress site over MCP. Connect over OAuth or with an application password. It takes about 30 seconds.
           </p>
         </div>
         <div className="flex flex-col items-center gap-3">
@@ -706,9 +721,11 @@ function GeneratedPasswordNotice({ password }) {
   )
 }
 
-// The legacy application-password + local-proxy flow, tucked behind a
-// disclosure. Kept intact for clients that don't yet speak remote MCP / OAuth.
-function LegacyPasswordFlow({ selectedAgent, status }) {
+// The application-password + local-proxy flow: the agent runs Automattic's
+// mcp-wordpress-remote proxy locally (npx) and authenticates with a WordPress
+// application password. Shown first on local environments; also the path for
+// clients that can't reach a remote MCP server directly.
+function AppPasswordFlow({ selectedAgent, status }) {
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
   const defaultName = `${agentMeta.label} App Password`
 
@@ -858,9 +875,63 @@ function LegacyPasswordFlow({ selectedAgent, status }) {
   )
 }
 
+const AUTH_METHODS = [
+  {
+    id: 'oauth',
+    label: 'OAuth',
+    Icon: ShieldCheck,
+    description: 'The agent signs in to this site and you approve access. No password to copy, no proxy to install.',
+  },
+  {
+    id: 'password',
+    label: 'Application Password',
+    Icon: KeyRound,
+    description: 'Authenticate with a WordPress application password through a local proxy (Node.js required).',
+  },
+]
+
+function MethodPicker({ method, onSelect, defaultMethod }) {
+  return (
+    <div className="grid sm:grid-cols-2 gap-4">
+      {AUTH_METHODS.map(({ id, label, Icon, description }) => {
+        const isSelected = method === id
+        return (
+          <button
+            key={id}
+            onClick={() => onSelect(id)}
+            className={[
+              'flex flex-col items-start gap-2 p-5 rounded-2xl border-2 text-left transition-all',
+              isSelected
+                ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
+            ].join(' ')}
+          >
+            <div className="flex items-center gap-2">
+              <Icon className={`w-5 h-5 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`} />
+              <span className={`text-base font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                {label}
+              </span>
+              {id === defaultMethod && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
+                  <Sparkles className="w-3 h-3" /> Recommended
+                </span>
+              )}
+            </div>
+            <span className={`text-sm ${isSelected ? 'text-indigo-900/70' : 'text-gray-500'}`}>{description}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function GenerateStep({ selectedAgent, status, onBack }) {
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
-  const [showLegacy, setShowLegacy] = useState(false)
+
+  // OAuth is the default; local environments lead with the application
+  // password instead (hosted agents can't reach a local site to complete OAuth).
+  const defaultMethod = isLocalEnvironment() ? 'password' : 'oauth'
+  const [method, setMethod] = useState(defaultMethod)
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -873,43 +944,31 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      {/* Recommended: OAuth remote connection. */}
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-bold text-gray-900">How to connect</h2>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
-            <Sparkles className="w-3 h-3" /> Recommended
-          </span>
-        </div>
-        <p className="text-base text-gray-500">
-          Connect over OAuth — the agent signs in to this site and you approve access. No password to copy, no proxy to install.
-        </p>
-        <div className="space-y-6">
-          {agentData?.blocks?.length
-            ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
-            : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-          }
-        </div>
+        <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
+        <MethodPicker method={method} onSelect={setMethod} defaultMethod={defaultMethod} />
       </div>
 
-      {/* Legacy: application password + local proxy, hidden by default. */}
-      <div className="border-t border-gray-200 pt-6">
-        <button
-          onClick={() => setShowLegacy((s) => !s)}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <KeyRound className="w-4 h-4" />
-          {showLegacy ? 'Hide' : 'Show'} legacy setup (application password + proxy)
-        </button>
-        {showLegacy && (
-          <div className="mt-4 space-y-4">
-            <p className="text-sm text-gray-400">
-              Older method for clients that don't support remote MCP servers. Requires Node.js and runs traffic through a local <code>npx</code> proxy authenticated with a WordPress application password.
-            </p>
-            <LegacyPasswordFlow selectedAgent={selectedAgent} status={status} />
+      {method === 'oauth' ? (
+        <div className="space-y-4">
+          <p className="text-base text-gray-500">
+            Connect over OAuth — the agent signs in to this site and you approve access. No password to copy, no proxy to install.
+          </p>
+          <div className="space-y-6">
+            {agentData?.blocks?.length
+              ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
+              : <p className="text-base text-gray-400">No configuration available for this agent.</p>
+            }
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-base text-gray-500">
+            Authenticate with a WordPress application password. The agent connects through a local <code>npx</code> proxy, so Node.js is required.
+          </p>
+          <AppPasswordFlow selectedAgent={selectedAgent} status={status} />
+        </div>
+      )}
     </div>
   )
 }
