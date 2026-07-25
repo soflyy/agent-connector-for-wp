@@ -249,6 +249,20 @@ final class Authorize {
 		status_header( 200 );
 		header( 'Content-Type: text/html; charset=utf-8' );
 
+		// Anti-clickjacking. This page is rendered by the REST API, so it gets
+		// none of the framing protection core puts on wp-admin/wp-login. A
+		// framed consent screen would let an attacker who registered their own
+		// client (DCR is public) overlay the Authorize button and trick a
+		// logged-in admin into granting a token that fronts shell/PHP-eval
+		// abilities. The nonce below is no defense: it is rendered inside the
+		// framed page and submits with it.
+		header( 'X-Frame-Options: DENY' );
+		header( "Content-Security-Policy: frame-ancestors 'none'" );
+
+		// The URL carries state and code_challenge; keep them out of the
+		// Referer sent to any off-site asset (e.g. a CDN-hosted site icon).
+		header( 'Referrer-Policy: no-referrer' );
+
 		?><!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>

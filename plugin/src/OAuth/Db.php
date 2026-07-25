@@ -16,6 +16,9 @@ defined( 'ABSPATH' ) || exit;
  *
  * Tables (all `{$wpdb->prefix}` + base):
  *   - acfw_oauth_clients : dynamically registered OAuth clients (RFC 7591).
+ *                          A confidential client's secret is stored as a
+ *                          SHA-256 hash; the raw value is returned once at
+ *                          registration.
  *   - acfw_oauth_codes   : single-use, 60-second authorization codes.
  *   - acfw_oauth_tokens  : access/refresh token pairs, stored ONLY as
  *                          SHA-256 hashes — the raw values are returned to the
@@ -196,7 +199,10 @@ final class Db {
 			self::table_clients(),
 			array(
 				'client_id'                  => $client_id,
-				'client_secret'              => $client_secret,
+				// Hashed at rest, like the tokens below. The raw secret is
+				// returned to the registering client once (see the return
+				// value) and never persisted.
+				'client_secret'              => null === $client_secret ? null : self::hash_token( $client_secret ),
 				'client_name'                => sanitize_text_field( (string) $data['client_name'] ),
 				'redirect_uris'              => wp_json_encode( $data['redirect_uris'] ),
 				'grant_types'                => wp_json_encode( $data['grant_types'] ?? array( 'authorization_code', 'refresh_token' ) ),
@@ -308,23 +314,31 @@ final class Db {
 	}
 
 	/**
-	 * Mark an authorization code as used (single-use enforcement).
+	 * Atomically claim an authorization code (single-use enforcement).
+	 *
+	 * The UPDATE is conditional on `used = 0` and the return value reports
+	 * rows-affected, so exactly one of N concurrent exchanges of the same code
+	 * can win. An unconditional UPDATE would not do: reading `used` and writing
+	 * it are separate statements, so two requests could both observe `used = 0`
+	 * and both mint a token pair.
 	 *
 	 * @param string $code The authorization code.
+	 * @return bool True if this caller claimed the code; false if it was
+	 *              already used (or the write failed).
 	 */
 	public static function mark_code_used( string $code ): bool {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
-		$updated = $wpdb->update(
-			self::table_codes(),
-			array( 'used' => 1 ),
-			array( 'code' => $code ),
-			array( '%d' ),
-			array( '%s' )
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET used = 1 WHERE code = %s AND used = 0',
+				self::table_codes(),
+				$code
+			)
 		);
 
-		return false !== $updated;
+		return 1 === (int) $updated;
 	}
 
 	/**

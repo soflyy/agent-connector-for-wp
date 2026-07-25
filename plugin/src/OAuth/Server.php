@@ -144,9 +144,12 @@ final class Server {
 	 *                redirect_uris.
 	 *  - /authorize: consent page — requires a logged-in administrator
 	 *                (Config::has_admin_access); verifies a nonce on POST;
-	 *                validates client + exact redirect_uri + PKCE S256.
+	 *                validates client + exact redirect_uri + PKCE S256; served
+	 *                with anti-framing headers.
 	 *  - /token    : code exchange — validates code, PKCE verifier, client_id,
-	 *                redirect_uri; single-use codes; reuse revokes the client.
+	 *                client_secret (confidential clients only), redirect_uri;
+	 *                atomically claimed single-use codes; reuse revokes the
+	 *                client.
 	 *  - /revoke   : RFC 7009 — always 200; the token is proof of possession.
 	 */
 	public static function register_routes(): void {

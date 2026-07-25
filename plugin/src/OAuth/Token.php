@@ -19,10 +19,13 @@ defined( 'ABSPATH' ) || exit;
  * Token endpoint handler.
  *
  * Hardening notes (OAuth 2.1 / RFC 6749 / RFC 7636):
- *   - authorization codes are single-use and marked used BEFORE the remaining
- *     checks run, so a race cannot mint two token pairs from one code;
+ *   - authorization codes are single-use: the code is claimed with a
+ *     conditional `UPDATE … WHERE used = 0` before the remaining checks run,
+ *     so concurrent exchanges of one code cannot both mint a token pair;
  *   - replaying a used code revokes every token for that client (§4.1.2:
  *     reuse means the code leaked — assume compromise);
+ *   - a client that registered as confidential must present its
+ *     client_secret; public clients are bound by PKCE alone;
  *   - all secret comparisons go through hash_equals();
  *   - grant errors share one generic message to prevent state enumeration;
  *   - refresh tokens rotate: the old pair is revoked when a new one is issued.
@@ -86,25 +89,38 @@ final class Token {
 			return self::oauth_error( 'invalid_grant', self::GRANT_ERROR );
 		}
 
-		// 4. Mark as used IMMEDIATELY (single-use enforcement).
-		Db::mark_code_used( $code );
+		// 4. Claim the code IMMEDIATELY (single-use enforcement). The claim is a
+		// conditional UPDATE, so losing it means another request got there
+		// first — i.e. a replay, handled exactly like step 2. Step 2 stays
+		// because it also catches a replay of an *expired* code, which never
+		// reaches this line.
+		if ( ! Db::mark_code_used( $code ) ) {
+			Db::revoke_all_for_client( (string) $code_row['client_id'] );
+			return self::oauth_error( 'invalid_grant', self::GRANT_ERROR );
+		}
 
 		// 5. Verify client_id (timing-safe).
 		if ( ! hash_equals( (string) $code_row['client_id'], $client_id ) ) {
 			return self::oauth_error( 'invalid_grant', self::GRANT_ERROR );
 		}
 
-		// 6. Verify redirect_uri (timing-safe).
+		// 6. Authenticate the client itself when it registered as confidential.
+		$client_auth_error = self::authenticate_client( $request, $client_id );
+		if ( null !== $client_auth_error ) {
+			return $client_auth_error;
+		}
+
+		// 7. Verify redirect_uri (timing-safe).
 		if ( ! hash_equals( (string) $code_row['redirect_uri'], $redirect_uri ) ) {
 			return self::oauth_error( 'invalid_grant', self::GRANT_ERROR );
 		}
 
-		// 7. PKCE verification (RFC 7636).
+		// 8. PKCE verification (RFC 7636).
 		if ( ! self::verify_pkce( $code_verifier, (string) $code_row['code_challenge'], (string) $code_row['code_challenge_method'] ) ) {
 			return self::oauth_error( 'invalid_grant', self::GRANT_ERROR );
 		}
 
-		// 8. Issue the token pair.
+		// 9. Issue the token pair.
 		$token_data = Db::insert_token(
 			array(
 				'client_id' => $client_id,
@@ -152,6 +168,11 @@ final class Token {
 
 		if ( ! hash_equals( (string) $token_row['client_id'], $client_id ) ) {
 			return self::oauth_error( 'invalid_grant', 'The provided refresh token is invalid, expired, or revoked.' );
+		}
+
+		$client_auth_error = self::authenticate_client( $request, $client_id );
+		if ( null !== $client_auth_error ) {
+			return $client_auth_error;
 		}
 
 		// Rotate: revoke the old pair, then issue a new one.
@@ -207,6 +228,47 @@ final class Token {
 		}
 
 		return new WP_REST_Response( null, 200 );
+	}
+
+	/**
+	 * Authenticate the client on a token request.
+	 *
+	 * Public clients (`token_endpoint_auth_method = none`) are the norm here —
+	 * the MCP clients this server targets are native/browser apps that cannot
+	 * keep a secret, and PKCE is what binds their requests. But a client MAY
+	 * register as `client_secret_post`, and DCR hands it a secret when it does;
+	 * this enforces that secret instead of letting the client silently fall
+	 * back to bearer-of-client_id (a public identifier) authentication.
+	 *
+	 * @param WP_REST_Request $request   The incoming REST request.
+	 * @param string          $client_id The already-validated client ID.
+	 * @return WP_Error|null WP_Error when authentication fails, null on success.
+	 */
+	private static function authenticate_client( WP_REST_Request $request, string $client_id ): ?WP_Error {
+		$client = Db::get_client_by_id( $client_id );
+
+		if ( null === $client ) {
+			return self::oauth_error( 'invalid_client', 'Unknown client.', 401 );
+		}
+
+		if ( 'none' === (string) $client['token_endpoint_auth_method'] ) {
+			return null;
+		}
+
+		$stored = (string) ( $client['client_secret'] ?? '' );
+		$given  = (string) ( $request->get_param( 'client_secret' ) ?? '' );
+
+		// A confidential client with no stored secret can never authenticate —
+		// fail closed rather than treating the empty string as a match.
+		if ( '' === $stored || '' === $given ) {
+			return self::oauth_error( 'invalid_client', 'Client authentication failed.', 401 );
+		}
+
+		if ( ! hash_equals( $stored, Db::hash_token( $given ) ) ) {
+			return self::oauth_error( 'invalid_client', 'Client authentication failed.', 401 );
+		}
+
+		return null;
 	}
 
 	/**
