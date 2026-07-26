@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Play, X } from 'lucide-react'
 import Header from './components/Header'
 import Connect from './pages/Connect'
+import Connections from './pages/Connections'
 import Settings from './pages/Settings'
 import Abilities from './pages/Abilities'
 import Log from './pages/Log'
@@ -9,6 +10,7 @@ import { api, initial, DEMO_URL } from './api'
 
 function getPage() {
   const hash = window.location.hash.replace('#/', '')
+  if (hash === 'connections') return 'connections'
   if (hash === 'settings') return 'settings'
   if (hash === 'abilities') return 'abilities'
   if (hash === 'log') return 'log'
@@ -63,6 +65,9 @@ export default function App() {
       <div className="px-8 py-10">
         {page === 'connect' && (
           <Connect status={status} onStatusChange={setStatus} />
+        )}
+        {page === 'connections' && (
+          <Connections />
         )}
         {page === 'settings' && (
           <Settings status={status} onStatusChange={setStatus} />

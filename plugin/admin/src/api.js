@@ -41,6 +41,10 @@ export const api = {
   },
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
+  getOauthClients: () => request('/oauth/clients'),
+  revokeOauthClient: (client_id) =>
+    request('/oauth/clients/revoke', { method: 'POST', body: JSON.stringify({ client_id }) }),
+  cleanupOauthClients: () => request('/oauth/clients/cleanup', { method: 'POST' }),
   installUap: () => request('/uap/install', { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }

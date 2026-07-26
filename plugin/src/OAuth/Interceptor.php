@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\OAuth;
 
+use AgentConnectorForWp\Support\Helpers;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -148,6 +149,10 @@ final class Interceptor {
 			'user_id'   => (int) $token_row['user_id'],
 			'token_id'  => (int) ( $token_row['id'] ?? 0 ),
 		);
+
+		// Feeds the "last active" column on the Connections screen. Throttled
+		// inside touch_token(), so this is not a write per tool call.
+		Db::touch_token( (int) ( $token_row['id'] ?? 0 ), Helpers::client_ip() );
 
 		// Send CORS headers early: SSE streams from the MCP adapter can bypass
 		// rest_pre_serve_request, so headers must already be out.

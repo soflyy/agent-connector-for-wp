@@ -33,7 +33,7 @@ final class Db {
 	 * Schema version stored in wp_options. Bump when the columns change so
 	 * existing installs run dbDelta again on next load.
 	 */
-	private const SCHEMA_VERSION = 1;
+	private const SCHEMA_VERSION = 2;
 
 	private const SCHEMA_VERSION_OPTION = 'agent_connector_for_wp_oauth_schema_version';
 
@@ -146,6 +146,9 @@ final class Db {
 			refresh_expires_at datetime NOT NULL,
 			revoked tinyint(1) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			granted_at datetime DEFAULT NULL,
+			last_used_at datetime DEFAULT NULL,
+			last_ip varchar(100) DEFAULT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY access_token_hash (access_token_hash),
 			UNIQUE KEY refresh_token_hash (refresh_token_hash),
@@ -377,7 +380,8 @@ final class Db {
 	/**
 	 * Insert a new access + refresh token pair.
 	 *
-	 * @param array<string,mixed> $data Token data: client_id, user_id, scope.
+	 * @param array<string,mixed> $data Token data: client_id, user_id, scope, and
+	 *                                  optionally granted_at (see below).
 	 * @return array<string,mixed>|false Raw tokens + expires_in on success, false on failure.
 	 */
 	public static function insert_token( array $data ): array|false {
@@ -387,6 +391,15 @@ final class Db {
 		$refresh_token = bin2hex( random_bytes( 32 ) );
 
 		$scope = (string) ( $data['scope'] ?? 'mcp:tools' );
+
+		// When the client rotates its refresh token the old row is revoked and
+		// this new one replaces it, so `created_at` only ever reports the last
+		// rotation. granted_at is carried across rotations by the caller so the
+		// admin UI can show when the connection was actually authorized.
+		$granted_at = (string) ( $data['granted_at'] ?? '' );
+		if ( '' === $granted_at ) {
+			$granted_at = gmdate( 'Y-m-d H:i:s' );
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
 		$inserted = $wpdb->insert(
@@ -399,8 +412,9 @@ final class Db {
 				'scope'              => $scope,
 				'access_expires_at'  => gmdate( 'Y-m-d H:i:s', time() + self::ACCESS_TOKEN_TTL ),
 				'refresh_expires_at' => gmdate( 'Y-m-d H:i:s', time() + self::REFRESH_TOKEN_TTL ),
+				'granted_at'         => $granted_at,
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( ! $inserted ) {
@@ -523,5 +537,212 @@ final class Db {
 		);
 
 		return (int) $updated;
+	}
+
+	/**
+	 * Record that a token was just used, for the "last active" column.
+	 *
+	 * Throttled in SQL rather than PHP: the WHERE clause means the row is only
+	 * rewritten once per $throttle seconds, so a chatty MCP client doesn't turn
+	 * every tool call into a row update.
+	 *
+	 * @param int    $token_id The token row ID.
+	 * @param string $ip       Client IP, best effort ('' when unknown).
+	 * @param int    $throttle Minimum seconds between writes for one token.
+	 */
+	public static function touch_token( int $token_id, string $ip, int $throttle = 60 ): void {
+		global $wpdb;
+
+		if ( $token_id <= 0 ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET last_used_at = %s, last_ip = %s WHERE id = %d AND ( last_used_at IS NULL OR last_used_at < %s )',
+				self::table_tokens(),
+				gmdate( 'Y-m-d H:i:s' ),
+				substr( $ip, 0, 100 ),
+				$token_id,
+				gmdate( 'Y-m-d H:i:s', time() - max( 0, $throttle ) )
+			)
+		);
+	}
+
+	/**
+	 * Every registered client, newest first, each with a summary of its live
+	 * grant (or null when the client holds no usable token).
+	 *
+	 * Deliberately grouped by client rather than returned as token rows: an
+	 * always-on connection rotates its refresh token roughly hourly, so listing
+	 * rows would show hundreds of entries for what a user thinks of as one
+	 * connected app.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function list_clients(): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$clients = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT client_id, client_name, redirect_uris, token_endpoint_auth_method, created_at FROM %i ORDER BY created_at DESC',
+				self::table_clients()
+			),
+			ARRAY_A
+		);
+
+		if ( ! is_array( $clients ) || array() === $clients ) {
+			return array();
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$tokens = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT client_id, user_id, scope, granted_at, created_at, last_used_at, last_ip FROM %i WHERE revoked = 0 AND refresh_expires_at > %s',
+				self::table_tokens(),
+				gmdate( 'Y-m-d H:i:s' )
+			),
+			ARRAY_A
+		);
+		$tokens = is_array( $tokens ) ? $tokens : array();
+
+		$connections = array();
+
+		foreach ( $tokens as $token ) {
+			$cid = (string) $token['client_id'];
+
+			// granted_at is null on rows written before the column existed;
+			// created_at is the closest stand-in.
+			$granted   = (string) ( $token['granted_at'] ?? '' );
+			$granted   = '' !== $granted ? $granted : (string) $token['created_at'];
+			$last_used = (string) ( $token['last_used_at'] ?? '' );
+
+			if ( ! isset( $connections[ $cid ] ) ) {
+				$connections[ $cid ] = array(
+					'user_id'      => (int) $token['user_id'],
+					'scope'        => (string) $token['scope'],
+					'granted_at'   => $granted,
+					'last_used_at' => $last_used,
+					'last_ip'      => (string) ( $token['last_ip'] ?? '' ),
+					'token_count'  => 0,
+				);
+			}
+
+			++$connections[ $cid ]['token_count'];
+
+			// Datetime strings in this format sort lexicographically, so plain
+			// comparison gives earliest-grant / latest-use without parsing.
+			if ( $granted < $connections[ $cid ]['granted_at'] ) {
+				$connections[ $cid ]['granted_at'] = $granted;
+			}
+			if ( $last_used > $connections[ $cid ]['last_used_at'] ) {
+				$connections[ $cid ]['last_used_at'] = $last_used;
+				$connections[ $cid ]['last_ip']      = (string) ( $token['last_ip'] ?? '' );
+			}
+		}
+
+		$out = array();
+
+		foreach ( $clients as $client ) {
+			$cid  = (string) $client['client_id'];
+			$uris = json_decode( (string) $client['redirect_uris'], true );
+
+			$out[] = array(
+				'client_id'     => $cid,
+				'client_name'   => (string) $client['client_name'],
+				'redirect_uris' => is_array( $uris ) ? $uris : array(),
+				'confidential'  => 'none' !== (string) $client['token_endpoint_auth_method'],
+				'registered_at' => (string) $client['created_at'],
+				'connection'    => $connections[ $cid ] ?? null,
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Delete a client registration. Revoke its tokens separately — this only
+	 * removes the client's identity, not its access.
+	 *
+	 * @param string $client_id The OAuth client ID.
+	 */
+	public static function delete_client( string $client_id ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = $wpdb->delete( self::table_clients(), array( 'client_id' => $client_id ), array( '%s' ) );
+
+		return is_int( $deleted ) && $deleted > 0;
+	}
+
+	/**
+	 * Count client registrations that never received a token.
+	 *
+	 * Registration is unauthenticated by design (RFC 7591), so anyone can put a
+	 * row in the clients table; only an administrator approving the consent
+	 * screen turns one into access. These rows are inert, but showing the count
+	 * gives an operator a way to notice — and clear — registration spam.
+	 */
+	public static function count_clients_without_tokens(): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL',
+				self::table_clients(),
+				self::table_tokens()
+			)
+		);
+
+		return (int) $count;
+	}
+
+	/**
+	 * Delete every client registration that never received a token.
+	 *
+	 * @return int Number of registrations removed.
+	 */
+	public static function delete_clients_without_tokens(): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE c FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL',
+				self::table_clients(),
+				self::table_tokens()
+			)
+		);
+
+		return (int) $deleted;
+	}
+
+	/**
+	 * Delete token rows that can no longer authenticate anything.
+	 *
+	 * Refresh rotation revokes a row and writes a replacement on every refresh,
+	 * so without this the table grows by a row per hour per connected client,
+	 * forever. Revoked rows are kept for a day so a compromise is still
+	 * visible in the table shortly after it happens.
+	 *
+	 * @return int Number of rows deleted.
+	 */
+	public static function cleanup_expired_tokens(): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM %i WHERE refresh_expires_at < %s OR ( revoked = 1 AND created_at < %s )',
+				self::table_tokens(),
+				gmdate( 'Y-m-d H:i:s' ),
+				gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS )
+			)
+		);
+
+		return (int) $deleted;
 	}
 }

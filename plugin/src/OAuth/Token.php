@@ -46,8 +46,10 @@ final class Token {
 	public static function handle( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$grant_type = sanitize_text_field( (string) ( $request->get_param( 'grant_type' ) ?? '' ) );
 
-		// Opportunistic cleanup.
+		// Opportunistic cleanup. Rotation leaves a dead token row behind on
+		// every refresh, so this runs here too or the table grows forever.
 		Db::cleanup_expired_codes();
+		Db::cleanup_expired_tokens();
 
 		return match ( $grant_type ) {
 			'authorization_code' => self::handle_authorization_code( $request ),
@@ -180,9 +182,13 @@ final class Token {
 
 		$new_tokens = Db::insert_token(
 			array(
-				'client_id' => $client_id,
-				'user_id'   => (int) $token_row['user_id'],
-				'scope'     => (string) $token_row['scope'],
+				'client_id'  => $client_id,
+				'user_id'    => (int) $token_row['user_id'],
+				'scope'      => (string) $token_row['scope'],
+				// Carry the original authorization time across the rotation so
+				// the admin UI can report when this connection began rather
+				// than when it last refreshed.
+				'granted_at' => (string) ( $token_row['granted_at'] ?? '' ),
 			)
 		);
 

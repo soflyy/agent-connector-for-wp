@@ -10,6 +10,7 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\Rest;
 
 use AgentConnectorForWp\Observability\EventsTable;
+use AgentConnectorForWp\OAuth\Db as OAuthDb;
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
@@ -217,6 +218,43 @@ final class SettingsController extends WP_REST_Controller {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'clear_logs' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/oauth/clients',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_oauth_clients' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/oauth/clients/revoke',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'revoke_oauth_client' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+				'args'                => array(
+					'client_id' => array(
+						'type'              => 'string',
+						'required'          => true,
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			$this->namespace,
+			'/oauth/clients/cleanup',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'cleanup_oauth_clients' ),
 				'permission_callback' => array( $this, 'check_permission' ),
 			)
 		);
@@ -588,6 +626,97 @@ final class SettingsController extends WP_REST_Controller {
 		$data['tags'] = $tags;
 
 		return new WP_REST_Response( $data );
+	}
+
+	/**
+	 * GET /oauth/clients — the OAuth clients holding (or once granted) access.
+	 *
+	 * Only clients with a live grant are returned as connections; registrations
+	 * that were never authorized are reported as a count, since dynamic client
+	 * registration is public and those rows are inert until an administrator
+	 * approves one.
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 */
+	public function get_oauth_clients( WP_REST_Request $request ): WP_REST_Response {
+		OAuthDb::maybe_create();
+
+		$clients     = OAuthDb::list_clients();
+		$connections = array();
+
+		foreach ( $clients as $client ) {
+			if ( null === $client['connection'] ) {
+				continue;
+			}
+
+			$connection = $client['connection'];
+			$user       = get_userdata( (int) $connection['user_id'] );
+
+			$connections[] = array(
+				'client_id'     => $client['client_id'],
+				'client_name'   => $client['client_name'],
+				'redirect_uris' => $client['redirect_uris'],
+				'confidential'  => $client['confidential'],
+				'registered_at' => $client['registered_at'],
+				'granted_at'    => $connection['granted_at'],
+				'last_used_at'  => $connection['last_used_at'],
+				'last_ip'       => $connection['last_ip'],
+				'scope'         => $connection['scope'],
+				'user_login'    => $user instanceof \WP_User ? $user->user_login : '',
+				'user_name'     => $user instanceof \WP_User ? $user->display_name : '',
+				// A user deleted or demoted since the grant keeps a working
+				// token, but Governance blocks every ability behind
+				// Config::has_admin_access(), so it can execute nothing.
+				'user_missing'  => ! ( $user instanceof \WP_User ),
+			);
+		}
+
+		return new WP_REST_Response(
+			array(
+				'connections'  => $connections,
+				'unused_count' => OAuthDb::count_clients_without_tokens(),
+			)
+		);
+	}
+
+	/**
+	 * POST /oauth/clients/revoke — disconnect one client.
+	 *
+	 * Revokes every token the client holds and deletes its registration, so it
+	 * must register and be approved again to regain access.
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 */
+	public function revoke_oauth_client( WP_REST_Request $request ): WP_REST_Response {
+		OAuthDb::maybe_create();
+
+		$client_id = (string) $request->get_param( 'client_id' );
+		$revoked   = OAuthDb::revoke_all_for_client( $client_id );
+
+		OAuthDb::delete_client( $client_id );
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'revoked' => $revoked,
+			)
+		);
+	}
+
+	/**
+	 * POST /oauth/clients/cleanup — drop registrations that never got a token.
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 */
+	public function cleanup_oauth_clients( WP_REST_Request $request ): WP_REST_Response {
+		OAuthDb::maybe_create();
+
+		return new WP_REST_Response(
+			array(
+				'success' => true,
+				'deleted' => OAuthDb::delete_clients_without_tokens(),
+			)
+		);
 	}
 
 	public function clear_logs( WP_REST_Request $request ): WP_REST_Response {

@@ -18,6 +18,7 @@ export default function Header({ page, onNavigate, status }) {
           <nav className="flex items-center gap-1">
             {[
               { id: 'connect', label: 'Connect' },
+              { id: 'connections', label: 'Connections' },
               { id: 'settings', label: 'Settings' },
               { id: 'abilities', label: 'Abilities' },
               { id: 'log', label: 'Log' },
