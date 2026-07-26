@@ -276,7 +276,6 @@ function buildOAuth(serverName, serverUrl) {
   // A universal copyable URL block used as the fallback for every client.
   const urlBlock = {
     kind: 'url', title: 'MCP Server URL',
-    hint: 'Add this as a <strong>remote</strong> (Streamable HTTP) MCP server. When prompted, sign in to this site and click <strong>Authorize</strong>. Only administrators can approve access.',
     value: serverUrl,
   }
 
@@ -315,7 +314,6 @@ function buildOAuth(serverName, serverUrl) {
     }],
     'codex-cli': [{
       kind: 'command', title: 'Terminal command',
-      hint: 'Adds this site to Codex as a remote (Streamable HTTP) MCP server.',
       value: codexCliHttp,
       steps: [
         'Copy the command below',
