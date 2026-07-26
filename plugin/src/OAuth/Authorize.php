@@ -48,14 +48,11 @@ final class Authorize {
 	public static function handle_get( WP_REST_Request $request ) {
 		$params = self::extract_params( $request );
 
-		if ( 'code' !== $params['response_type'] ) {
-			return new WP_Error(
-				'unsupported_response_type',
-				'Only response_type=code is supported.',
-				array( 'status' => 400 )
-			);
-		}
-
+		// Establish a trusted redirect target first. These two are the only
+		// failures that must render instead of redirecting: without a known
+		// client and a registered redirect_uri there is nowhere safe to send
+		// the user, so anything checked before them would be reported to the
+		// browser alone and leave the agent waiting.
 		$client = Db::get_client_by_id( $params['client_id'] );
 		if ( null === $client ) {
 			return new WP_Error( 'invalid_client', 'Unknown client_id.', array( 'status' => 400 ) );
@@ -67,6 +64,15 @@ final class Authorize {
 				'invalid_redirect_uri',
 				'redirect_uri does not match registered URIs.',
 				array( 'status' => 400 )
+			);
+		}
+
+		if ( 'code' !== $params['response_type'] ) {
+			self::redirect_with_error(
+				$params['redirect_uri'],
+				'unsupported_response_type',
+				'Only response_type=code is supported.',
+				$params['state']
 			);
 		}
 
