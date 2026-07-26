@@ -283,7 +283,7 @@ function buildOAuth(serverName, serverUrl) {
   // sign-in up front, so the first tool call just works instead of stopping to
   // authenticate.
   const claudeCodeHttp = [
-    `claude mcp add --transport http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
+    `claude mcp add --transport streamable-http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
     `claude mcp login ${shellArg(serverName)}`,
   ].join('\n')
 
