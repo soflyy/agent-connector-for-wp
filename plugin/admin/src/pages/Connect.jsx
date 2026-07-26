@@ -953,7 +953,13 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // password instead and flag OAuth as possibly not working (see
   // isLocalEnvironment), though it stays selectable.
   const isLocal = isLocalEnvironment()
-  const [method, setMethod] = useState(isLocal ? 'password' : 'oauth')
+
+  // OAuth is opt-in for now (Settings → OAuth). While it's off the endpoints
+  // don't respond, so offering it here would only produce a broken sign-in.
+  const oauthEnabled = status.oauthEnabled
+  const [method, setMethod] = useState(
+    !oauthEnabled || isLocal ? 'password' : 'oauth'
+  )
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -966,10 +972,12 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-        <MethodPicker method={method} onSelect={setMethod} isLocal={isLocal} />
-      </div>
+      {oauthEnabled && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
+          <MethodPicker method={method} onSelect={setMethod} isLocal={isLocal} />
+        </div>
+      )}
 
       {method === 'oauth' ? (
         <div className="space-y-4">

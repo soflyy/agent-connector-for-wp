@@ -189,7 +189,13 @@ add_action(
 		// no auth at all, where its 401 advertises the OAuth flow). Consent
 		// is restricted to administrators (Config::has_admin_access) because
 		// tokens front root-equivalent abilities. See src/OAuth/Server.php.
-		OAuth\Server::init();
+		//
+		// Gated behind an opt-in toggle (Settings → OAuth) while the flow
+		// settles. Off means none of it boots, so previously issued tokens
+		// stop authenticating; the application-password path is unaffected.
+		if ( Support\Config::is_oauth_enabled() ) {
+			OAuth\Server::init();
+		}
 
 		// This plugin ships NO abilities of its own. The powerful built-in
 		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in

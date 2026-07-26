@@ -85,6 +85,16 @@ final class Config {
 	public const LOCKED_HOST_OPTION = 'agent_connector_for_wp_locked_host';
 
 	/**
+	 * Option gating the OAuth 2.1 authorization server (boolean, default OFF).
+	 *
+	 * Temporary rollout flag while the OAuth path settles. Off means the server
+	 * never boots: no discovery documents, no client registration, no consent
+	 * screen, and no Bearer interceptor, so tokens already issued stop
+	 * authenticating. The application-password path is untouched either way.
+	 */
+	public const OAUTH_ENABLED_OPTION = 'agent_connector_for_wp_oauth_enabled';
+
+	/**
 	 * The Enable toggle. Default ON: installing and activating the plugin is
 	 * the operator's opt-in, so it works out of the box.
 	 */
@@ -105,6 +115,14 @@ final class Config {
 			return false; // Can't prove it's non-production → treat as production.
 		}
 		return 'production' !== wp_get_environment_type();
+	}
+
+	/**
+	 * Whether the OAuth authorization server may boot. Default OFF: OAuth is
+	 * opt-in for now (see OAUTH_ENABLED_OPTION).
+	 */
+	public static function is_oauth_enabled(): bool {
+		return (bool) get_option( self::OAUTH_ENABLED_OPTION, false );
 	}
 
 	/**

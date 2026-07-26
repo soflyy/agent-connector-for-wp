@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2, Download } from 'lucide-react'
+import { RefreshCw, AlertTriangle, ShieldAlert, Shield, ShieldCheck, Bug, Package, CheckCircle2, Download } from 'lucide-react'
 import { api, normalizeStatus } from '../api'
 import Connections from './Connections'
 
@@ -145,6 +145,7 @@ export default function Settings({ status, onStatusChange }) {
     domainLockEnabled: status.domainLockEnabled,
     hideProdWarning: status.hideProdWarning,
     mcpDebug: status.mcpDebug,
+    oauthEnabled: status.oauthEnabled,
   })
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState(null)
@@ -184,6 +185,7 @@ export default function Settings({ status, onStatusChange }) {
         domain_lock_enabled: newForm.domainLockEnabled,
         hide_production_warning: newForm.hideProdWarning,
         mcp_debug: newForm.mcpDebug,
+        oauth_enabled: newForm.oauthEnabled,
       })
       onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setSaveStatus('saved')
@@ -417,6 +419,18 @@ export default function Settings({ status, onStatusChange }) {
               </div>
             </>
           )}
+        </Section>
+
+        {/* OAuth. Temporary opt-in while the flow settles; remove this section
+            along with the setting once OAuth is on by default. */}
+        <Section title="OAuth" icon={ShieldCheck}>
+          <Row
+            label="Enable OAuth sign-in"
+            description="Lets agents sign in to this site directly and request access, with no application password or local proxy. While off, the OAuth endpoints do not respond and any tokens already issued stop working."
+            control={
+              <Toggle checked={form.oauthEnabled} onChange={(v) => setAndSave('oauthEnabled', v)} />
+            }
+          />
         </Section>
 
         {/* Debug */}
