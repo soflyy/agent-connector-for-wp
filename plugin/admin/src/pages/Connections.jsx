@@ -101,8 +101,6 @@ export default function Connections() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900">Connections</h1>
-
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
@@ -157,7 +155,12 @@ export default function Connections() {
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900 text-base">{c.client_name || 'Unnamed app'}</div>
                   {c.redirect_uris?.[0] && (
-                    <div className="text-sm text-gray-400 break-all mt-0.5">{c.redirect_uris[0]}</div>
+                    <div
+                      className="text-sm text-gray-400 truncate max-w-xs mt-0.5"
+                      title={c.redirect_uris[0]}
+                    >
+                      {c.redirect_uris[0]}
+                    </div>
                   )}
                 </td>
                 <td className="px-4 py-3 text-gray-700">

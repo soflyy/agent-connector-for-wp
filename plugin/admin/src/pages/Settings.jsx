@@ -1,6 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { RefreshCw, AlertTriangle, ShieldAlert, Shield, Bug, Package, CheckCircle2, Download } from 'lucide-react'
 import { api, normalizeStatus } from '../api'
+import Connections from './Connections'
+
+const TABS = [
+  { id: 'general', label: 'General' },
+  { id: 'connections', label: 'Connections' },
+]
+
+// The active tab lives in the hash so it survives a reload and can be linked
+// to directly: #/settings/connections.
+function getTab() {
+  return window.location.hash.replace('#/', '') === 'settings/connections'
+    ? 'connections'
+    : 'general'
+}
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -115,6 +129,16 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
 }
 
 export default function Settings({ status, onStatusChange }) {
+  const [tab, setTab] = useState(getTab)
+
+  // The hash is the single source of truth, so tab clicks and the Settings nav
+  // button (which resets the hash to #/settings) both land in the same place.
+  useEffect(() => {
+    const onHashChange = () => setTab(getTab())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
   const [form, setForm] = useState({
     enabled: status.enabled,
     blockProduction: status.blockProduction,
@@ -211,11 +235,14 @@ export default function Settings({ status, onStatusChange }) {
           installing={installingUap}
         />
       )}
-      <div className="max-w-3xl mx-auto space-y-6">
+      {/* The connections table needs more room than the settings form. */}
+      <div className={`${tab === 'connections' ? 'max-w-5xl' : 'max-w-3xl'} mx-auto space-y-6`}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-            <p className="mt-1 text-base text-gray-500">Configure the MCP server and plugin behaviour.</p>
+            {tab === 'general' && (
+              <p className="mt-1 text-base text-gray-500">Configure the MCP server and plugin behaviour.</p>
+            )}
           </div>
           <div className="pt-1 min-w-[100px] text-right">
             {saveStatus === 'saving' && (
@@ -234,6 +261,27 @@ export default function Settings({ status, onStatusChange }) {
           </div>
         </div>
 
+        <div className="flex items-center gap-1 border-b border-gray-200">
+          {TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => { window.location.hash = id === 'connections' ? '/settings/connections' : '/settings' }}
+              className={[
+                'px-4 py-2 -mb-px text-base font-medium border-b-2 transition-colors',
+                tab === id
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'connections' && <Connections />}
+
+        {tab === 'general' && (
+          <>
         {reconnectNotice && (
           <div
             className={[
@@ -381,6 +429,8 @@ export default function Settings({ status, onStatusChange }) {
             }
           />
         </Section>
+          </>
+        )}
       </div>
     </>
   )
