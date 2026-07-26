@@ -354,7 +354,7 @@ final class Authorize {
 		</div>
 
 		<div class="acfw-oauth-warning">
-			<?php esc_html_e( 'Warning: abilities exposed through Agent Connector can include shell access, PHP evaluation, and filesystem operations. Only authorize applications you trust.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Warning: Agent Connector gives your agent admin-equivalent capabilities to this WordPress installation. Only authorize applications you trust.', 'agent-connector-for-wp' ); ?>
 		</div>
 
 		<div class="acfw-oauth-scopes">
