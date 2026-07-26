@@ -11,6 +11,11 @@ import { api, initial, DEMO_URL } from '../api'
 // agents can't complete the flow. The Connect page defaults to the
 // application password there and flags OAuth as possibly not working, but
 // still allows it. Everywhere else OAuth is the default.
+//
+// CLI agents are exempt from all of that: they run on the same machine as the
+// site, so localhost resolves for them and the sign-in completes normally.
+// Showing them a "may not work locally" caveat would just be wrong (see the
+// `cli` flag on AGENTS below).
 function isLocalHostname(rawHost) {
   const host = String(rawHost).toLowerCase().replace(/^\[|\]$/g, '')
   if (!host) return false
@@ -31,10 +36,12 @@ function isLocalEnvironment() {
   return hosts.some(isLocalHostname)
 }
 
+// `cli: true` marks an agent that runs on the operator's own machine, so it
+// can reach a local site and needs none of the local-environment caveats.
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc' },
   { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779' },
-  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb' },
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b' },
   { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '' },
 ]
@@ -917,12 +924,12 @@ const AUTH_METHODS = [
   },
 ]
 
-function MethodPicker({ method, onSelect, isLocal }) {
+function MethodPicker({ method, onSelect, localCaveat }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       {AUTH_METHODS.map(({ id, label, Icon, description }) => {
         const isSelected = method === id
-        const isRecommended = isLocal ? id === 'password' : id === 'oauth'
+        const isRecommended = localCaveat ? id === 'password' : id === 'oauth'
         return (
           <button
             key={id}
@@ -943,7 +950,7 @@ function MethodPicker({ method, onSelect, isLocal }) {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
                   <Sparkles className="w-3 h-3" /> Recommended
                 </span>
-              ) : isLocal && id === 'oauth' && (
+              ) : localCaveat && id === 'oauth' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold uppercase tracking-wide">
                   <AlertTriangle className="w-3 h-3" /> May not work locally
                 </span>
@@ -960,16 +967,18 @@ function MethodPicker({ method, onSelect, isLocal }) {
 function GenerateStep({ selectedAgent, status, onBack }) {
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
 
-  // OAuth is the default; local environments default to the application
-  // password instead and flag OAuth as possibly not working (see
-  // isLocalEnvironment), though it stays selectable.
-  const isLocal = isLocalEnvironment()
+  // OAuth is the default. On a local site a hosted agent can't complete the
+  // sign-in, so the application password leads instead and OAuth is flagged as
+  // possibly not working, though it stays selectable. A CLI agent runs on this
+  // machine, so localhost resolves for it and none of that applies.
+  const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
-  // OAuth is opt-in for now (Settings → OAuth). While it's off the endpoints
-  // don't respond, so offering it here would only produce a broken sign-in.
+  // OAuth is opt-in for now (Settings → Abilities). While it's off the
+  // endpoints don't respond, so offering it here would only produce a broken
+  // sign-in.
   const oauthEnabled = status.oauthEnabled
   const [method, setMethod] = useState(
-    !oauthEnabled || isLocal ? 'password' : 'oauth'
+    !oauthEnabled || localCaveat ? 'password' : 'oauth'
   )
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
@@ -986,7 +995,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
       {oauthEnabled && (
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-          <MethodPicker method={method} onSelect={setMethod} isLocal={isLocal} />
+          <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
         </div>
       )}
 
@@ -995,7 +1004,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
           <p className="text-base text-gray-500">
             Connect over OAuth: the agent signs in to this site and you approve access. No password to copy, no proxy to install.
           </p>
-          {isLocal && (
+          {localCaveat && (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
