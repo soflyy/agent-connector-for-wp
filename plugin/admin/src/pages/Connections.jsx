@@ -9,9 +9,10 @@ function parseUtc(s) {
   return isNaN(d.getTime()) ? null : d
 }
 
+// Used for tooltips only, so an empty string simply means no tooltip.
 function formatTime(s) {
   const d = parseUtc(s)
-  return d ? d.toLocaleString() : '—'
+  return d ? d.toLocaleString() : ''
 }
 
 function formatRelative(s) {
@@ -35,7 +36,7 @@ function formatRelative(s) {
 
 function ScopeBadges({ scope }) {
   const scopes = (scope || '').split(' ').map(s => s.trim()).filter(Boolean)
-  if (scopes.length === 0) return <span className="text-gray-400">—</span>
+  if (scopes.length === 0) return <span className="text-gray-400">None</span>
   return (
     <div className="flex flex-wrap gap-1">
       {scopes.map(s => (
@@ -105,7 +106,7 @@ export default function Connections() {
       <p className="text-base text-gray-500 max-w-3xl">
         Agents that an administrator authorized over OAuth. Each one holds a token that acts as the
         user who approved it, until you disconnect it here. Connections made with an application
-        password are not listed here — those are managed on the user's WordPress profile screen.
+        password are not listed here. Those are managed on the user's WordPress profile screen.
       </p>
 
       {/* Toolbar */}
@@ -168,7 +169,7 @@ export default function Connections() {
                 <td className="px-4 py-3 text-gray-700">
                   {c.user_missing
                     ? <span className="text-amber-600">User deleted</span>
-                    : (c.user_name || c.user_login || '—')}
+                    : (c.user_name || c.user_login || 'Unknown')}
                 </td>
                 <td className="px-4 py-3"><ScopeBadges scope={c.scope} /></td>
                 <td className="px-4 py-3 text-gray-500 whitespace-nowrap" title={formatTime(c.granted_at)}>
@@ -206,7 +207,7 @@ export default function Connections() {
             <p className="text-sm text-gray-500 mt-1">
               Any client can register itself, which is how agents discover this site. A registration
               grants no access until an administrator approves it on the consent screen, so these are
-              inert — but you can clear them.
+              inert, but you can clear them.
             </p>
           </div>
           <button
