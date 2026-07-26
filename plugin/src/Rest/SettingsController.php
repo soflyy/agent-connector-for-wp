@@ -274,6 +274,7 @@ final class SettingsController extends WP_REST_Controller {
 				'prod_blocked'            => Config::is_blocked_by_production(),
 				'mcp_debug'               => Config::mcp_debug_enabled(),
 				'oauth_enabled'           => Config::is_oauth_enabled(),
+				'oauth_transport_allowed' => Config::oauth_transport_allowed(),
 				'block_production'        => Config::block_production_enabled(),
 				'domain_lock_enabled'     => Config::domain_lock_enabled(),
 				'hide_production_warning' => Config::production_warning_hidden(),
