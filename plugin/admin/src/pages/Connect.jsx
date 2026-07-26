@@ -584,7 +584,7 @@ function WelcomeStep({ status, onStart }) {
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
           <p className="text-gray-500 leading-relaxed">
-            Give any AI agent access to this WordPress site over MCP. Connect over OAuth or with an application password. It takes about 30 seconds.
+            Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
           </p>
         </div>
         <div className="flex flex-col items-center gap-3">
