@@ -41,6 +41,10 @@ export const api = {
   },
   getLogEvent: (id) => request(`/logs/${id}`),
   clearLogs: () => request('/logs/clear', { method: 'POST' }),
+  getOauthClients: () => request('/oauth/clients'),
+  revokeOauthClient: (client_id) =>
+    request('/oauth/clients/revoke', { method: 'POST', body: JSON.stringify({ client_id }) }),
+  cleanupOauthClients: () => request('/oauth/clients/cleanup', { method: 'POST' }),
   installUap: () => request('/uap/install', { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
@@ -56,6 +60,7 @@ export const normalizeStatus = (s = {}) => ({
   active: bool(s.active),
   prodBlocked: bool(s.prod_blocked),
   mcpDebug: bool(s.mcp_debug),
+  oauthEnabled: bool(s.oauth_enabled),
   blockProduction: bool(s.block_production),
   domainLockEnabled: bool(s.domain_lock_enabled),
   hideProdWarning: bool(s.hide_production_warning),
@@ -74,6 +79,7 @@ export const initial = {
   active: bool(cfg.active),
   prodBlocked: bool(cfg.prodBlocked),
   mcpDebug: bool(cfg.mcpDebug),
+  oauthEnabled: bool(cfg.oauthEnabled),
   blockProduction: bool(cfg.blockProduction),
   domainLockEnabled: bool(cfg.domainLockEnabled),
   hideProdWarning: bool(cfg.hideProdWarning),

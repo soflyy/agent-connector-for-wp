@@ -179,6 +179,24 @@ add_action(
 		// wp_register_ability_args filter; see Support\Governance.
 		Support\Governance::register();
 
+		// OAuth 2.1 authorization server: lets MCP clients (e.g. claude.ai
+		// remote connectors) authenticate directly over Streamable HTTP with
+		// Bearer tokens — discovery (.well-known), dynamic client registration,
+		// admin-only consent, PKCE code exchange, refresh rotation, and a
+		// Bearer interceptor on the /mcp/ routes. Application-password auth
+		// via the mcp-wordpress-remote proxy keeps working unchanged; the
+		// interceptor only engages when it sees an Authorization header (or
+		// no auth at all, where its 401 advertises the OAuth flow). Consent
+		// is restricted to administrators (Config::has_admin_access) because
+		// tokens front root-equivalent abilities. See src/OAuth/Server.php.
+		//
+		// Gated behind an opt-in toggle (Settings → OAuth) while the flow
+		// settles. Off means none of it boots, so previously issued tokens
+		// stop authenticating; the application-password path is unaffected.
+		if ( Support\Config::is_oauth_enabled() ) {
+			OAuth\Server::init();
+		}
+
 		// This plugin ships NO abilities of its own. The powerful built-in
 		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in
 		// the separate "Universal Abilities for Agent Connector" plugin, which can be

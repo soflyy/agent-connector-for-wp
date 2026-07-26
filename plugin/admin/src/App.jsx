@@ -9,7 +9,8 @@ import { api, initial, DEMO_URL } from './api'
 
 function getPage() {
   const hash = window.location.hash.replace('#/', '')
-  if (hash === 'settings') return 'settings'
+  // Settings owns its own tabs, e.g. #/settings/connections.
+  if (hash === 'settings' || hash.startsWith('settings/')) return 'settings'
   if (hash === 'abilities') return 'abilities'
   if (hash === 'log') return 'log'
   return 'connect'

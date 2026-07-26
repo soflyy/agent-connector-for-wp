@@ -99,6 +99,7 @@ final class ConnectionPage {
 				'active'             => Config::can_boot(),
 				'prodBlocked'        => Config::is_blocked_by_production(),
 				'mcpDebug'           => Config::mcp_debug_enabled(),
+				'oauthEnabled'       => Config::is_oauth_enabled(),
 				'blockProduction'    => Config::block_production_enabled(),
 				'domainLockEnabled'  => Config::domain_lock_enabled(),
 				'hideProdWarning'    => Config::production_warning_hidden(),
@@ -130,7 +131,10 @@ final class ConnectionPage {
 			static function (): void {
 				echo '<style>
 					.acfw-app-page #wpfooter { display: none !important; }
-					.acfw-app-page #wpcontent { padding-left: 0 !important; }
+					/* #f9fafb is Tailwind gray-50 — the app root uses bg-gray-50,
+					   so matching it here keeps the seam invisible wherever the
+					   app does not fill the content area. */
+					.acfw-app-page #wpcontent { padding-left: 0 !important; background: #f9fafb; }
 					.acfw-app-page #wpbody-content { padding-bottom: 0 !important; }
 				</style>';
 			}
