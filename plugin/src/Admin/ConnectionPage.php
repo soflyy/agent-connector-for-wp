@@ -130,7 +130,10 @@ final class ConnectionPage {
 			static function (): void {
 				echo '<style>
 					.acfw-app-page #wpfooter { display: none !important; }
-					.acfw-app-page #wpcontent { padding-left: 0 !important; }
+					/* #f9fafb is Tailwind gray-50 — the app root uses bg-gray-50,
+					   so matching it here keeps the seam invisible wherever the
+					   app does not fill the content area. */
+					.acfw-app-page #wpcontent { padding-left: 0 !important; background: #f9fafb; }
 					.acfw-app-page #wpbody-content { padding-bottom: 0 !important; }
 				</style>';
 			}
