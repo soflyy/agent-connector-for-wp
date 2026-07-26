@@ -103,12 +103,6 @@ export default function Connections() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-gray-900">Connections</h1>
 
-      <p className="text-base text-gray-500 max-w-3xl">
-        Agents that an administrator authorized over OAuth. Each one holds a token that acts as the
-        user who approved it, until you disconnect it here. Connections made with an application
-        password are not listed here. Those are managed on the user's WordPress profile screen.
-      </p>
-
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
@@ -203,11 +197,6 @@ export default function Connections() {
           <div className="flex-1">
             <p>
               {unusedCount} app registration{unusedCount !== 1 ? 's' : ''} never completed sign-in.
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Any client can register itself, which is how agents discover this site. A registration
-              grants no access until an administrator approves it on the consent screen, so these are
-              inert, but you can clear them.
             </p>
           </div>
           <button
