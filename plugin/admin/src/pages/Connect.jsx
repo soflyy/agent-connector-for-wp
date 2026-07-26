@@ -279,8 +279,13 @@ function buildOAuth(serverName, serverUrl) {
     value: serverUrl,
   }
 
-  // `claude mcp add --transport http` wires up a remote server with OAuth.
-  const claudeCodeHttp = `claude mcp add --transport http ${shellArg(serverName)} ${shellArg(serverUrl)}`
+  // `add --transport http` registers the remote server; `login` runs the OAuth
+  // sign-in up front, so the first tool call just works instead of stopping to
+  // authenticate.
+  const claudeCodeHttp = [
+    `claude mcp add --transport http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
+    `claude mcp login ${shellArg(serverName)}`,
+  ].join('\n')
 
   // `--url` registers a remote (Streamable HTTP) server; Codex handles the
   // OAuth sign-in itself from there.
@@ -303,13 +308,12 @@ function buildOAuth(serverName, serverUrl) {
       ],
     }],
     'claude-code': [{
-      kind: 'command', title: 'Terminal command',
-      hint: 'Adds this site as a remote MCP server. Claude Code opens your browser to sign in and authorize on first use.',
+      kind: 'command', title: 'Terminal commands',
       value: claudeCodeHttp,
       steps: [
-        'Copy the command below',
-        'Open your terminal and paste it',
-        'Run any tool once — Claude Code opens the browser to sign in and authorize',
+        'Copy both commands below',
+        'Open your terminal and run them in order',
+        'The second command opens your browser: sign in and click <strong>Authorize</strong>',
       ],
     }],
     'codex-cli': [{
