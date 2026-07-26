@@ -22,7 +22,9 @@ defined( 'ABSPATH' ) || exit;
  * capability (shell, PHP eval, filesystem) to the agents acting on a token,
  * so unlike a generic OAuth server, ONLY administrators / super admins
  * ({@see Config::has_admin_access}) may authorize a client. A logged-in
- * non-admin gets a 403, not a consent page.
+ * non-admin never sees a consent page: they are sent back to the client with
+ * `error=access_denied`, so the agent waiting on the callback learns the
+ * request failed instead of hanging until it times out.
  */
 final class Authorize {
 
@@ -68,12 +70,14 @@ final class Authorize {
 			);
 		}
 
-		// PKCE S256 is mandatory (OAuth 2.1).
+		// PKCE S256 is mandatory (OAuth 2.1). The redirect_uri is trusted by
+		// this point, so the client is told why rather than left waiting.
 		if ( 'S256' !== $params['code_challenge_method'] || '' === $params['code_challenge'] ) {
-			return new WP_Error(
+			self::redirect_with_error(
+				$params['redirect_uri'],
 				'invalid_request',
 				'PKCE with S256 is required.',
-				array( 'status' => 400 )
+				$params['state']
 			);
 		}
 
@@ -87,16 +91,51 @@ final class Authorize {
 			exit;
 		}
 
-		// Admin-only consent (see class docblock).
+		// Admin-only consent (see class docblock). The client and redirect_uri
+		// are validated above, so this goes back to the waiting agent as an
+		// OAuth error rather than a browser-only 403 that leaves it hanging
+		// until it times out.
 		if ( ! Config::has_admin_access() ) {
-			return new WP_Error(
+			self::redirect_with_error(
+				$params['redirect_uri'],
 				'access_denied',
 				'Only administrators may authorize agent access to this site.',
-				array( 'status' => 403 )
+				$params['state']
 			);
 		}
 
 		self::render_authorize_page( $client, $params );
+		exit;
+	}
+
+	/**
+	 * Hand an error back to the client by redirect (RFC 6749 §4.1.2.1).
+	 *
+	 * Only safe once client_id and redirect_uri have been validated against the
+	 * registered list — before that there is nowhere trustworthy to send the
+	 * user and the caller must return a WP_Error instead. Everything past that
+	 * point should come back here, so a failure reaches the agent waiting on
+	 * the callback instead of only the browser.
+	 *
+	 * @param string $redirect_uri Validated redirect URI.
+	 * @param string $error        OAuth error code.
+	 * @param string $description  Human-readable description for the client.
+	 * @param string $state        Client state to echo back; '' when absent.
+	 */
+	private static function redirect_with_error( string $redirect_uri, string $error, string $description, string $state = '' ): void {
+		// Note: add_query_arg() URL-encodes values itself — do NOT pre-encode
+		// (e.g. rawurlencode) or state/description arrive double-encoded and
+		// strict clients reject the mismatched state.
+		$args = array(
+			'error'             => $error,
+			'error_description' => $description,
+		);
+		if ( '' !== $state ) {
+			$args['state'] = $state;
+		}
+
+		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri, validated against the registered list by the caller.
+		wp_redirect( add_query_arg( $args, $redirect_uri ) );
 		exit;
 	}
 
@@ -114,18 +153,6 @@ final class Authorize {
 			return new WP_Error( 'invalid_nonce', 'Security check failed.', array( 'status' => 403 ) );
 		}
 
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'unauthorized', 'User must be logged in.', array( 'status' => 401 ) );
-		}
-
-		if ( ! Config::has_admin_access() ) {
-			return new WP_Error(
-				'access_denied',
-				'Only administrators may authorize agent access to this site.',
-				array( 'status' => 403 )
-			);
-		}
-
 		$action                = sanitize_text_field( (string) ( $request->get_param( 'action' ) ?? '' ) );
 		$client_id             = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
 		$redirect_uri          = esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) );
@@ -134,28 +161,41 @@ final class Authorize {
 		$code_challenge        = sanitize_text_field( (string) ( $request->get_param( 'code_challenge' ) ?? '' ) );
 		$code_challenge_method = sanitize_text_field( (string) ( $request->get_param( 'code_challenge_method' ) ?? '' ) );
 
-		// Re-validate client and redirect_uri (defense in depth).
+		// Re-validate client and redirect_uri (defense in depth). This runs
+		// before the access checks below so that when one of them fails there
+		// is already a trusted redirect_uri to report the failure to.
 		$client = Db::get_client_by_id( $client_id );
 		if ( null === $client || ! in_array( $redirect_uri, $client['redirect_uris'], true ) ) {
 			return new WP_Error( 'invalid_client', 'Invalid client or redirect URI.', array( 'status' => 400 ) );
 		}
 
+		// Session expired between rendering the consent page and submitting it.
+		if ( ! is_user_logged_in() ) {
+			self::redirect_with_error(
+				$redirect_uri,
+				'access_denied',
+				'The WordPress session expired before authorization completed.',
+				$state
+			);
+		}
+
+		if ( ! Config::has_admin_access() ) {
+			self::redirect_with_error(
+				$redirect_uri,
+				'access_denied',
+				'Only administrators may authorize agent access to this site.',
+				$state
+			);
+		}
+
 		// User denied authorization.
 		if ( 'authorize' !== $action ) {
-			// Note: add_query_arg() URL-encodes values itself — do NOT pre-encode
-			// (e.g. rawurlencode) or state/description arrive double-encoded and
-			// strict clients reject the mismatched state.
-			$deny_args = array(
-				'error'             => 'access_denied',
-				'error_description' => 'User denied the authorization request.',
+			self::redirect_with_error(
+				$redirect_uri,
+				'access_denied',
+				'User denied the authorization request.',
+				$state
 			);
-			if ( '' !== $state ) {
-				$deny_args['state'] = $state;
-			}
-			$deny_url = add_query_arg( $deny_args, $redirect_uri );
-			// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri validated against the registered list above.
-			wp_redirect( $deny_url );
-			exit;
 		}
 
 		$code = Db::insert_code(
@@ -170,7 +210,12 @@ final class Authorize {
 		);
 
 		if ( false === $code ) {
-			return new WP_Error( 'server_error', 'Could not generate authorization code.', array( 'status' => 500 ) );
+			self::redirect_with_error(
+				$redirect_uri,
+				'server_error',
+				'Could not generate authorization code.',
+				$state
+			);
 		}
 
 		// add_query_arg() URL-encodes values itself; pass raw so state round-trips
