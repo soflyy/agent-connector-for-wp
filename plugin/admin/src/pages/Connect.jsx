@@ -271,6 +271,14 @@ function buildOAuth(serverName, serverUrl) {
   // `claude mcp add --transport http` wires up a remote server with OAuth.
   const claudeCodeHttp = `claude mcp add --transport http ${shellArg(serverName)} ${shellArg(serverUrl)}`
 
+  // Codex needs two steps: register the remote server, then authenticate.
+  // Unlike Claude Code it does not open the browser on first tool use, so
+  // without the explicit `codex mcp login` the connection simply fails.
+  const codexCliHttp = [
+    `codex mcp add ${shellArg(serverName)} --url ${shellArg(serverUrl)}`,
+    `codex mcp login ${shellArg(serverName)}`,
+  ].join('\n')
+
   // VS Code and Cursor accept a remote server described by a bare { url } entry.
   const vscodeRemote = JSON.stringify({ name: serverName, url: serverUrl })
   const vscodeRemoteCLI = 'code --add-mcp ' + shellArg(vscodeRemote)
@@ -298,10 +306,13 @@ function buildOAuth(serverName, serverUrl) {
       ],
     }],
     'codex-cli': [{
-      ...urlBlock,
+      kind: 'command', title: 'Terminal commands',
+      hint: 'The first command registers this site as a remote MCP server. The second starts the OAuth sign-in, which Codex does not trigger on its own.',
+      value: codexCliHttp,
       steps: [
-        'Add a remote (Streamable HTTP) MCP server with the URL below',
-        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+        'Copy both commands below',
+        'Open your terminal and run them in order',
+        'The second command opens your browser: sign in and click <strong>Authorize</strong>',
       ],
     }],
     'codex-desktop': [{

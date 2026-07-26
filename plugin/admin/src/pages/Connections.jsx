@@ -195,13 +195,11 @@ export default function Connections() {
       {/* Never-authorized registrations. Registration is public per RFC 7591,
           so anyone can create these; they grant nothing on their own. */}
       {unusedCount > 0 && (
-        <div className="flex items-start gap-2.5 p-4 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-600">
-          <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-gray-400" />
-          <div className="flex-1">
-            <p>
-              {unusedCount} app registration{unusedCount !== 1 ? 's' : ''} never completed sign-in.
-            </p>
-          </div>
+        <div className="flex items-center gap-2.5 p-4 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-600">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 text-gray-400" />
+          <p className="flex-1">
+            {unusedCount} app registration{unusedCount !== 1 ? 's' : ''} never completed sign-in.
+          </p>
           <button
             onClick={handleCleanup}
             disabled={busy === 'cleanup'}
