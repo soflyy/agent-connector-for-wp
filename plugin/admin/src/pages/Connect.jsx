@@ -1054,7 +1054,7 @@ function GenerateStep({ selectedAgent, status }) {
   return (
     <div className={SHELL}>
       <h1 className="text-2xl font-bold text-gray-900">
-        Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
+        Connect {agentMeta.label}
       </h1>
 
       {oauthEnabled && (
