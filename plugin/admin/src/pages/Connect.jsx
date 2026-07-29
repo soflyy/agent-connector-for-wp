@@ -281,11 +281,11 @@ function buildOAuth(serverName, serverUrl) {
 
   // `add --transport http` registers the remote server; `login` runs the OAuth
   // sign-in up front, so the first tool call just works instead of stopping to
-  // authenticate.
-  const claudeCodeHttp = [
-    `claude mcp add --transport streamable-http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
-    `claude mcp login ${shellArg(serverName)}`,
-  ].join('\n')
+  // authenticate. Kept as two separate commands (not joined) so each has its
+  // own copy button and can be verified independently — `add` and `login` are
+  // two distinct failure surfaces (bad server URL vs. failed OAuth handshake).
+  const claudeCodeAdd = `claude mcp add --transport streamable-http ${shellArg(serverName)} ${shellArg(serverUrl)}`
+  const claudeCodeLogin = `claude mcp login ${shellArg(serverName)}`
 
   // `--url` registers a remote (Streamable HTTP) server; Codex handles the
   // OAuth sign-in itself from there.
@@ -307,15 +307,25 @@ function buildOAuth(serverName, serverUrl) {
         'When Claude opens the sign-in page, log in and click <strong>Authorize</strong>',
       ],
     }],
-    'claude-code': [{
-      kind: 'command', title: 'Terminal commands',
-      value: claudeCodeHttp,
-      steps: [
-        'Copy both commands below',
-        'Open your terminal and run them in order',
-        'The second command opens your browser: sign in and click <strong>Authorize</strong>',
-      ],
-    }],
+    'claude-code': [
+      {
+        kind: 'command', title: 'Register the server',
+        value: claudeCodeAdd,
+        steps: [
+          'Copy the command below and run it in your terminal',
+          'Claude Code will confirm the server was added',
+        ],
+      },
+      {
+        kind: 'command', title: 'Sign in',
+        value: claudeCodeLogin,
+        noVideo: true,
+        steps: [
+          'Copy the command below and run it in your terminal',
+          'This opens your browser: sign in and click <strong>Authorize</strong>',
+        ],
+      },
+    ],
     'codex-cli': [{
       kind: 'command', title: 'Terminal command',
       value: codexCliHttp,
@@ -381,7 +391,7 @@ function CodeContent({ block }) {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = Math.max(el.scrollHeight, 120) + 'px'
+    el.style.height = el.scrollHeight + 'px'
   }, [block.value])
 
   async function selectAndCopy() {
@@ -415,7 +425,7 @@ function CodeContent({ block }) {
           readOnly
           value={block.value}
           onClick={selectAndCopy}
-          style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
+          style={{ height: 'auto', overflow: 'hidden' }}
           className={[
             'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
             isCommand ? 'pl-10' : '',
