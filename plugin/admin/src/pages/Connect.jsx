@@ -701,7 +701,7 @@ function PickStep({ selectedAgent, onSelect, onContinue }) {
                 key={agent.id}
                 onClick={() => onSelect(agent.id)}
                 className={[
-                  'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
+                  'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-48 transition-all',
                   isSelected
                     ? 'border-indigo-500 bg-white shadow-md'
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
@@ -1108,7 +1108,7 @@ export default function Connect({ status }) {
   if (step === 'pick') {
     return (
       <>
-        <ConnectSubHeader title="Which agent are you connecting?" onBack={() => setStep('welcome')} />
+        <ConnectSubHeader title="Select agent" onBack={() => setStep('welcome')} />
         <PickStep
           selectedAgent={selectedAgent}
           onSelect={setSelectedAgent}
