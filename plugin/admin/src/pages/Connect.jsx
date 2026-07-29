@@ -6,6 +6,8 @@ import {
 import { SiOpenai, SiAnthropic } from 'react-icons/si'
 import { api, initial, DEMO_URL } from '../api'
 
+const HELP_URL = 'https://wpagentconnector.com/docs/'
+
 // On local environments the site isn't reachable over the internet, so OAuth
 // only works for agents running on the same machine (CLI tools); hosted
 // agents can't complete the flow. The Connect page defaults to the
@@ -583,6 +585,32 @@ function BackLink({ onClick, label = 'Back' }) {
   )
 }
 
+// Sub-header for every step past Welcome: back link + step title, full-bleed
+// (cancels the page's own px-8/py-10 via negative margins) and stuck directly
+// below the main Header (top-8 h-16 → occupies 32-96px, so this sticks at 96px).
+function ConnectSubHeader({ title, onBack, backLabel }) {
+  return (
+    <div className="-mx-8 -mt-10 mb-8 sticky top-24 z-40 bg-white border-b border-gray-200">
+      <div className="px-8 py-4 grid grid-cols-3 items-center gap-4">
+        <div className="flex justify-start">
+          <BackLink onClick={onBack} label={backLabel} />
+        </div>
+        <h1 className="text-base font-semibold text-gray-900 text-center truncate">{title}</h1>
+        <div className="flex justify-end">
+          <a
+            href={HELP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-base text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            Get Help
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Step 1: Welcome ──────────────────────────────────────────────────────────
 
 function WelcomeStep({ status, onStart }) {
@@ -649,13 +677,9 @@ function WelcomeStep({ status, onStart }) {
 
 // ─── Step 2: Pick agent ───────────────────────────────────────────────────────
 
-function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
+function PickStep({ selectedAgent, onSelect, onContinue }) {
   return (
-    <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 15rem)' }}>
-      <div className={SHELL}>
-        <BackLink onClick={onBack} />
-      </div>
-
+    <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 20rem)' }}>
       <div className="flex-1 flex flex-col items-center justify-center gap-10">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Which agent are you connecting?</h1>
@@ -673,14 +697,14 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
                 className={[
                   'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
                   isSelected
-                    ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                    ? 'border-indigo-500 bg-white shadow-md'
                     : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
                 ].join(' ')}
               >
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
                   <Icon size={28} style={{ color: agent.fg }} />
                 </div>
-                <span className={`text-sm font-semibold text-center leading-tight ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                <span className="text-sm font-semibold text-center leading-tight text-gray-800">
                   {agent.label}
                 </span>
               </button>
@@ -981,7 +1005,7 @@ function MethodPicker({ method, onSelect, localCaveat }) {
   )
 }
 
-function GenerateStep({ selectedAgent, status, onBack }) {
+function GenerateStep({ selectedAgent, status }) {
   const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
 
   // OAuth is the default. On a local site a hosted agent can't complete the
@@ -1003,8 +1027,6 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
   return (
     <div className={SHELL}>
-      <BackLink onClick={onBack} label="Choose a different agent" />
-
       <h1 className="text-2xl font-bold text-gray-900">
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
@@ -1063,20 +1085,27 @@ export default function Connect({ status }) {
 
   if (step === 'pick') {
     return (
-      <PickStep
-        selectedAgent={selectedAgent}
-        onSelect={setSelectedAgent}
-        onBack={() => setStep('welcome')}
-        onContinue={() => setStep('generate')}
-      />
+      <>
+        <ConnectSubHeader title="Which agent are you connecting?" onBack={() => setStep('welcome')} />
+        <PickStep
+          selectedAgent={selectedAgent}
+          onSelect={setSelectedAgent}
+          onContinue={() => setStep('generate')}
+        />
+      </>
     )
   }
 
+  const agentMeta = AGENTS.find((a) => a.id === selectedAgent) || AGENTS[0]
+
   return (
-    <GenerateStep
-      selectedAgent={selectedAgent}
-      status={status}
-      onBack={() => setStep('pick')}
-    />
+    <>
+      <ConnectSubHeader
+        title={`Connect ${agentMeta.label}`}
+        onBack={() => setStep('pick')}
+        backLabel="Choose a different agent"
+      />
+      <GenerateStep selectedAgent={selectedAgent} status={status} />
+    </>
   )
 }
