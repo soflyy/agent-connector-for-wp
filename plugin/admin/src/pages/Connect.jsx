@@ -323,6 +323,7 @@ function buildOAuth(serverName, serverUrl) {
     'claude-code': [
       {
         kind: 'command', title: 'Register the server',
+        stepsTitle: 'Step 1 of 2',
         value: claudeCodeAdd,
         steps: [
           'Copy the command below and run it in your terminal',
@@ -331,6 +332,7 @@ function buildOAuth(serverName, serverUrl) {
       },
       {
         kind: 'command', title: 'Sign in',
+        stepsTitle: 'Step 2 of 2',
         value: claudeCodeLogin,
         noVideo: true,
         steps: [
