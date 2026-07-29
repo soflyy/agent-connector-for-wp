@@ -588,55 +588,59 @@ function BackLink({ onClick, label = 'Back' }) {
 function WelcomeStep({ status, onStart }) {
   if (!status.active) {
     return (
-      <div className={SHELL}>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
-          <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
-          <h2 className="text-xl font-semibold text-amber-900">Agent Connector isn't active</h2>
-          <p className="text-base text-amber-700 max-w-xs mx-auto">
-            Enable the MCP server in{' '}
-            <button className="underline font-medium" onClick={() => { window.location.hash = '/settings' }}>
-              Settings
-            </button>
-            {' '}before connecting an agent.
-          </p>
+      <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 15rem)' }}>
+        <div className="max-w-xl mx-auto">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-10 text-center space-y-4">
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+            <h2 className="text-xl font-semibold text-amber-900">Agent Connector isn't active</h2>
+            <p className="text-base text-amber-700 max-w-xs mx-auto">
+              Enable the MCP server in{' '}
+              <button className="underline font-medium" onClick={() => { window.location.hash = '/settings' }}>
+                Settings
+              </button>
+              {' '}before connecting an agent.
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className={SHELL}>
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center space-y-6">
-        <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
-            <Plug className="w-10 h-10 text-indigo-500" />
+    <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 15rem)' }}>
+      <div className="max-w-xl mx-auto">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center space-y-6">
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
+              <Plug className="w-10 h-10 text-indigo-500" />
+            </div>
           </div>
-        </div>
-        <div className="space-y-3">
-          <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
-          <p className="text-gray-500 leading-relaxed">
-            Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
-          </p>
-        </div>
-        <div className="flex flex-col items-center gap-3">
-          <button
-            onClick={onStart}
-            className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
-          >
-            Get started
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          {DEMO_URL && (
-            <a
-              href={DEMO_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          <div className="space-y-3">
+            <h1 className="text-2xl font-bold text-gray-900">Connect an agent to this site</h1>
+            <p className="text-lg text-balance text-gray-500 leading-relaxed">
+              Give any AI agent access to this WordPress site over MCP. It takes about 30 seconds.
+            </p>
+          </div>
+          <div className="flex flex-col items-center gap-3">
+            <button
+              onClick={onStart}
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
             >
-              <Play className="w-3.5 h-3.5" />
-              Watch a 2-minute walkthrough
-            </a>
-          )}
+              Get started
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            {DEMO_URL && (
+              <a
+                href={DEMO_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Play className="w-3.5 h-3.5" />
+                Watch a 2-minute walkthrough
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -647,43 +651,43 @@ function WelcomeStep({ status, onStart }) {
 
 function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
   return (
-    <div className="space-y-10">
+    <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 15rem)' }}>
       <div className={SHELL}>
         <BackLink onClick={onBack} />
       </div>
 
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold text-gray-900">Which agent are you connecting?</h1>
-        <p className="text-gray-500 text-base">We'll give you the exact setup instructions.</p>
-      </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-10">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900">Which agent are you connecting?</h1>
+          <p className="text-gray-500 text-base">We'll give you the exact setup instructions.</p>
+        </div>
 
-      <div className="flex flex-wrap justify-center gap-4">
-        {AGENTS.map((agent) => {
-          const isSelected = selectedAgent === agent.id
-          const { Icon } = agent
-          return (
-            <button
-              key={agent.id}
-              onClick={() => onSelect(agent.id)}
-              className={[
-                'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
-                isSelected
-                  ? 'border-indigo-500 bg-indigo-50 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
-              ].join(' ')}
-            >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
-                <Icon size={28} style={{ color: agent.fg }} />
-              </div>
-              <span className={`text-sm font-semibold text-center leading-tight ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
-                {agent.label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+        <div className="flex flex-wrap justify-center gap-4">
+          {AGENTS.map((agent) => {
+            const isSelected = selectedAgent === agent.id
+            const { Icon } = agent
+            return (
+              <button
+                key={agent.id}
+                onClick={() => onSelect(agent.id)}
+                className={[
+                  'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
+                  isSelected
+                    ? 'border-indigo-500 bg-indigo-50 shadow-md'
+                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
+                ].join(' ')}
+              >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
+                  <Icon size={28} style={{ color: agent.fg }} />
+                </div>
+                <span className={`text-sm font-semibold text-center leading-tight ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
+                  {agent.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
 
-      <div className="flex justify-center">
         <button
           onClick={onContinue}
           className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
