@@ -301,11 +301,17 @@ function buildOAuth(serverName, serverUrl) {
 
   const perAgent = {
     'claude-desktop': [{
-      ...urlBlock,
+      kind: 'fields', title: 'Connector details',
+      hint: null,
+      noVideo: true,
+      value: [
+        { label: 'Name', value: serverName },
+        { label: 'URL',  value: serverUrl },
+      ],
       steps: [
         'Open Claude → <strong>Settings</strong> → <strong>Connectors</strong>',
-        'Click <strong>Add custom connector</strong>',
-        'Paste the MCP Server URL below and click <strong>Add</strong>',
+        'Click the <strong>Add</strong> menu in the top right, then <strong>Add custom connector</strong>',
+        'Enter the name and URL below, then click <strong>Add</strong>',
         'When Claude opens the sign-in page, log in and click <strong>Authorize</strong>',
       ],
     }],
@@ -1014,6 +1020,12 @@ function GenerateStep({ selectedAgent, status }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
+  // Many OAuth clients (Claude Desktop included: "URL must start with
+  // 'https'") refuse a plain-HTTP server URL outright, client-side, before
+  // any request is even made — a harder failure than the reachability
+  // caveat above, so it gets its own warning regardless of environment.
+  const isHttp = !!initial.serverUrl && ! /^https:\/\//i.test(initial.serverUrl)
+
   // OAuth is opt-in for now (Settings → Abilities). While it's off the
   // endpoints don't respond, so offering it here would only produce a broken
   // sign-in.
@@ -1043,6 +1055,16 @@ function GenerateStep({ selectedAgent, status }) {
           <p className="text-base text-gray-500">
             Connect over OAuth: the agent signs in to this site and you approve access. No password to copy, no proxy to install.
           </p>
+          {isHttp && (
+            <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-red-500" />
+              <span>
+                This site's URL doesn't start with <code className="font-mono">https://</code>. Most
+                OAuth clients (Claude Desktop included) refuse to add a connector over plain HTTP.
+                Enable HTTPS for this site, or use an application password instead.
+              </span>
+            </div>
+          )}
           {localCaveat && (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
