@@ -305,6 +305,18 @@ export default function Settings({ status, onStatusChange }) {
             }
           />
 
+          {!status.oauthTransportAllowed && (
+            <Row
+              label="OAuth sign-in"
+              description="Requires HTTPS (or a local environment), the same rule WordPress applies to application passwords. Over plain HTTP the sign-in tokens would be sent unencrypted, so the OAuth endpoints stay offline until the site uses HTTPS."
+              control={
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-700">
+                  <AlertTriangle className="w-4 h-4" /> Unavailable
+                </span>
+              }
+            />
+          )}
+
           <Row
             label="Universal Abilities Plugin"
             description="Shell, PHP eval, filesystem, WP-CLI, and admin login link — exposed over MCP."

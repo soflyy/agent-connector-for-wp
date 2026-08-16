@@ -114,6 +114,33 @@ final class Config {
 	}
 
 	/**
+	 * Whether the transport is fit for the OAuth server: HTTPS, or a local
+	 * environment.
+	 *
+	 * Same predicate core uses to gate Application Passwords
+	 * ({@see wp_is_application_passwords_supported()}): over plain HTTP on a
+	 * non-local site, authorization codes and Bearer tokens — which front
+	 * root-equivalent abilities — would cross the wire in cleartext on every
+	 * MCP call. Without this gate OAuth would be the plugin's only credential
+	 * path that still works where core already refuses to mint app passwords.
+	 */
+	public static function oauth_transport_allowed(): bool {
+		$allowed = is_ssl()
+			|| ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() );
+
+		/**
+		 * Filters whether the OAuth server may run on this transport.
+		 *
+		 * The same escape hatch core offers for Application Passwords
+		 * (wp_is_application_passwords_available): a site terminating TLS at a
+		 * proxy in a way is_ssl() can't see can force this on.
+		 *
+		 * @param bool $allowed True when the site is HTTPS or a local environment.
+		 */
+		return (bool) apply_filters( 'agent_connector_for_wp_oauth_transport_allowed', $allowed );
+	}
+
+	/**
 	 * The opt-in "Block on production environments" protection.
 	 */
 	public static function block_production_enabled(): bool {
