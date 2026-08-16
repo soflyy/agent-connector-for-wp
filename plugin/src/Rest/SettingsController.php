@@ -51,7 +51,6 @@ final class SettingsController extends WP_REST_Controller {
 					'domain_lock_enabled'     => array( 'type' => 'boolean', 'default' => false ),
 					'hide_production_warning' => array( 'type' => 'boolean', 'default' => false ),
 					'mcp_debug'               => array( 'type' => 'boolean', 'default' => false ),
-					'oauth_enabled'           => array( 'type' => 'boolean', 'default' => false ),
 				),
 			)
 		);
@@ -273,7 +272,6 @@ final class SettingsController extends WP_REST_Controller {
 				'active'                  => Config::can_boot(),
 				'prod_blocked'            => Config::is_blocked_by_production(),
 				'mcp_debug'               => Config::mcp_debug_enabled(),
-				'oauth_enabled'           => Config::is_oauth_enabled(),
 				'oauth_transport_allowed' => Config::oauth_transport_allowed(),
 				'block_production'        => Config::block_production_enabled(),
 				'domain_lock_enabled'     => Config::domain_lock_enabled(),
@@ -296,9 +294,7 @@ final class SettingsController extends WP_REST_Controller {
 		$domain_lock  = (bool) $request->get_param( 'domain_lock_enabled' );
 		$hide_warning = (bool) $request->get_param( 'hide_production_warning' );
 		$mcp_debug    = (bool) $request->get_param( 'mcp_debug' );
-		$oauth        = (bool) $request->get_param( 'oauth_enabled' );
 
-		update_option( Config::OAUTH_ENABLED_OPTION, $oauth, true );
 		update_option( Config::ENABLED_OPTION, $enable, true );
 		update_option( Config::BLOCK_PRODUCTION_OPTION, $block_prod, true );
 		update_option( Config::DOMAIN_LOCK_OPTION, $domain_lock, true );

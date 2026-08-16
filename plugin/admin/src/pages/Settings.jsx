@@ -145,7 +145,6 @@ export default function Settings({ status, onStatusChange }) {
     domainLockEnabled: status.domainLockEnabled,
     hideProdWarning: status.hideProdWarning,
     mcpDebug: status.mcpDebug,
-    oauthEnabled: status.oauthEnabled,
   })
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const [saveError, setSaveError] = useState(null)
@@ -185,7 +184,6 @@ export default function Settings({ status, onStatusChange }) {
         domain_lock_enabled: newForm.domainLockEnabled,
         hide_production_warning: newForm.hideProdWarning,
         mcp_debug: newForm.mcpDebug,
-        oauth_enabled: newForm.oauthEnabled,
       })
       onStatusChange((s) => ({ ...s, ...normalizeStatus(result.status) }))
       setSaveStatus('saved')
@@ -304,20 +302,6 @@ export default function Settings({ status, onStatusChange }) {
             description="Runs the MCP server and exposes abilities registered by other plugins."
             control={
               <Toggle checked={form.enabled} onChange={(v) => setAndSave('enabled', v)} />
-            }
-          />
-
-          {/* Temporary opt-in while the OAuth flow settles; remove this row
-              along with the setting once OAuth is on by default. */}
-          <Row
-            label="Enable OAuth sign-in"
-            description={
-              status.oauthTransportAllowed
-                ? 'Lets agents sign in to this site directly and request access, with no application password or local proxy. While off, the OAuth endpoints do not respond and any tokens already issued stop working.'
-                : 'Unavailable: OAuth sign-in requires HTTPS (or a local environment), the same rule WordPress applies to application passwords. Over plain HTTP the sign-in tokens would be sent unencrypted. The setting can be turned on now, but the OAuth endpoints stay offline until the site uses HTTPS.'
-            }
-            control={
-              <Toggle checked={form.oauthEnabled} onChange={(v) => setAndSave('oauthEnabled', v)} />
             }
           />
 

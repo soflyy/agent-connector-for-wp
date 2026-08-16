@@ -976,10 +976,10 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
-  // OAuth is opt-in for now (Settings → Abilities). While it's off the
-  // endpoints don't respond, so offering it here would only produce a broken
-  // sign-in.
-  const oauthEnabled = status.oauthEnabled
+  // OAuth requires HTTPS (or a local environment) — the same transport rule
+  // core applies to application passwords. While it's unmet the endpoints
+  // don't respond, so offering it here would only produce a broken sign-in.
+  const oauthEnabled = status.oauthTransportAllowed
   const [method, setMethod] = useState(
     !oauthEnabled || localCaveat ? 'password' : 'oauth'
   )
