@@ -258,6 +258,30 @@ final class Authorize {
 	}
 
 	/**
+	 * The origin (scheme + host + explicit port) of the client's redirect URI,
+	 * for display on the consent page.
+	 *
+	 * The client name is attacker-chosen (registration is public), so the
+	 * redirect origin is the one signal on the page the client cannot dress
+	 * up: it is where the browser will actually be sent with the
+	 * authorization code. Reduced to the origin because the full URI is
+	 * noise for that judgement (and can be very long).
+	 *
+	 * @param string $redirect_uri The validated redirect URI.
+	 */
+	private static function redirect_destination_label( string $redirect_uri ): string {
+		$scheme = strtolower( (string) wp_parse_url( $redirect_uri, PHP_URL_SCHEME ) );
+		$host   = strtolower( (string) wp_parse_url( $redirect_uri, PHP_URL_HOST ) );
+		$port   = wp_parse_url( $redirect_uri, PHP_URL_PORT );
+
+		if ( '' === $host ) {
+			return $redirect_uri;
+		}
+
+		return $scheme . '://' . $host . ( null !== $port ? ':' . (string) $port : '' );
+	}
+
+	/**
 	 * Extract and sanitize authorization parameters from the request.
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
@@ -354,7 +378,7 @@ final class Authorize {
 		</div>
 
 		<div class="acfw-oauth-warning">
-			<?php esc_html_e( 'Warning: abilities exposed through Agent Connector can include shell access, PHP evaluation, and filesystem operations. Only authorize applications you trust.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Warning: Agent Connector gives your agent admin-equivalent capabilities to this WordPress installation. Only authorize applications you trust.', 'agent-connector-for-wp' ); ?>
 		</div>
 
 		<div class="acfw-oauth-scopes">
@@ -365,6 +389,16 @@ final class Authorize {
 				<?php endforeach; ?>
 			</ul>
 		</div>
+
+		<p class="acfw-oauth-redirect">
+			<?php
+			printf(
+				/* translators: %s: origin (scheme + host) of the client's redirect URI */
+				esc_html__( 'After you authorize, your browser will be sent back to %s to hand the application its access.', 'agent-connector-for-wp' ),
+				'<strong>' . esc_html( self::redirect_destination_label( $params['redirect_uri'] ) ) . '</strong>'
+			);
+			?>
+		</p>
 
 		<p class="acfw-oauth-user">
 			<?php
