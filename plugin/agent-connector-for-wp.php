@@ -191,9 +191,13 @@ add_action(
 		// tokens front root-equivalent abilities. See src/OAuth/Server.php.
 		//
 		// Gated behind an opt-in toggle (Settings → OAuth) while the flow
-		// settles. Off means none of it boots, so previously issued tokens
-		// stop authenticating; the application-password path is unaffected.
-		if ( Support\Config::is_oauth_enabled() ) {
+		// settles, AND behind the transport check core applies to Application
+		// Passwords (HTTPS or a local environment) — plain HTTP on a public
+		// site would put Bearer tokens on the wire in cleartext. Not booting
+		// means none of it exists: no discovery, no registration, no consent,
+		// and previously issued tokens stop authenticating; the
+		// application-password path is unaffected.
+		if ( Support\Config::is_oauth_enabled() && Support\Config::oauth_transport_allowed() ) {
 			OAuth\Server::init();
 		}
 

@@ -311,7 +311,11 @@ export default function Settings({ status, onStatusChange }) {
               along with the setting once OAuth is on by default. */}
           <Row
             label="Enable OAuth sign-in"
-            description="Lets agents sign in to this site directly and request access, with no application password or local proxy. While off, the OAuth endpoints do not respond and any tokens already issued stop working."
+            description={
+              status.oauthTransportAllowed
+                ? 'Lets agents sign in to this site directly and request access, with no application password or local proxy. While off, the OAuth endpoints do not respond and any tokens already issued stop working.'
+                : 'Unavailable: OAuth sign-in requires HTTPS (or a local environment), the same rule WordPress applies to application passwords. Over plain HTTP the sign-in tokens would be sent unencrypted. The setting can be turned on now, but the OAuth endpoints stay offline until the site uses HTTPS.'
+            }
             control={
               <Toggle checked={form.oauthEnabled} onChange={(v) => setAndSave('oauthEnabled', v)} />
             }
