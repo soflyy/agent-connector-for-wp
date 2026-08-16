@@ -99,7 +99,6 @@ final class ConnectionPage {
 				'active'                => Config::can_boot(),
 				'prodBlocked'           => Config::is_blocked_by_production(),
 				'mcpDebug'              => Config::mcp_debug_enabled(),
-				'oauthEnabled'          => Config::is_oauth_enabled(),
 				'oauthTransportAllowed' => Config::oauth_transport_allowed(),
 				'blockProduction'       => Config::block_production_enabled(),
 				'domainLockEnabled'     => Config::domain_lock_enabled(),

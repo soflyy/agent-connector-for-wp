@@ -190,14 +190,13 @@ add_action(
 		// is restricted to administrators (Config::has_admin_access) because
 		// tokens front root-equivalent abilities. See src/OAuth/Server.php.
 		//
-		// Gated behind an opt-in toggle (Settings → OAuth) while the flow
-		// settles, AND behind the transport check core applies to Application
+		// Gated behind the transport check core applies to Application
 		// Passwords (HTTPS or a local environment) — plain HTTP on a public
 		// site would put Bearer tokens on the wire in cleartext. Not booting
 		// means none of it exists: no discovery, no registration, no consent,
 		// and previously issued tokens stop authenticating; the
 		// application-password path is unaffected.
-		if ( Support\Config::is_oauth_enabled() && Support\Config::oauth_transport_allowed() ) {
+		if ( Support\Config::oauth_transport_allowed() ) {
 			OAuth\Server::init();
 		}
 

@@ -67,6 +67,12 @@ final class Config {
 	public const LEGACY_PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
 
 	/**
+	 * Legacy option from the OAuth rollout ("Enable OAuth sign-in"). OAuth is
+	 * now always on, so this is deleted on activation and never read.
+	 */
+	public const LEGACY_OAUTH_ENABLED_OPTION = 'agent_connector_for_wp_oauth_enabled';
+
+	/**
 	 * Option toggling the debug log of MCP traffic (boolean). When on, every MCP
 	 * event — including raw JSON-RPC request/response bodies — is written to the
 	 * `{prefix}acfw_mcp_events` table and surfaced on the "MCP Events" admin
@@ -83,16 +89,6 @@ final class Config {
 	 * Empty means "never pinned".
 	 */
 	public const LOCKED_HOST_OPTION = 'agent_connector_for_wp_locked_host';
-
-	/**
-	 * Option gating the OAuth 2.1 authorization server (boolean, default OFF).
-	 *
-	 * Temporary rollout flag while the OAuth path settles. Off means the server
-	 * never boots: no discovery documents, no client registration, no consent
-	 * screen, and no Bearer interceptor, so tokens already issued stop
-	 * authenticating. The application-password path is untouched either way.
-	 */
-	public const OAUTH_ENABLED_OPTION = 'agent_connector_for_wp_oauth_enabled';
 
 	/**
 	 * The Enable toggle. Default ON: installing and activating the plugin is
@@ -115,14 +111,6 @@ final class Config {
 			return false; // Can't prove it's non-production → treat as production.
 		}
 		return 'production' !== wp_get_environment_type();
-	}
-
-	/**
-	 * Whether the OAuth authorization server may boot. Default OFF: OAuth is
-	 * opt-in for now (see OAUTH_ENABLED_OPTION).
-	 */
-	public static function is_oauth_enabled(): bool {
-		return (bool) get_option( self::OAUTH_ENABLED_OPTION, false );
 	}
 
 	/**
@@ -350,8 +338,8 @@ final class Config {
 	/**
 	 * One-time setup on plugin activation: switch the plugin on, pin the domain
 	 * lock to the current host (only if never pinned — an explicit Reconnect is
-	 * the way to re-pin after a domain change), and drop the legacy
-	 * production-override option from the old opt-out model.
+	 * the way to re-pin after a domain change), and drop retired legacy
+	 * options (production override, OAuth opt-in).
 	 */
 	public static function activate(): void {
 		update_option( self::ENABLED_OPTION, true, true );
@@ -361,5 +349,6 @@ final class Config {
 		}
 
 		delete_option( self::LEGACY_PRODUCTION_OVERRIDE_OPTION );
+		delete_option( self::LEGACY_OAUTH_ENABLED_OPTION );
 	}
 }

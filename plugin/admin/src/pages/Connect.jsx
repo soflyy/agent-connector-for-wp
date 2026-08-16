@@ -976,13 +976,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
-  // OAuth is opt-in for now (Settings → Abilities). While it's off the
-  // endpoints don't respond, so offering it here would only produce a broken
-  // sign-in.
-  const oauthEnabled = status.oauthEnabled
-  const [method, setMethod] = useState(
-    !oauthEnabled || localCaveat ? 'password' : 'oauth'
-  )
+  const [method, setMethod] = useState(localCaveat ? 'password' : 'oauth')
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -995,12 +989,10 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      {oauthEnabled && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-          <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
-        </div>
-      )}
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
+        <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
+      </div>
 
       {method === 'oauth' ? (
         <div className="space-y-4">
