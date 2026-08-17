@@ -113,6 +113,21 @@ final class Connection {
 	}
 
 	/**
+	 * Quote a value for a copy-pasted terminal command.
+	 *
+	 * Deliberately not `escapeshellarg()`: that quotes for *this server's* own
+	 * shell (always POSIX single-quotes, even on a Windows-hosted PHP build),
+	 * but these commands are copy-pasted into whatever shell the operator has —
+	 * bash/zsh, PowerShell, or Windows cmd.exe. cmd.exe doesn't treat single
+	 * quotes as quote characters at all, so a single-quoted value passes
+	 * through literally and breaks the command. Double quotes are understood
+	 * by all three.
+	 */
+	private static function shell_arg( string $value ): string {
+		return '"' . str_replace( array( '\\', '"' ), array( '\\\\', '\\"' ), $value ) . '"';
+	}
+
+	/**
 	 * The shared inner MCP server entry: how to launch the stdio proxy.
 	 *
 	 * This is the object every "mcpServers"-style client nests under the server
@@ -216,15 +231,15 @@ final class Connection {
 	 * @param array<string,string> $env Proxy environment variables.
 	 */
 	private static function codex_cli( string $name, array $env ): string {
-		$parts = array( 'codex', 'mcp', 'add', escapeshellarg( $name ) );
+		$parts = array( 'codex', 'mcp', 'add', self::shell_arg( $name ) );
 		foreach ( $env as $key => $value ) {
 			$parts[] = '--env';
-			$parts[] = escapeshellarg( $key . '=' . $value );
+			$parts[] = self::shell_arg( $key . '=' . $value );
 		}
 		$parts[] = '--';
 		$parts[] = 'npx';
 		$parts[] = '-y';
-		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+		$parts[] = self::shell_arg( self::PROXY_PACKAGE );
 
 		return implode( ' ', $parts );
 	}
@@ -235,15 +250,15 @@ final class Connection {
 	 * @param array<string,string> $env Proxy environment variables.
 	 */
 	private static function claude_code_cli( string $name, array $env ): string {
-		$parts = array( 'claude', 'mcp', 'add', escapeshellarg( $name ) );
+		$parts = array( 'claude', 'mcp', 'add', self::shell_arg( $name ) );
 		foreach ( $env as $key => $value ) {
 			$parts[] = '--env';
-			$parts[] = escapeshellarg( $key . '=' . $value );
+			$parts[] = self::shell_arg( $key . '=' . $value );
 		}
 		$parts[] = '--';
 		$parts[] = 'npx';
 		$parts[] = '-y';
-		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+		$parts[] = self::shell_arg( self::PROXY_PACKAGE );
 
 		return implode( ' ', $parts );
 	}
@@ -283,12 +298,12 @@ final class Connection {
 		$parts = array( 'gemini', 'mcp', 'add' );
 		foreach ( $env as $key => $value ) {
 			$parts[] = '-e';
-			$parts[] = escapeshellarg( $key . '=' . $value );
+			$parts[] = self::shell_arg( $key . '=' . $value );
 		}
-		$parts[] = escapeshellarg( $name );
+		$parts[] = self::shell_arg( $name );
 		$parts[] = 'npx';
 		$parts[] = '-y';
-		$parts[] = escapeshellarg( self::PROXY_PACKAGE );
+		$parts[] = self::shell_arg( self::PROXY_PACKAGE );
 
 		return implode( ' ', $parts );
 	}
@@ -308,12 +323,12 @@ final class Connection {
 	}
 
 	/**
-	 * A `code --add-mcp '{…}'` command (single-quoted JSON for the shell).
+	 * A `code --add-mcp "{…}"` command (double-quoted JSON for the shell).
 	 *
 	 * @param array<string,string> $env Proxy environment variables.
 	 */
 	private static function vscode_cli( string $name, array $env ): string {
-		return 'code --add-mcp ' . escapeshellarg( self::vscode_config_json( $name, $env ) );
+		return 'code --add-mcp ' . self::shell_arg( self::vscode_config_json( $name, $env ) );
 	}
 
 	/**
