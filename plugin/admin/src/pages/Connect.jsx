@@ -55,8 +55,14 @@ const AGENTS = [
 
 const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote'
 
+// Double-quoted rather than single-quoted: these commands are copy-pasted
+// into whatever terminal the operator has (bash/zsh, PowerShell, or Windows
+// cmd.exe). cmd.exe doesn't treat single quotes as quote characters at all —
+// they pass through literally into the argument — so a single-quoted
+// argument containing a space or special character breaks `codex`/`claude`
+// CLI's own parsing on Windows. Double quotes are understood by all three.
 function shellArg(s) {
-  return "'" + s.replace(/'/g, "'\\''") + "'"
+  return '"' + s.replace(/[\\"]/g, '\\$&') + '"'
 }
 
 function buildArtifacts(serverName, serverUrl, username, password, siteName) {
