@@ -126,19 +126,31 @@ final class Config {
 	}
 
 	/**
+	 * HTTPS, or a local environment — the transport predicate core uses to gate
+	 * Application Passwords ({@see wp_is_application_passwords_supported()} on
+	 * WP 6.7+; the same check inlined on older WP). Reimplemented here (rather
+	 * than calling the core function, which doesn't exist pre-6.7) so we can
+	 * tell "transport too weak" apart from "a plugin filtered availability
+	 * off" when Application Passwords are unavailable.
+	 */
+	public static function is_secure_transport(): bool {
+		return is_ssl()
+			|| ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() );
+	}
+
+	/**
 	 * Whether the transport is fit for the OAuth server: HTTPS, or a local
 	 * environment.
 	 *
-	 * Same predicate core uses to gate Application Passwords
-	 * ({@see wp_is_application_passwords_supported()}): over plain HTTP on a
-	 * non-local site, authorization codes and Bearer tokens — which front
-	 * root-equivalent abilities — would cross the wire in cleartext on every
-	 * MCP call. Without this gate OAuth would be the plugin's only credential
-	 * path that still works where core already refuses to mint app passwords.
+	 * Same predicate core uses to gate Application Passwords: over plain HTTP
+	 * on a non-local site, authorization codes and Bearer tokens — which
+	 * front root-equivalent abilities — would cross the wire in cleartext on
+	 * every MCP call. Without this gate OAuth would be the plugin's only
+	 * credential path that still works where core already refuses to mint
+	 * app passwords.
 	 */
 	public static function oauth_transport_allowed(): bool {
-		$allowed = is_ssl()
-			|| ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() );
+		$allowed = self::is_secure_transport();
 
 		/**
 		 * Filters whether the OAuth server may run on this transport.

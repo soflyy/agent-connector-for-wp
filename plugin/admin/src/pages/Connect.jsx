@@ -831,11 +831,25 @@ function AppPasswordFlow({ selectedAgent, status }) {
           <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
             <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <span>
-              Application passwords require HTTPS and aren't available on this site. On a
-              production environment WordPress only allows them over HTTPS; over plain HTTP they
-              work only when the site's environment type is <code className="font-mono">local</code>{' '}
-              (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
-              <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
+              {status.pwUnavailableReason === 'disabled' || status.pwUnavailableReason === 'disabled_for_user'
+                ? (
+                  status.pwUnavailablePlugin
+                    ? <>Application passwords are disabled by the <strong>{status.pwUnavailablePlugin}</strong> plugin.
+                        {status.pwUnavailableReason === 'disabled_for_user'
+                          ? ' It allows them for other users, but not for your account.'
+                          : ' Disable that restriction (or exclude this site) to generate one.'}
+                      </>
+                    : <>Application passwords are disabled on this site by a plugin or theme, not by HTTPS or the
+                        environment type. Check your security plugins for an "Application Passwords" or "REST API"
+                        restriction and disable it for this site.</>
+                )
+                : <>Application passwords require HTTPS and aren't available on this site. On a
+                    production environment WordPress only allows them over HTTPS; over plain HTTP they
+                    work only when the site's environment type is <code className="font-mono">local</code>{' '}
+                    (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
+                    <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
+                  </>
+              }
             </span>
           </div>
         )}

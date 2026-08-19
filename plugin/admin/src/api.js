@@ -72,6 +72,8 @@ export const normalizeStatus = (s = {}) => ({
   serverUrl: s.server_url ?? '',
   username: s.username ?? '',
   pwAvailable: bool(s.pw_available),
+  pwUnavailableReason: s.pw_unavailable_reason ?? null,
+  pwUnavailablePlugin: s.pw_unavailable_plugin ?? null,
   uapActive: bool(s.uap_active),
 })
 
@@ -94,6 +96,8 @@ export const initial = {
   siteName: cfg.siteName ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
+  pwUnavailableReason: cfg.pwUnavailableReason ?? null,
+  pwUnavailablePlugin: cfg.pwUnavailablePlugin ?? null,
   uapActive: bool(cfg.uapActive),
   showGsBanner: bool(cfg.showGsBanner),
 }

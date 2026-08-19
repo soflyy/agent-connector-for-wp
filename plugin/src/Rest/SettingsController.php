@@ -12,6 +12,7 @@ namespace AgentConnectorForWp\Rest;
 use AgentConnectorForWp\Observability\EventsTable;
 use AgentConnectorForWp\OAuth\Db as OAuthDb;
 use AgentConnectorForWp\Services\PluginDirectory;
+use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use WP_Application_Passwords;
@@ -266,7 +267,8 @@ final class SettingsController extends WP_REST_Controller {
 	}
 
 	public function get_status( WP_REST_Request $request ): WP_REST_Response {
-		$user = wp_get_current_user();
+		$user      = wp_get_current_user();
+		$pw_reason = ApplicationPasswords::unavailable_reason( $user instanceof \WP_User ? $user : null );
 		return new WP_REST_Response(
 			array(
 				'enabled'                 => Config::is_enabled(),
@@ -284,7 +286,9 @@ final class SettingsController extends WP_REST_Controller {
 				'env_type'                => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
 				'server_url'              => Connection::endpoint_url(),
 				'username'                => $user instanceof \WP_User ? $user->user_login : '',
-				'pw_available'            => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'pw_available'            => null === $pw_reason,
+				'pw_unavailable_reason'   => $pw_reason['type'] ?? null,
+				'pw_unavailable_plugin'   => $pw_reason['plugin'] ?? null,
 				'uap_active'              => $this->is_uap_active(),
 			)
 		);
@@ -339,8 +343,9 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'no_user', __( 'Could not determine the current user.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
 		}
 
-		if ( ! $this->pw_available( $user ) ) {
-			return new WP_Error( 'pw_unavailable', __( 'Application passwords are not available on this site.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
+		$pw_reason = ApplicationPasswords::unavailable_reason( $user );
+		if ( null !== $pw_reason ) {
+			return new WP_Error( 'pw_unavailable', ApplicationPasswords::unavailable_message( $pw_reason ), array( 'status' => 400 ) );
 		}
 
 		$name = (string) $request->get_param( 'name' );
@@ -815,19 +820,6 @@ final class SettingsController extends WP_REST_Controller {
 
 	private function is_uap_active(): bool {
 		return PluginDirectory::is_universal_abilities_active();
-	}
-
-	private function pw_available( ?\WP_User $user ): bool {
-		if ( ! class_exists( WP_Application_Passwords::class ) || ! function_exists( 'wp_is_application_passwords_available' ) ) {
-			return false;
-		}
-		if ( ! wp_is_application_passwords_available() ) {
-			return false;
-		}
-		if ( $user instanceof \WP_User && function_exists( 'wp_is_application_passwords_available_for_user' ) ) {
-			return (bool) wp_is_application_passwords_available_for_user( $user );
-		}
-		return true;
 	}
 
 	public function dismiss_production_warning(): WP_REST_Response {
