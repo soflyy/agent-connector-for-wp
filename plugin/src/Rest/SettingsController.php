@@ -14,6 +14,7 @@ use AgentConnectorForWp\OAuth\Db as OAuthDb;
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\Governance;
 use WP_Application_Passwords;
 use WP_Error;
 use WP_REST_Controller;
@@ -470,7 +471,7 @@ final class SettingsController extends WP_REST_Controller {
 			}
 
 			$meta        = (array) $ability->get_meta();
-			$mcp_public  = isset( $meta['mcp']['public'] ) && true === $meta['mcp']['public'];
+			$mcp_public  = Governance::is_mcp_exposed_meta( $meta );
 			$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
 			$output      = method_exists( $ability, 'get_output_schema' ) ? $ability->get_output_schema() : null;
 

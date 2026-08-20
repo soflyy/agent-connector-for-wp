@@ -291,7 +291,8 @@ lock, and audit log.
 
 You don't need this to use the API, but for transparency: Agent Connector hooks
 the core `wp_register_ability_args` filter and, for **every** ability that will
-be MCP-exposed (`meta.mcp.public === true`) — whether registered through this API
+be MCP-exposed (an explicit `meta.mcp.public` wins; when absent, exposure is
+inherited from `meta.public`) — whether registered through this API
 or via raw `wp_register_ability()` — it overrides `permission_callback` with its
 admin/super-admin check and wraps `execute_callback` with its domain-lock +
 audit chokepoint. This is a security backstop: no ability reachable through the

@@ -12,6 +12,7 @@ namespace AgentConnectorForWp\Admin;
 
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
+use AgentConnectorForWp\Support\Governance;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -595,7 +596,7 @@ final class DirectoryPage {
 		$desc        = (string) $ability->get_description();
 		$category    = method_exists( $ability, 'get_category' ) ? (string) $ability->get_category() : '';
 		$meta        = (array) $ability->get_meta();
-		$mcp_public  = isset( $meta['mcp']['public'] ) && true === $meta['mcp']['public'];
+		$mcp_public  = Governance::is_mcp_exposed_meta( $meta );
 		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
 		$input       = $ability->get_input_schema();
 		$output      = method_exists( $ability, 'get_output_schema' ) ? $ability->get_output_schema() : null;
