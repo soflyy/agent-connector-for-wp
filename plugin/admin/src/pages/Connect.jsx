@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
+  MousePointer2, Bot, SquareTerminal, Bird, Rocket, Pi, Search, ChevronDown, ChevronRight,
 } from 'lucide-react'
-import { SiOpenai, SiAnthropic } from 'react-icons/si'
+import { SiOpenai, SiAnthropic, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
+import { VscVscode } from 'react-icons/vsc'
 import { api, initial, DEMO_URL } from '../api'
 
 // On local environments the site isn't reachable over the internet, so OAuth
@@ -43,11 +45,29 @@ function isLocalEnvironment() {
 // `videoUrl` walks through the application-password + proxy setup, which looks
 // nothing like the OAuth flow. `oauthVideoUrl` is the OAuth walkthrough; while
 // it's empty the OAuth instructions simply show no video link (see Block).
+// Ordered by expected popularity — the first POPULAR_COUNT entries are the
+// picker's collapsed set, so this order is UI, not just cosmetics.
+//
+// Agents without dedicated instructions fall back to the generic "Other"
+// blocks (see the `|| perAgent.other` / find('other') lookups). ChatGPT's
+// hosted connectors run in OpenAI's cloud, so it's the only fallback agent
+// without `cli`; the rest are apps on the operator's machine.
 const AGENTS = [
-  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
-  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
+  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
+  { id: 'cursor',         label: 'Cursor',          Icon: MousePointer2,   bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
+  { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
+  { id: 'gemini-cli',     label: 'Gemini CLI',      Icon: SiGooglegemini,  bg: '#eef2ff', fg: '#4285f4', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,        bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
+  { id: 'vscode-copilot', label: 'VS Code Copilot', Icon: VscVscode,       bg: '#e7f0fb', fg: '#0078d4', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'cline',          label: 'Cline',           Icon: Bot,             bg: '#f3e8ff', fg: '#7c3aed', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'windsurf',       label: 'Windsurf',        Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'zed',            label: 'Zed',             Icon: SiZedindustries, bg: '#e8eefe', fg: '#1d4ed8', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'opencode',       label: 'OpenCode',        Icon: SquareTerminal,  bg: '#f1f5f9', fg: '#334155', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'goose',          label: 'Goose',           Icon: Bird,            bg: '#fef3c7', fg: '#b45309', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'antigravity',    label: 'Antigravity',     Icon: Rocket,          bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'pi',             label: 'Pi',              Icon: Pi,              bg: '#fdf2f8', fg: '#db2777', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '', oauthVideoUrl: '' },
 ]
 
@@ -641,7 +661,38 @@ function WelcomeStep({ status, onStart }) {
 
 // ─── Step 2: Pick agent ───────────────────────────────────────────────────────
 
-function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
+// AGENTS is ordered by expected popularity; the first POPULAR_COUNT show by
+// default, the rest live behind "More agents". "Other" is always visible —
+// including while a search filter matches nothing — so there's always an exit.
+const POPULAR_COUNT = 6
+
+function AgentBar({ agent, onPick }) {
+  const { Icon } = agent
+  return (
+    <button
+      onClick={() => onPick(agent.id)}
+      className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-indigo-300 hover:shadow-sm transition-all text-left"
+    >
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
+        <Icon size={20} style={{ color: agent.fg }} />
+      </div>
+      <span className="flex-1 text-sm font-semibold text-gray-800 truncate">{agent.label}</span>
+      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-indigo-500 transition-colors flex-shrink-0" />
+    </button>
+  )
+}
+
+function PickStep({ onPick, onBack }) {
+  const [expanded, setExpanded] = useState(false)
+  const [query, setQuery] = useState('')
+
+  const other = AGENTS.find((a) => a.id === 'other')
+  const rest = AGENTS.filter((a) => a.id !== 'other')
+  const q = query.trim().toLowerCase()
+  const shown = expanded
+    ? rest.filter((a) => !q || a.label.toLowerCase().includes(q))
+    : rest.slice(0, POPULAR_COUNT)
+
   return (
     <div className="space-y-10">
       <div className={SHELL}>
@@ -653,40 +704,46 @@ function PickStep({ selectedAgent, onSelect, onBack, onContinue }) {
         <p className="text-gray-500 text-base">We'll give you the exact setup instructions.</p>
       </div>
 
-      <div className="flex flex-wrap justify-center gap-4">
-        {AGENTS.map((agent) => {
-          const isSelected = selectedAgent === agent.id
-          const { Icon } = agent
-          return (
-            <button
-              key={agent.id}
-              onClick={() => onSelect(agent.id)}
-              className={[
-                'flex flex-col items-center gap-3 p-6 rounded-2xl border-2 w-40 transition-all',
-                isSelected
-                  ? 'border-indigo-500 bg-indigo-50 shadow-md'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
-              ].join(' ')}
-            >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: agent.bg }}>
-                <Icon size={28} style={{ color: agent.fg }} />
-              </div>
-              <span className={`text-sm font-semibold text-center leading-tight ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
-                {agent.label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      <div className="max-w-2xl mx-auto space-y-3">
+        {expanded && (
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && shown.length > 0) onPick(shown[0].id) }}
+              placeholder="Search agents…"
+              className="w-full border border-gray-300 rounded-xl pl-11 pr-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+          </div>
+        )}
 
-      <div className="flex justify-center">
-        <button
-          onClick={onContinue}
-          className="inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
-        >
-          Continue
-          <ArrowRight className="w-5 h-5" />
-        </button>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {shown.map((agent) => <AgentBar key={agent.id} agent={agent} onPick={onPick} />)}
+          <AgentBar agent={other} onPick={onPick} />
+          {!expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed border-gray-300 text-sm font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-all"
+            >
+              <ChevronDown className="w-4 h-4" />
+              More agents
+            </button>
+          )}
+        </div>
+
+        {expanded && (
+          <div className="text-center pt-1">
+            <button
+              onClick={() => { setExpanded(false); setQuery('') }}
+              className="text-sm text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+            >
+              Show fewer agents
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -798,7 +855,10 @@ function AppPasswordFlow({ selectedAgent, status }) {
     ))
   }
 
+  // Agents without dedicated blocks (client- or server-built) get the generic
+  // "Other" instructions.
   const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
+    ?? connection?.agents?.find((a) => a.id === 'other')
 
   if (connection) {
     return (
@@ -1056,10 +1116,8 @@ export default function Connect({ status }) {
   if (step === 'pick') {
     return (
       <PickStep
-        selectedAgent={selectedAgent}
-        onSelect={setSelectedAgent}
+        onPick={(id) => { setSelectedAgent(id); setStep('generate') }}
         onBack={() => setStep('welcome')}
-        onContinue={() => setStep('generate')}
       />
     )
   }
