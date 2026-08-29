@@ -40,12 +40,6 @@ final class Observability {
 			EventsTable::register();
 			RequestCapture::register();
 			DatabaseObservabilityHandler::register();
-
-			// OAuth protocol logging (oauth.* events): discovery hits and the
-			// acfw-auth/v1 endpoints, with secrets redacted. Registered under
-			// the same Debug gate because the bodies include client metadata
-			// and consent-flow details.
-			OAuthLog::register();
 		}
 
 		// The MCP Events page stays available even with Debug off, so
