@@ -130,6 +130,20 @@ final class DatabaseObservabilityHandler implements McpObservabilityHandlerInter
 	}
 
 	/**
+	 * Insert an externally prepared event row (used by {@see OAuthLog}, which
+	 * builds rows outside the adapter's record_event flow). Never throws.
+	 *
+	 * @param array<string, mixed> $row Row to insert.
+	 */
+	public static function record_row( array $row ): void {
+		try {
+			self::insert_row( $row );
+		} catch ( \Throwable $exception ) {
+			error_log( '[ACFW MCP Observability] Failed to record row: ' . $exception->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+	}
+
+	/**
 	 * Run the INSERT and the periodic LRU trim.
 	 *
 	 * @param array<string, mixed> $row Row to insert.
