@@ -3,7 +3,7 @@
  * Plugin Name:       Agent Connector for WP
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       Connect AI agents to your WordPress site over MCP. Runs the WordPress MCP server, exposes abilities registered by your plugins to connected agents, and optionally audit-logs every call — with optional protections (production blocking, domain lock) under Settings → Protection.
- * Version:           1.26.0
+ * Version:           1.26.2
  * Requires at least: 7.0
  * Requires PHP:      8.1
  * Author:            Soflyy
@@ -31,7 +31,7 @@ namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.26.0' );
+define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.26.2' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -191,9 +191,13 @@ add_action(
 		// tokens front root-equivalent abilities. See src/OAuth/Server.php.
 		//
 		// Gated behind an opt-in toggle (Settings → OAuth) while the flow
-		// settles. Off means none of it boots, so previously issued tokens
-		// stop authenticating; the application-password path is unaffected.
-		if ( Support\Config::is_oauth_enabled() ) {
+		// settles, AND behind the transport check core applies to Application
+		// Passwords (HTTPS or a local environment) — plain HTTP on a public
+		// site would put Bearer tokens on the wire in cleartext. Not booting
+		// means none of it exists: no discovery, no registration, no consent,
+		// and previously issued tokens stop authenticating; the
+		// application-password path is unaffected.
+		if ( Support\Config::is_oauth_enabled() && Support\Config::oauth_transport_allowed() ) {
 			OAuth\Server::init();
 		}
 
