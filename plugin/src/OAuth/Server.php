@@ -208,6 +208,37 @@ final class Server {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function handle_register( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		// Registration is unauthenticated by design (RFC 7591), so it is the
+		// cheapest endpoint to flood. Throttle per IP, prune registrations that
+		// never became a connection, and refuse outright once the pending pool
+		// is full — a flood can no longer grow the clients table without bound.
+		if ( ! RateLimiter::allow( 'register', 10, HOUR_IN_SECONDS ) ) {
+			return new WP_Error(
+				'rate_limited',
+				'Too many client registrations from this address. Try again later.',
+				array( 'status' => 429 )
+			);
+		}
+
+		Db::delete_stale_clients_without_tokens();
+
+		/**
+		 * Filters the maximum number of pending (token-less) client
+		 * registrations kept at once. Registrations only count against this
+		 * cap until an administrator approves them on the consent screen, so
+		 * real connections are never blocked by it.
+		 *
+		 * @param int $max_pending Maximum pending registrations (default 100).
+		 */
+		$max_pending = (int) apply_filters( 'agent_connector_for_wp_oauth_max_pending_clients', 100 );
+		if ( Db::count_clients_without_tokens() >= $max_pending ) {
+			return new WP_Error(
+				'temporarily_unavailable',
+				'Too many pending client registrations. Try again later.',
+				array( 'status' => 503 )
+			);
+		}
+
 		$body = $request->get_json_params();
 		$body = is_array( $body ) ? $body : array();
 
