@@ -162,9 +162,25 @@ final class Token {
 		}
 
 		$refresh_hash = Db::hash_token( $refresh_token );
-		$token_row    = Db::get_token_by_refresh_hash( $refresh_hash );
+		$token_row    = Db::find_token_by_refresh_hash( $refresh_hash );
 
 		if ( null === $token_row ) {
+			return self::oauth_error( 'invalid_grant', 'The provided refresh token is invalid, expired, or revoked.' );
+		}
+
+		// Rotation reuse: presenting an already-rotated refresh token means it
+		// leaked (OAuth 2.1 / RFC 9700 §4.14.2) — the thief and the legitimate
+		// client each hold a copy, and whichever refreshed second is now
+		// showing us the stolen one. Revoke every token for the client so the
+		// pair minted from the FIRST redemption dies too, exactly as a replayed
+		// authorization code is handled. Detection is bounded by how long
+		// revoked rows are retained (a day — see Db::cleanup_expired_tokens).
+		if ( 1 === (int) $token_row['revoked'] ) {
+			Db::revoke_all_for_client( (string) $token_row['client_id'] );
+			return self::oauth_error( 'invalid_grant', 'The provided refresh token is invalid, expired, or revoked.' );
+		}
+
+		if ( strtotime( (string) $token_row['refresh_expires_at'] ) < time() ) {
 			return self::oauth_error( 'invalid_grant', 'The provided refresh token is invalid, expired, or revoked.' );
 		}
 
@@ -177,8 +193,14 @@ final class Token {
 			return $client_auth_error;
 		}
 
-		// Rotate: revoke the old pair, then issue a new one.
-		Db::revoke_token_by_refresh_hash( $refresh_hash );
+		// Rotate: claim the old pair, then issue a new one. The claim is a
+		// conditional UPDATE (single-use, like authorization codes), so losing
+		// it means a concurrent request rotated this token first — a reuse,
+		// handled the same as the revoked-row check above.
+		if ( ! Db::revoke_token_by_refresh_hash( $refresh_hash ) ) {
+			Db::revoke_all_for_client( (string) $token_row['client_id'] );
+			return self::oauth_error( 'invalid_grant', 'The provided refresh token is invalid, expired, or revoked.' );
+		}
 
 		$new_tokens = Db::insert_token(
 			array(
