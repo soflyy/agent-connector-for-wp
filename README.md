@@ -1,6 +1,6 @@
 # Agent Connector for WP
 
-Agent Connector for WP connects coding agents to a WordPress site over MCP and gives them real operational access to it — shell, WP-CLI, PHP eval, and the filesystem — through the WordPress Abilities API and the [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin (installed alongside it, with a one-click installer and updates handled by this plugin).
+Agent Connector for WP connects coding agents to a WordPress site over MCP and gives them real operational access to it — shell, WP-CLI, PHP eval, and the filesystem — through the WordPress Abilities API and the [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin (installed alongside it, automatically from GitHub, with updates handled by this plugin).
 
 A connected agent acts with the full capability of a super admin (and, with the [Universal Abilities](universal-abilities-plugin/README.md) pack, can run shell commands, PHP, and WP-CLI). That is the whole point — you install it to give an agent that access. The plugin makes sure operators know what's live: a warning notice shows across wp-admin while it runs on a production environment, and opt-in protections (**Block on production environments**, **Domain lock**) live under Settings → Protection. Ability execution is always restricted to super admins.
 

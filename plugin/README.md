@@ -2,7 +2,7 @@
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. If MCP Adapter is missing, wp-admin shows a notice with a one-click **Install & Activate** that fetches it from its GitHub releases, and this plugin keeps it updated from there too. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. If MCP Adapter is missing, wp-admin shows a notice that installs it for you automatically from its GitHub releases (no click needed, as long as your user can install plugins), and this plugin keeps it updated from there too. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 
 ## What it adds
 
@@ -42,8 +42,8 @@ The goal: give agents effectively **SSH-equivalent** operational access through 
 
 - The [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin (0.5.0 or
   newer), installed and active. It is not on wordpress.org yet, so install it
-  from its GitHub releases — either with the one-click **Install & Activate**
-  button this plugin shows in wp-admin while it is missing, or by hand (below).
+  from its GitHub releases — this plugin installs it for you automatically the
+  first time you open wp-admin without it, or install it by hand (below).
 
 ## Install
 
@@ -60,9 +60,10 @@ composer install --no-dev
 wp plugin activate agent-connector-for-wp
 ```
 
-If you activate this plugin before MCP Adapter, nothing breaks: wp-admin shows
-a notice with a one-click **Install & Activate** for the adapter, and the MCP
-server comes up as soon as it is active.
+If you activate this plugin before MCP Adapter, nothing breaks: the next
+wp-admin page you open installs and activates the adapter for you, and the MCP
+server comes up with it. If that fails (no filesystem access, no network), the
+notice explains why and offers a retry and a manual download link.
 
 Dependencies (`vendor/`) are not committed to the repository — `composer install`
 fetches them (only this plugin's autoloader and its GitHub update checker; the
