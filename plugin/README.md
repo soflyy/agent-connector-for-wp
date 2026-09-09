@@ -2,7 +2,7 @@
 
 Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. If MCP Adapter is missing, wp-admin shows a notice with a one-click **Install & Activate** that fetches it from its GitHub releases, and this plugin keeps it updated from there too. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 
 ## What it adds
 
@@ -40,13 +40,19 @@ The goal: give agents effectively **SSH-equivalent** operational access through 
 - PHP 8.1+
 - WP-CLI available on the server (recommended)
 
-> `wordpress/mcp-adapter` is bundled — you do not need to install it separately.
+- The [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin (0.5.0 or
+  newer), installed and active. It is not on wordpress.org yet, so install it
+  from its GitHub releases — either with the one-click **Install & Activate**
+  button this plugin shows in wp-admin while it is missing, or by hand (below).
 
 ## Install
 
-Clone into your plugins directory, install dependencies, and activate:
+Install the MCP Adapter plugin first, then this plugin:
 
 ```bash
+# The MCP server this plugin exposes abilities through.
+wp plugin install https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip --activate
+
 cd wp-content/plugins
 git clone https://github.com/soflyy/agent-connector-for-wp.git
 cd agent-connector-for-wp
@@ -54,9 +60,15 @@ composer install --no-dev
 wp plugin activate agent-connector-for-wp
 ```
 
+If you activate this plugin before MCP Adapter, nothing breaks: wp-admin shows
+a notice with a one-click **Install & Activate** for the adapter, and the MCP
+server comes up as soon as it is active.
+
 Dependencies (`vendor/`) are not committed to the repository — `composer install`
-fetches them. If you download a packaged release `.zip` (built by CI, with
-`vendor/` already bundled), skip the `composer install` step and just activate.
+fetches them (only this plugin's autoloader and its GitHub update checker; the
+adapter is no longer part of `vendor/`). If you download a packaged release
+`.zip` (built by CI, with `vendor/` already bundled), skip the `composer install`
+step and just activate.
 
 ## Updates
 
@@ -66,7 +78,10 @@ normal Plugins screen and via auto-updates. The optional
 [Universal Abilities](../universal-abilities-plugin/README.md) pack and any
 installed ability packs are updated by **this** plugin too, from a published
 manifest, through the same Plugins-screen flow — so every update is managed in
-one place, and companion plugins ship no update code of their own. Update checks
+one place, and companion plugins ship no update code of their own. The
+[MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin gets the same
+treatment: it ships no update checker and is not on wordpress.org, so this
+plugin reads its latest GitHub release and offers it on the Plugins screen. Update checks
 are best-effort and never block WordPress: a slow or unreachable GitHub simply
 means "no update offered" that cycle.
 

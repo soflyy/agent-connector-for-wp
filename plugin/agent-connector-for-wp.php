@@ -36,33 +36,31 @@ define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
 
 /**
- * Load bundled Composer dependencies via the Jetpack Autoloader.
+ * Load Composer dependencies.
  *
- * We ship wordpress/mcp-adapter (and its php-mcp-schema dependency) inside this
- * plugin so it works standalone — the separate "MCP Adapter" plugin does not
- * need to be installed. The Jetpack Autoloader (autoload_packages.php, not the
- * plain vendor/autoload.php) deduplicates shared packages across plugins: when
- * several plugins bundle the adapter, only the newest version is loaded, which
- * prevents fatal "class already declared" / version-mismatch conflicts.
- *
- * It also registers this plugin's own AgentConnectorForWp\ namespace (PSR-4, src/),
- * so the fallback autoloader below is only used when dependencies are missing
- * (e.g. a source checkout where `composer install` has not been run yet).
+ * vendor/ holds only this plugin's own PSR-4 map and the GitHub update checker.
+ * The MCP server itself comes from the canonical "MCP Adapter" plugin, which
+ * must be installed alongside this one: it used to be bundled here via Composer
+ * and the Jetpack Autoloader, but the adapter project has deprecated that (see
+ * https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the
+ * library on one site fatal or silently shadow each other. See
+ * Support\McpAdapterPlugin for the runtime check and the reason this plugin
+ * does not (yet) declare it through the `Requires Plugins` header.
  */
-$agent_connector_for_wp_jetpack_autoloader = AGENT_CONNECTOR_FOR_WP_DIR . 'vendor/autoload_packages.php';
-$agent_connector_for_wp_has_vendor         = is_readable( $agent_connector_for_wp_jetpack_autoloader );
+$agent_connector_for_wp_autoloader = AGENT_CONNECTOR_FOR_WP_DIR . 'vendor/autoload.php';
+$agent_connector_for_wp_has_vendor = is_readable( $agent_connector_for_wp_autoloader );
 if ( $agent_connector_for_wp_has_vendor ) {
-	require_once $agent_connector_for_wp_jetpack_autoloader;
+	require_once $agent_connector_for_wp_autoloader;
 }
-unset( $agent_connector_for_wp_jetpack_autoloader );
+unset( $agent_connector_for_wp_autoloader );
 
 /**
  * Minimal PSR-4 fallback autoloader for the AgentConnectorForWp\ namespace, rooted at
  * src/.
  *
- * Registered only when the Jetpack autoloader is absent (e.g. a source checkout
+ * Registered only when the Composer autoloader is absent (e.g. a source checkout
  * where `composer install` has not been run). When vendor/ is present the
- * Jetpack autoloader already maps the AgentConnectorForWp\ namespace, and registering
+ * Composer autoloader already maps the AgentConnectorForWp\ namespace, and registering
  * a second loader here would re-require the class files and trigger a "Cannot
  * declare class … already in use" fatal.
  */
@@ -123,6 +121,10 @@ add_action(
 			// Site-wide nudge while the Universal Abilities pack is missing —
 			// without it a connected agent has almost nothing to do.
 			( new Admin\UapNotice() )->register();
+			// Site-wide error while the MCP Adapter plugin is missing, inactive
+			// or too old — without it there is no MCP server at all. Offers a
+			// one-click install from the adapter's GitHub Releases.
+			( new Admin\McpAdapterNotice() )->register();
 		}
 
 		// REST API: settings, reconnect, connection generation.
@@ -150,20 +152,19 @@ add_action(
 		( new Services\SandboxLoader() )->run();
 
 		/**
-		 * Ensure the MCP Adapter is running.
+		 * Wire into the MCP Adapter plugin.
 		 *
-		 * This is the plugin's first job: run the MCP server so the abilities
-		 * other plugins registered (third-party abilities) are exposed. It's
-		 * always on while the plugin is enabled.
-		 *
-		 * If the standalone "MCP Adapter" plugin is active it will already have
-		 * booted the adapter; McpAdapter::instance() is an idempotent singleton,
-		 * so calling it again is safe. If that plugin is *not* installed, this is
-		 * what brings the bundled adapter (and its default MCP server) to life.
+		 * This plugin's first job is to expose the abilities other plugins
+		 * registered over MCP. The server that does that belongs to the
+		 * canonical "MCP Adapter" plugin, which boots itself while its own
+		 * main file loads; by `plugins_loaded` its classes are either there or
+		 * they are not. This is the availability check the adapter's
+		 * installation guide asks dependents to make (class + WP_MCP_VERSION
+		 * floor, see Support\McpAdapterPlugin). When it fails, everything that
+		 * touches adapter classes is skipped so the site keeps working, and
+		 * Admin\McpAdapterNotice tells the operator how to fix it.
 		 */
-		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
-			\WP\MCP\Core\McpAdapter::instance();
-
+		if ( Support\McpAdapterPlugin::is_ready() ) {
 			// Log MCP traffic to a dedicated table and expose the "MCP
 			// Events" admin page. Attaches its handler to the adapter's
 			// default server via the mcp_adapter_default_server_config
@@ -214,8 +215,8 @@ add_action(
  *
  * We pull updates straight from this plugin's GitHub repo instead of the
  * wordpress.org directory (the plugin is intentionally dev-only and is not, and
- * will not be, hosted there). The library is bundled through the same Jetpack
- * Autoloader as the rest of vendor/: its loader (load-v5p7.php) is registered in
+ * will not be, hosted there). The library is loaded through the Composer
+ * autoloader with the rest of vendor/: its loader (load-v5p7.php) is registered in
  * the autoloader's filemap, so YahnisElsts\PluginUpdateChecker\v5\PucFactory is
  * available once vendor/ is present — no separate require needed here.
  *
@@ -223,8 +224,8 @@ add_action(
  * enableReleaseAssets() makes the checker install the built ZIP attached to each
  * GitHub Release (which bundles vendor/) rather than GitHub's auto-generated
  * source tarball. The source tarball would be BROKEN as an update because
- * vendor/ is gitignored, so it ships without the Jetpack autoloader or the MCP
- * adapter and the plugin would fatal on load. The release ZIP is produced by
+ * vendor/ is gitignored, so it ships without the Composer autoloader or the
+ * update checker and updates would stop flowing. The release ZIP is produced by
  * .github/workflows/auto-release.yml / release.yml.
  *
  * Maintainer action required for updates to flow: cut a GitHub Release on a

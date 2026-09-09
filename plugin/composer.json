@@ -7,8 +7,6 @@
 	"homepage": "https://github.com/soflyy/agent-connector-for-wp",
 	"require": {
 		"php": ">=8.1",
-		"automattic/jetpack-autoloader": "^5.0",
-		"wordpress/mcp-adapter": "^0.5",
 		"yahnis-elsts/plugin-update-checker": "^5.7"
 	},
 	"autoload": {
@@ -17,9 +15,6 @@
 		}
 	},
 	"config": {
-		"allow-plugins": {
-			"automattic/jetpack-autoloader": true
-		},
 		"sort-packages": true
 	},
 	"minimum-stability": "stable"

@@ -70,6 +70,12 @@ final class PluginDirectory {
 	 */
 	public const CACHE_FAIL_KEY               = 'agent_connector_for_wp_directory_fail';
 	public const UNIVERSAL_ABILITIES_FAIL_KEY = 'agent_connector_for_wp_uap_index_fail';
+	public const MCP_ADAPTER_FAIL_KEY         = 'agent_connector_for_wp_mcp_adapter_release_fail';
+
+	/**
+	 * Transient holding the last good MCP Adapter release entry.
+	 */
+	public const MCP_ADAPTER_CACHE_KEY = 'agent_connector_for_wp_mcp_adapter_release_cache';
 
 	/**
 	 * How long to suppress refetching after a failure, in seconds.
@@ -207,6 +213,8 @@ final class PluginDirectory {
 		delete_transient( self::UNIVERSAL_ABILITIES_CACHE_KEY );
 		delete_transient( self::CACHE_FAIL_KEY );
 		delete_transient( self::UNIVERSAL_ABILITIES_FAIL_KEY );
+		delete_transient( self::MCP_ADAPTER_CACHE_KEY );
+		delete_transient( self::MCP_ADAPTER_FAIL_KEY );
 	}
 
 	/**
@@ -607,6 +615,181 @@ final class PluginDirectory {
 	 */
 	public static function is_universal_abilities_active(): bool {
 		$file = self::universal_abilities_file();
+
+		return null !== $file && self::is_active( $file );
+	}
+
+	/**
+	 * The canonical MCP Adapter plugin's folder slug, as declared in this
+	 * plugin's `Requires Plugins` header and as its release zip unpacks.
+	 */
+	public const MCP_ADAPTER_SLUG = 'mcp-adapter';
+
+	/**
+	 * Default download URL for the MCP Adapter plugin: the `mcp-adapter.zip`
+	 * asset attached to the adapter's latest GitHub Release (a stable redirect
+	 * maintained by GitHub, so nothing enumerates releases). Used only by the
+	 * one-click installer, because WordPress's own dependency installer can
+	 * offer plugins hosted on wordpress.org only, and MCP Adapter is not there.
+	 * Override with the `agent_connector_for_wp_mcp_adapter_download_url` filter.
+	 */
+	public const DEFAULT_MCP_ADAPTER_DOWNLOAD_URL = 'https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip';
+
+	/**
+	 * The MCP Adapter download URL, after the override filter.
+	 */
+	public static function mcp_adapter_download_url(): string {
+		/**
+		 * Filters the URL of the MCP Adapter plugin zip the one-click installer
+		 * downloads. Must be an https URL on an allowed host (see the
+		 * `agent_connector_for_wp_pack_download_hosts` filter).
+		 *
+		 * @param string $url Default download URL.
+		 */
+		return (string) apply_filters(
+			'agent_connector_for_wp_mcp_adapter_download_url',
+			self::DEFAULT_MCP_ADAPTER_DOWNLOAD_URL
+		);
+	}
+
+	/**
+	 * GitHub Releases API endpoint describing the adapter's latest release.
+	 *
+	 * The adapter plugin ships no update checker and is not on wordpress.org, so
+	 * a copy installed from GitHub would otherwise never be offered an update.
+	 * PackUpdater reads this (cached, once per WordPress update check) and feeds
+	 * the result into the normal Plugins-screen update flow, the same way it
+	 * keeps the Universal Abilities plugin current. Unauthenticated calls are
+	 * rate-limited per IP, which the 12h cache keeps far away from. Override
+	 * with the `agent_connector_for_wp_mcp_adapter_releases_url` filter.
+	 */
+	public const DEFAULT_MCP_ADAPTER_RELEASES_URL = 'https://api.github.com/repos/WordPress/mcp-adapter/releases/latest';
+
+	/**
+	 * The MCP Adapter releases API URL, after the override filter.
+	 */
+	public static function mcp_adapter_releases_url(): string {
+		/**
+		 * Filters the GitHub Releases API URL used to discover MCP Adapter
+		 * updates. Must return a GitHub "release" JSON object.
+		 *
+		 * @param string $url Default releases API URL.
+		 */
+		return (string) apply_filters(
+			'agent_connector_for_wp_mcp_adapter_releases_url',
+			self::DEFAULT_MCP_ADAPTER_RELEASES_URL
+		);
+	}
+
+	/**
+	 * The latest published MCP Adapter release, as
+	 * {slug, version, download_url, name, source_url}, or null when GitHub is
+	 * unreachable and nothing usable is cached.
+	 *
+	 * Same shape and same best-effort, never-fatal caching policy as
+	 * universal_abilities_entry(), so PackUpdater consumes both identically.
+	 *
+	 * @param bool $force When true, bypass the cache and refetch from the network.
+	 *
+	 * @return array{slug:string,version:string,download_url:string,name:string,source_url:string}|null
+	 */
+	public static function mcp_adapter_entry( bool $force = false ): ?array {
+		if ( ! $force ) {
+			$cached = get_transient( self::MCP_ADAPTER_CACHE_KEY );
+			if ( is_array( $cached ) ) {
+				return $cached;
+			}
+
+			if ( get_transient( self::MCP_ADAPTER_FAIL_KEY ) ) {
+				return null;
+			}
+		}
+
+		$entry = self::normalize_mcp_adapter_release(
+			self::remote_json( self::mcp_adapter_releases_url() )
+		);
+
+		if ( null !== $entry ) {
+			set_transient( self::MCP_ADAPTER_CACHE_KEY, $entry, self::CACHE_TTL );
+			delete_transient( self::MCP_ADAPTER_FAIL_KEY );
+			return $entry;
+		}
+
+		set_transient( self::MCP_ADAPTER_FAIL_KEY, 1, self::FAIL_BACKOFF );
+		$cached = get_transient( self::MCP_ADAPTER_CACHE_KEY );
+		return is_array( $cached ) ? $cached : null;
+	}
+
+	/**
+	 * Turn a GitHub "release" object into an update entry, or null when it is
+	 * not a usable stable release with a plugin zip attached.
+	 *
+	 * The version is the tag with its leading "v" stripped (v0.6.1 → 0.6.1),
+	 * which is what the plugin header carries. The package is the
+	 * `mcp-adapter.zip` asset the adapter's own installation guide points at;
+	 * the auto-generated source tarball is never used because it is not a
+	 * runnable plugin (its vendor/ is not committed).
+	 *
+	 * @param mixed $decoded Decoded JSON.
+	 *
+	 * @return array{slug:string,version:string,download_url:string,name:string,source_url:string}|null
+	 */
+	private static function normalize_mcp_adapter_release( $decoded ): ?array {
+		if ( ! is_array( $decoded ) ) {
+			return null;
+		}
+
+		if ( ! empty( $decoded['draft'] ) || ! empty( $decoded['prerelease'] ) ) {
+			return null;
+		}
+
+		$str = static function ( $value ): string {
+			return is_string( $value ) ? trim( $value ) : '';
+		};
+
+		$tag     = $str( $decoded['tag_name'] ?? '' );
+		$version = ltrim( $tag, 'vV' );
+		if ( '' === $version || ! preg_match( '/^\d+(\.\d+)*/', $version ) ) {
+			return null;
+		}
+
+		$download_url = '';
+		foreach ( (array) ( $decoded['assets'] ?? array() ) as $asset ) {
+			if ( ! is_array( $asset ) ) {
+				continue;
+			}
+			if ( self::MCP_ADAPTER_SLUG . '.zip' === $str( $asset['name'] ?? '' ) ) {
+				$download_url = $str( $asset['browser_download_url'] ?? '' );
+				break;
+			}
+		}
+
+		if ( '' === $download_url ) {
+			return null;
+		}
+
+		return array(
+			'slug'         => self::MCP_ADAPTER_SLUG,
+			'version'      => $version,
+			'download_url' => $download_url,
+			'name'         => 'MCP Adapter',
+			'source_url'   => $str( $decoded['html_url'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Resolve the MCP Adapter plugin's installed file via the tolerant slug
+	 * matcher, or null when it isn't installed.
+	 */
+	public static function mcp_adapter_file(): ?string {
+		return self::installed_file_for_slug( self::MCP_ADAPTER_SLUG );
+	}
+
+	/**
+	 * Whether the MCP Adapter plugin is installed AND active.
+	 */
+	public static function is_mcp_adapter_active(): bool {
+		$file = self::mcp_adapter_file();
 
 		return null !== $file && self::is_active( $file );
 	}
