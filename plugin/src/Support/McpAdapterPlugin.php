@@ -9,30 +9,26 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Support;
 
-use AgentConnectorForWp\Services\PluginDirectory;
-
 defined( 'ABSPATH' ) || exit;
 
 /**
  * Agent Connector no longer bundles wordpress/mcp-adapter. It depends on the
- * canonical MCP Adapter plugin, which is the integration path the adapter
- * project recommends (https://github.com/WordPress/mcp-adapter/pull/288 and
+ * canonical MCP Adapter plugin, declared with the `Requires Plugins` header in
+ * agent-connector-for-wp.php — the integration path the adapter project
+ * recommends (https://github.com/WordPress/mcp-adapter/pull/288 and
  * docs/getting-started/installation.md in that repo).
  *
- * The adapter's preferred mechanism, a `Requires Plugins: mcp-adapter` header,
- * only works for plugins listed on wordpress.org, and MCP Adapter is not there
- * yet (WordPress/mcp-adapter#178). Declaring it now would make this plugin
- * impossible to activate with no install link offered. Until the listing
- * exists, this plugin follows the guide's "checking availability with code"
- * path instead: a `plugins_loaded` check for the WP\MCP\Core\McpAdapter class,
- * a WP_MCP_VERSION floor, and an admin notice while either fails. Once the
- * adapter is on wordpress.org, add the header to agent-connector-for-wp.php
- * and this class keeps working as the runtime check behind it.
+ * The header does the heavy lifting: WordPress refuses to activate this plugin
+ * until MCP Adapter is installed and active, offers to install it from
+ * wordpress.org, and refuses to deactivate it while this plugin is running.
+ * Nothing here needs to install or update the adapter.
  *
- * Because the adapter is not on wordpress.org, this plugin also offers to
- * fetch the release zip from the adapter's GitHub Releases itself, using the
- * same URL the adapter's installation guide gives for WP-CLI (see
- * PluginDirectory::mcp_adapter_download_url() and Admin\McpAdapterNotice).
+ * What the header does not cover is a site that updated from a release which
+ * still bundled the adapter: it stays active with the dependency suddenly
+ * missing. This class is the runtime check for that case — the "checking
+ * availability with code" path from the adapter's installation guide — so the
+ * bootstrap can skip adapter-dependent wiring instead of fataling, and
+ * Admin\McpAdapterNotice can tell the operator what to do.
  */
 final class McpAdapterPlugin {
 
@@ -109,13 +105,5 @@ final class McpAdapterPlugin {
 	 */
 	public static function is_ready(): bool {
 		return self::STATUS_READY === self::status();
-	}
-
-	/**
-	 * Whether the MCP Adapter plugin is installed but not active. Distinguishes
-	 * "activate the copy you have" from "download it" in the admin notice.
-	 */
-	public static function is_installed_inactive(): bool {
-		return null !== PluginDirectory::mcp_adapter_file() && ! PluginDirectory::is_mcp_adapter_active();
 	}
 }

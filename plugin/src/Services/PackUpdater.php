@@ -21,10 +21,9 @@ defined( 'ABSPATH' ) || exit;
  * and injects the results into WordPress's `update_plugins` site transient so the
  * normal Plugins-screen update flow (and auto-updates) handle the rest.
  *
- * The canonical MCP Adapter plugin rides the same path. It is installed from its
- * GitHub Releases (it is not on wordpress.org yet) and ships no update checker of
- * its own, so without this it would never be offered an update; its latest
- * release is read from GitHub's Releases API (PluginDirectory::mcp_adapter_entry).
+ * The MCP Adapter plugin is deliberately NOT handled here: it is a wordpress.org
+ * plugin (declared through this plugin's `Requires Plugins` header), so WordPress
+ * installs and updates it through its own directory flow.
  *
  * Nothing here touches the plugin-update-checker library — that stays dedicated to
  * the main agent-connector-for-wp plugin.
@@ -164,9 +163,7 @@ final class PackUpdater {
 	}
 
 	/**
-	 * Installed ability packs as plugin_file => installed version, plus the MCP
-	 * Adapter plugin when it is installed (it carries no marker header; it is
-	 * matched by its folder slug instead).
+	 * Installed ability packs as plugin_file => installed version.
 	 *
 	 * @return array<string,string>
 	 */
@@ -175,19 +172,13 @@ final class PackUpdater {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
 
-		$out     = array();
-		$plugins = (array) get_plugins();
-		foreach ( $plugins as $file => $data ) {
+		$out = array();
+		foreach ( (array) get_plugins() as $file => $data ) {
 			$marker = isset( $data[ self::MARKER_HEADER ] ) ? trim( (string) $data[ self::MARKER_HEADER ] ) : '';
 			if ( '' === $marker ) {
 				continue;
 			}
 			$out[ $file ] = isset( $data['Version'] ) ? (string) $data['Version'] : '0';
-		}
-
-		$adapter = PluginDirectory::mcp_adapter_file();
-		if ( null !== $adapter && isset( $plugins[ $adapter ] ) ) {
-			$out[ $adapter ] = isset( $plugins[ $adapter ]['Version'] ) ? (string) $plugins[ $adapter ]['Version'] : '0';
 		}
 
 		return $out;
@@ -201,9 +192,7 @@ final class PackUpdater {
 	 *   - the Universal Abilities manifest (one entry). Universal Abilities carries
 	 *     the same "Agent Connector" marker header as a pack, so installed_packs()
 	 *     already detects it; adding its manifest entry here is all that's needed
-	 *     for it to update through the very same path, and
-	 *   - the MCP Adapter plugin's latest GitHub release (one entry, keyed by
-	 *     its folder slug; installed_packs() adds the plugin by slug).
+	 *     for it to update through the very same path.
 	 *
 	 * @param bool $force When true, refetch the manifests from the network
 	 *                    (bypassing the cache). Otherwise serve cache.
@@ -223,11 +212,6 @@ final class PackUpdater {
 		$uap = PluginDirectory::universal_abilities_entry( $force );
 		if ( null !== $uap ) {
 			$by_slug[ PluginDirectory::UNIVERSAL_ABILITIES_SLUG ] = $uap;
-		}
-
-		$adapter = PluginDirectory::mcp_adapter_entry( $force );
-		if ( null !== $adapter ) {
-			$by_slug[ PluginDirectory::MCP_ADAPTER_SLUG ] = $adapter;
 		}
 
 		return $by_slug;

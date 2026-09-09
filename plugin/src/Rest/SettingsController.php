@@ -151,16 +151,6 @@ final class SettingsController extends WP_REST_Controller {
 
 		register_rest_route(
 			$this->namespace,
-			'/mcp-adapter/install',
-			array(
-				'methods'             => WP_REST_Server::CREATABLE,
-				'callback'            => array( $this, 'install_mcp_adapter' ),
-				'permission_callback' => array( $this, 'check_permission' ),
-			)
-		);
-
-		register_rest_route(
-			$this->namespace,
 			'/dismiss-production-warning',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -828,79 +818,6 @@ final class SettingsController extends WP_REST_Controller {
 
 	private function is_uap_active(): bool {
 		return PluginDirectory::is_universal_abilities_active();
-	}
-
-	/**
-	 * One-click install + activate of the canonical MCP Adapter plugin.
-	 *
-	 * Backs the site-wide notice shown while the adapter is missing (see
-	 * Admin\McpAdapterNotice and Support\McpAdapterPlugin for why this plugin
-	 * fetches it from GitHub itself rather than leaving it to WordPress's
-	 * dependency installer). Mirrors install_uap(): activate an installed copy
-	 * rather than downloading a duplicate, and only download over https from
-	 * an allowed host.
-	 */
-	public function install_mcp_adapter( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		if ( ! current_user_can( 'install_plugins' ) || ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) ) {
-			return new WP_Error( 'forbidden', __( 'You do not have permission to install plugins.', 'agent-connector-for-wp' ), array( 'status' => 403 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/plugin.php';
-
-		// Already active: nothing to do.
-		if ( PluginDirectory::is_mcp_adapter_active() ) {
-			return new WP_REST_Response( array( 'success' => true, 'mcp_adapter_active' => true ) );
-		}
-
-		// Installed but inactive: activate the existing copy.
-		$existing = PluginDirectory::mcp_adapter_file();
-		if ( null !== $existing ) {
-			$result = activate_plugin( $existing, '', is_multisite() && is_network_admin(), true );
-			if ( is_wp_error( $result ) ) {
-				return $result;
-			}
-			return new WP_REST_Response( array( 'success' => true, 'mcp_adapter_active' => true ) );
-		}
-
-		// Prefer the versioned asset of the latest release (the same source the
-		// updater uses), falling back to GitHub's stable "latest" redirect.
-		$entry = PluginDirectory::mcp_adapter_entry();
-		$url   = null !== $entry ? (string) ( $entry['download_url'] ?? '' ) : '';
-		if ( '' === $url ) {
-			$url = PluginDirectory::mcp_adapter_download_url();
-		}
-		if ( '' === $url || ! self::is_pack_download_allowed( $url ) ) {
-			return new WP_Error( 'no_source', __( 'Could not find a download URL for MCP Adapter. Please install it manually from its GitHub releases.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/misc.php';
-		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
-		if ( 'direct' !== get_filesystem_method() ) {
-			return new WP_Error( 'fs_unavailable', __( 'Direct filesystem access is not available on this server.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		$upgrader  = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
-		$installed = $upgrader->install( $url );
-
-		if ( is_wp_error( $installed ) || true !== $installed ) {
-			return new WP_Error( 'install_failed', __( 'Could not install MCP Adapter. Please install it manually from its GitHub releases.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
-		}
-
-		// Prefer the freshly-installed file the upgrader reports; fall back to the
-		// known main-file path (its folder slug is fixed by the release zip).
-		$plugin_file = (string) $upgrader->plugin_info();
-		if ( '' === $plugin_file ) {
-			$plugin_file = (string) ( PluginDirectory::mcp_adapter_file() ?? PluginDirectory::MCP_ADAPTER_SLUG . '/mcp-adapter.php' );
-		}
-
-		$result = activate_plugin( $plugin_file, '', is_multisite() && is_network_admin(), true );
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}
-
-		return new WP_REST_Response( array( 'success' => true, 'mcp_adapter_active' => true ) );
 	}
 
 	private function pw_available( ?\WP_User $user ): bool {

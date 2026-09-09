@@ -6,6 +6,7 @@
  * Version:           1.29.0
  * Requires at least: 7.0
  * Requires PHP:      8.1
+ * Requires Plugins:  mcp-adapter
  * Author:            Soflyy
  * Author URI:        https://github.com/soflyy
  * License:           GPL-2.0-or-later
@@ -39,13 +40,13 @@ define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
  * Load Composer dependencies.
  *
  * vendor/ holds only this plugin's own PSR-4 map and the GitHub update checker.
- * The MCP server itself comes from the canonical "MCP Adapter" plugin, which
- * must be installed alongside this one: it used to be bundled here via Composer
- * and the Jetpack Autoloader, but the adapter project has deprecated that (see
- * https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the
- * library on one site fatal or silently shadow each other. See
- * Support\McpAdapterPlugin for the runtime check and the reason this plugin
- * does not (yet) declare it through the `Requires Plugins` header.
+ * The MCP server itself comes from the canonical "MCP Adapter" plugin, declared
+ * in the `Requires Plugins` header above: it used to be bundled here via
+ * Composer and the Jetpack Autoloader, but the adapter project has deprecated
+ * that (see https://github.com/WordPress/mcp-adapter/pull/288) because two
+ * copies of the library on one site fatal or silently shadow each other.
+ * WordPress enforces the dependency — it will not activate this plugin without
+ * MCP Adapter, and offers to install it from wordpress.org.
  */
 $agent_connector_for_wp_autoloader = AGENT_CONNECTOR_FOR_WP_DIR . 'vendor/autoload.php';
 $agent_connector_for_wp_has_vendor = is_readable( $agent_connector_for_wp_autoloader );
@@ -122,8 +123,7 @@ add_action(
 			// without it a connected agent has almost nothing to do.
 			( new Admin\UapNotice() )->register();
 			// Site-wide error while the MCP Adapter plugin is missing, inactive
-			// or too old — without it there is no MCP server at all. Offers a
-			// one-click install from the adapter's GitHub Releases.
+			// or too old — without it there is no MCP server at all.
 			( new Admin\McpAdapterNotice() )->register();
 		}
 
@@ -158,10 +158,15 @@ add_action(
 		 * registered over MCP. The server that does that belongs to the
 		 * canonical "MCP Adapter" plugin, which boots itself while its own
 		 * main file loads; by `plugins_loaded` its classes are either there or
-		 * they are not. This is the availability check the adapter's
-		 * installation guide asks dependents to make (class + WP_MCP_VERSION
-		 * floor, see Support\McpAdapterPlugin). When it fails, everything that
-		 * touches adapter classes is skipped so the site keeps working, and
+		 * they are not.
+		 *
+		 * The `Requires Plugins` header keeps this plugin from being activated
+		 * without the adapter, but a site that updated from a release which
+		 * still bundled the adapter can end up active with it missing. So make
+		 * the availability check the adapter's installation guide asks
+		 * dependents to make (class + WP_MCP_VERSION floor, see
+		 * Support\McpAdapterPlugin): when it fails, everything that touches
+		 * adapter classes is skipped so the site keeps working, and
 		 * Admin\McpAdapterNotice tells the operator how to fix it.
 		 */
 		if ( Support\McpAdapterPlugin::is_ready() ) {
