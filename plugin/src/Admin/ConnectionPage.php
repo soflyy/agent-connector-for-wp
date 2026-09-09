@@ -17,6 +17,7 @@ namespace AgentConnectorForWp\Admin;
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\McpAdapterPlugin;
 use WP_Application_Passwords;
 
 defined( 'ABSPATH' ) || exit;
@@ -114,6 +115,7 @@ final class ConnectionPage {
 				'username'              => $user instanceof \WP_User ? $user->user_login : '',
 				'pwAvailable'           => $this->pw_available( $user instanceof \WP_User ? $user : null ),
 				'uapActive'             => $this->is_uap_active(),
+				'mcpAdapterStatus'      => McpAdapterPlugin::status(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 			)
 		);

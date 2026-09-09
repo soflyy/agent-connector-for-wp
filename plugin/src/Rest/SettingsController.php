@@ -14,6 +14,7 @@ use AgentConnectorForWp\OAuth\Db as OAuthDb;
 use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\McpAdapterPlugin;
 use WP_Application_Passwords;
 use WP_Error;
 use WP_REST_Controller;
@@ -286,6 +287,8 @@ final class SettingsController extends WP_REST_Controller {
 				'username'                => $user instanceof \WP_User ? $user->user_login : '',
 				'pw_available'            => $this->pw_available( $user instanceof \WP_User ? $user : null ),
 				'uap_active'              => $this->is_uap_active(),
+				'mcp_adapter_status'      => McpAdapterPlugin::status(),
+				'mcp_adapter_version'     => McpAdapterPlugin::version(),
 			)
 		);
 	}

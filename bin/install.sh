@@ -82,5 +82,7 @@ if [ ! -d "${MAIN_SRC}/vendor" ]; then
 fi
 
 echo
-echo "Next: activate the plugins, e.g."
+echo "Next: install the MCP Adapter plugin (the MCP server this plugin requires),"
+echo "then activate the plugins, e.g."
+echo "  wp plugin install mcp-adapter --activate"
 echo "  wp plugin activate agent-connector-for-wp universal-abilities-plugin"
