@@ -12,6 +12,7 @@ namespace AgentConnectorForWp\Support;
 
 use AgentConnectorForWp\Services\AuditLogger;
 use AgentConnectorForWp\Services\WrappedHandler;
+use WP\MCP\Abilities\McpAbilityExposure;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,9 +21,11 @@ defined( 'ABSPATH' ) || exit;
  * uses anyone else's (or no) authentication.
  *
  * The default WordPress MCP server (wordpress/mcp-adapter) auto-exposes ANY
- * ability whose meta carries `mcp.public === true`, regardless of which plugin
- * registered it. That is convenient — but it means a third party could register
- * a public ability with `permission_callback => __return_true` and bypass our
+ * ability that resolves as MCP-public (an explicit `mcp.public` wins; when it is
+ * absent, exposure is inherited from the high-level `meta.public` flag — see
+ * the adapter's McpAbilityExposure), regardless of which plugin registered it.
+ * That is convenient — but it means a third party could register a public
+ * ability with `permission_callback => __return_true` and bypass our
  * admin/super-admin gate. To prevent that, this layer hooks the core
  * `wp_register_ability_args` filter (which fires for EVERY `wp_register_ability()`
  * call) and, for every ability that will be MCP-exposed, rewrites its arguments
@@ -93,23 +96,24 @@ final class Governance {
 	 * Whether this ability will be exposed over our MCP server and therefore
 	 * must be governed.
 	 *
-	 * An ability is MCP-exposed when its meta carries `mcp.public === true` — the
-	 * exact flag the adapter's DefaultServerFactory keys on. Integrators can
-	 * exempt specific ability names through the `agent_connector_for_wp_govern_ability`
-	 * filter (default: govern everything public).
+	 * Exposure is resolved exactly like the adapter's DefaultServerFactory does
+	 * (see {@see self::is_mcp_exposed_meta()}). Integrators can exempt specific
+	 * ability names through the `agent_connector_for_wp_govern_ability` filter
+	 * (default: govern everything exposed).
 	 *
 	 * @param array<string,mixed> $args The ability registration arguments.
 	 * @param string              $name The ability name.
 	 */
 	private static function should_govern( array $args, string $name ): bool {
-		$is_public = isset( $args['meta']['mcp']['public'] ) && true === $args['meta']['mcp']['public'];
+		$meta      = isset( $args['meta'] ) && is_array( $args['meta'] ) ? $args['meta'] : array();
+		$is_public = self::is_mcp_exposed_meta( $meta );
 
 		/**
 		 * Filters whether a given MCP-exposed ability is governed by Agent
 		 * Connector's auth / domain-lock / audit chokepoint.
 		 *
 		 * Defaults to true for every ability that is exposed over our MCP server
-		 * (mcp.public === true) and false for everything else. Return false for a
+		 * (resolves as MCP-public) and false for everything else. Return false for a
 		 * specific name only if an integrator deliberately wants to take over
 		 * authentication for that ability — doing so means our admin gate, domain
 		 * lock, and audit log no longer apply to it.
@@ -121,6 +125,34 @@ final class Governance {
 		 * @param array<string,mixed> $args   The ability registration arguments.
 		 */
 		return (bool) apply_filters( 'agent_connector_for_wp_govern_ability', $is_public, $name, $args );
+	}
+
+	/**
+	 * Whether ability meta resolves to MCP exposure, matching the adapter's own
+	 * resolution (mcp-adapter ≥ 0.6): an explicit `mcp.public` wins; when it is
+	 * absent, exposure is inherited from the high-level `meta.public` flag; a
+	 * malformed `meta.mcp` fails closed.
+	 *
+	 * Defers to the bundled adapter's McpAbilityExposure so the two can never
+	 * drift. The mirror below only runs when an older adapter (< 0.6, class
+	 * absent) was loaded by another plugin — there, applying the 0.6 semantics
+	 * can only over-govern, which is the safe direction.
+	 *
+	 * @param array<string,mixed> $meta The ability meta.
+	 */
+	public static function is_mcp_exposed_meta( array $meta ): bool {
+		if ( class_exists( McpAbilityExposure::class ) ) {
+			return McpAbilityExposure::is_meta_public( $meta );
+		}
+
+		$mcp_meta = $meta['mcp'] ?? array();
+		if ( ! is_array( $mcp_meta ) ) {
+			return false;
+		}
+		if ( isset( $mcp_meta['public'] ) ) {
+			return (bool) $mcp_meta['public'];
+		}
+		return true === ( $meta['public'] ?? false );
 	}
 
 	/**
