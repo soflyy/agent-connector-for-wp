@@ -319,13 +319,14 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
 }
 
 // The last step of every screenshot walkthrough: something to try once
-// connected. Read-only first, then a draft that's easy to review and delete.
+// connected. Site-building tasks, each saved as a draft so nothing goes live
+// before the operator has looked at it.
 const FIRST_PROMPT_STEP = {
   html: 'Write your first prompt. Try one of these:',
   prompts: [
-    'Give me an overview of my WordPress site: its name, theme, active plugins, and how many posts and pages it has.',
-    'List my 5 most recent posts with their status and publish date.',
-    'Write a short welcome post for my site and save it as a draft so I can review it.',
+    'Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.',
+    'Create an About page that matches the style of my existing pages. Save it as a draft.',
+    'Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.',
   ],
 }
 
