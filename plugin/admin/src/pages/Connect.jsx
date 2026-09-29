@@ -279,6 +279,7 @@ const STEP_SCREENSHOTS = {
   'claude-desktop/connect': 'claude-desktop/06-connect.webp',
   'claude-desktop/authorize': 'claude-desktop/07-authorize.webp',
   'claude-desktop/connected': 'claude-desktop/08-connected.webp',
+  'claude-code/authorize': 'claude-code/01-authorize.webp',
   'chatgpt/customize': 'chatgpt/01-customize.webp',
   'chatgpt/create-mcp-app': 'chatgpt/02-create-mcp-app.webp',
   'chatgpt/form': 'chatgpt/03-form.webp',
@@ -413,7 +414,8 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         'Copy both commands above',
         'Open your terminal and run them in order',
-        authorizeStep('The second command opens this site in your browser'),
+        shot('claude-code/authorize', 'The second command opens this site in your browser: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
+        FIRST_PROMPT_STEP,
       ],
     }],
     'codex-cli': [{
