@@ -412,7 +412,7 @@ function buildOAuth(serverName, serverUrl) {
         FIRST_PROMPT_STEP,
       ],
     }, {
-      kind: 'json', title: 'Or add it by hand',
+      kind: 'json', title: 'Or install manually',
       hint: 'Add this to <code>~/.cursor/mcp.json</code>, restart Cursor, then click <strong>Authenticate</strong> in <strong>Customize</strong> → <strong>MCPs</strong>.',
       value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
     }],
@@ -457,7 +457,7 @@ function buildOAuth(serverName, serverUrl) {
         authorizeStep('vscode-copilot', 'Your browser opens this site'),
       ],
     }, {
-      ...guide, title: 'Or add it by hand',
+      ...guide, title: 'Or install manually',
       steps: [
         shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
         shot('vscode/http', 'Choose <strong>HTTP</strong>, paste the MCP Server URL, and give it a name', 'Server URL prompt', withUrl),
