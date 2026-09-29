@@ -179,7 +179,7 @@ final class SandboxLoader {
 		}
 
 		printf(
-			'<div class="notice notice-error"><p><strong>%1$s</strong> %2$s%3$s</p><p>%4$s%5$s</p></div>',
+			'<div class="notice notice-error" id="acfw-safe-mode-notice"><p><strong>%1$s</strong> %2$s%3$s</p><p>%4$s%5$s</p></div>',
 			esc_html__( 'Agent Connector for WP — sandbox safe mode is active.', 'agent-connector-for-wp' ),
 			esc_html__( 'A sandbox PHP file caused a fatal error, so all sandbox files are temporarily disabled to keep the site up.', 'agent-connector-for-wp' ),
 			wp_kses( $details, array( 'code' => array() ) ),
