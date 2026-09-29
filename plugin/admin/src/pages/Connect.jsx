@@ -300,6 +300,110 @@ const STEP_SCREENSHOTS = {
   'chatgpt/password-env': 'chatgpt/password-04-env-save.webp',
 }
 
+// Application-password setup as a config file: for each agent, the file it
+// reads, the JSON to merge into it, and how to get there. The server entry is
+// the same stdio proxy everywhere; only the wrapping differs per app.
+const PASSWORD_CONFIGS = {
+  cursor: {
+    file: '~/.cursor/mcp.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open <code>~/.cursor/mcp.json</code> (create it if it doesn\'t exist)',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save and restart Cursor, then check the server is on in <strong>Customize</strong> → <strong>MCPs</strong>',
+    ],
+  },
+  'vscode-copilot': {
+    file: 'mcp.json',
+    wrap: (name, entry) => ({ servers: { [name]: { type: 'stdio', ...entry } } }),
+    steps: [
+      'Open the Command Palette and run <strong>MCP: Open User Configuration</strong>',
+      'Paste the JSON above. If the file already has <code>servers</code>, add this server inside it instead of replacing the file',
+      'Save the file. VS Code starts the server, and Copilot can use it in agent mode',
+    ],
+  },
+  cline: {
+    file: 'cline_mcp_settings.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'In the Cline panel, open the MCP servers settings and choose to edit <code>cline_mcp_settings.json</code>',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file. Cline reloads its servers automatically',
+    ],
+  },
+  windsurf: {
+    file: '~/.config/devin/mcp_config.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open <code>~/.config/devin/mcp_config.json</code> (create it if it doesn\'t exist)',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file, then check the server in Devin Desktop under <strong>Open customizations</strong>',
+    ],
+  },
+  zed: {
+    file: 'settings.json',
+    wrap: (name, entry) => ({ context_servers: { [name]: entry } }),
+    steps: [
+      'In Zed, run <strong>zed: open settings file</strong> from the command palette',
+      'Add the JSON above. If the file already has <code>context_servers</code>, add this server inside it instead of replacing the file',
+      'Save. The server shows up under <strong>Settings</strong> → <strong>AI</strong> → <strong>MCP Servers</strong>',
+    ],
+  },
+  opencode: {
+    file: 'opencode.json',
+    wrap: (name, entry) => ({ $schema: 'https://opencode.ai/config.json', mcp: { [name]: { type: 'local', command: [entry.command, ...entry.args], environment: entry.env, enabled: true } } }),
+    steps: [
+      'Open <code>opencode.json</code> in your project, or <code>~/.config/opencode/opencode.json</code> for every project',
+      'Paste the JSON above. If the file already has <code>mcp</code>, add this server inside it instead of replacing the file',
+      'Save and restart OpenCode',
+    ],
+  },
+  antigravity: {
+    file: 'mcp_config.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'In the agent panel, click <strong>…</strong> → <strong>MCP Servers</strong> → <strong>Manage MCP Servers</strong> → <strong>View raw config</strong>',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file and click <strong>Refresh</strong>',
+    ],
+  },
+  pi: {
+    file: '~/.config/mcp/mcp.json',
+    hint: 'Pi needs the <code>pi-mcp-adapter</code> extension for MCP: run <code>pi install npm:pi-mcp-adapter</code> first.',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open <code>~/.config/mcp/mcp.json</code> (create it if it doesn\'t exist)',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save and restart Pi',
+    ],
+  },
+  other: {
+    file: 'your app\'s MCP config file',
+    hint: 'Most apps read this <code>mcpServers</code> format. Check your app\'s docs for where its MCP config file lives.',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open your app\'s MCP configuration file',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save and restart the app',
+    ],
+  },
+}
+
+function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
+  const config = PASSWORD_CONFIGS[agentId]
+  const entry = {
+    command: 'npx',
+    args: ['-y', `${PROXY_PACKAGE}@latest`],
+    env: { WP_API_URL: serverUrl, WP_API_USERNAME: username, WP_API_PASSWORD: password },
+  }
+  return {
+    kind: 'json', title: config.file,
+    hint: config.hint || null,
+    value: JSON.stringify(config.wrap(name, entry), null, 2),
+    steps: config.steps,
+  }
+}
+
 // ChatGPT's application-password setup: its own "Connect to a custom MCP"
 // form, running the same stdio proxy as the other password paths. ChatGPT's
 // Create MCP App (the OAuth path) can't send a password, so this is the only
@@ -1272,6 +1376,14 @@ function AppPasswordFlow({ selectedAgent, status }) {
   // The .mcpb is built client-side from whichever password is in play, so it
   // works for both the generated (server-built) and existing paths.
   let blocks = agentData?.blocks ?? []
+  if (connection && PASSWORD_CONFIGS[agentMeta.id]) {
+    blocks = [passwordConfigBlock(agentMeta.id, {
+      name: initial.serverName,
+      serverUrl: initial.serverUrl,
+      username: connection.username ?? initial.username,
+      password: generatedPassword ?? existingPw,
+    })]
+  }
   if (connection && agentMeta.id === 'chatgpt') {
     blocks = [chatgptPasswordBlock({
       name: initial.siteName || initial.serverName,
