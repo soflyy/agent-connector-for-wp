@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
@@ -588,23 +588,33 @@ function highlightJson(text) {
   return out
 }
 
+// One shell command line split into colored spans: the program, quoted
+// values, and flags; everything else (subcommands, spaces) stays plain.
+// The pieces concatenate back to exactly the input.
+function highlightShell(line) {
+  const parts = line.match(/"(?:\\.|[^"\\])*"|'[^']*'|\s+|[^\s"']+|["']/g) || []
+  let seenProgram = false
+  return parts.map((part, i) => {
+    if (/^\s+$/.test(part)) return part
+    if (!seenProgram) {
+      seenProgram = true
+      return <span key={i} className="text-sky-300">{part}</span>
+    }
+    if (part[0] === '"' || part[0] === "'") return <span key={i} className="text-emerald-300">{part}</span>
+    if (part[0] === '-') return <span key={i} className="text-violet-300">{part}</span>
+    return part
+  })
+}
+
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
-  const textareaRef = useRef(null)
   const preRef = useRef(null)
   const isCommand = block.kind === 'command'
   const isJson = block.kind === 'json'
 
-  useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.max(el.scrollHeight, 120) + 'px'
-  }, [block.value])
-
   async function selectAndCopy() {
-    const ok = await copyToClipboard(block.value, textareaRef.current)
+    const ok = await copyToClipboard(block.value)
     if (ok) {
       setCopied(true)
       setCopyFailed(false)
@@ -632,32 +642,22 @@ function CodeContent({ block }) {
         </div>
       )}
 
-      <div className="relative">
-        {isCommand && (
-          <span className="absolute left-4 top-4 text-green-400 font-mono text-sm select-none pointer-events-none">$&nbsp;</span>
-        )}
-        {isJson ? (
-          <pre
-            ref={preRef}
-            onClick={selectAndCopy}
-            className="m-0 p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words cursor-pointer"
-          >
-            <code className="bg-transparent p-0 text-inherit">{highlightJson(block.value)}</code>
-          </pre>
-        ) : (
-          <textarea
-            ref={textareaRef}
-            readOnly
-            value={block.value}
-            onClick={selectAndCopy}
-            style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
-            className={[
-              'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
-              isCommand ? 'pl-10' : '',
-            ].join(' ')}
-          />
-        )}
-      </div>
+      <pre
+        ref={preRef}
+        onClick={selectAndCopy}
+        className="m-0 p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words cursor-pointer"
+      >
+        <code className="block m-0 p-0 bg-transparent text-[inherit]">
+          {isCommand
+            ? block.value.split('\n').map((line, i) => (
+              <span key={i} className="block">
+                <span className="select-none text-green-400">$ </span>
+                {highlightShell(line)}
+              </span>
+            ))
+            : isJson ? highlightJson(block.value) : block.value}
+        </code>
+      </pre>
 
       <div className="p-4 pt-0 space-y-2">
         <button
