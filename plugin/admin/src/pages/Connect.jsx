@@ -248,7 +248,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
             { label: 'WP_API_URL',      value: env.WP_API_URL },
             { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
-            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD, secret: true },
           ],
           steps: [
             'Add an MCP server with the settings above',
@@ -306,7 +306,7 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
       { heading: 'Environment variables' },
       { label: 'WP_API_URL',      value: serverUrl },
       { label: 'WP_API_USERNAME', value: username },
-      { label: 'WP_API_PASSWORD', value: password },
+      { label: 'WP_API_PASSWORD', value: password, secret: true },
     ],
     steps: [
       shot('chatgpt/password-settings', 'In the ChatGPT desktop app, open <strong>Settings</strong> → <strong>Plugins</strong> → <strong>MCPs</strong>', 'Settings → Plugins → MCPs'),
@@ -635,8 +635,11 @@ function CodeContent({ block }) {
   )
 }
 
+// A field with `secret: true` (the application password) is masked until its
+// eye button is pressed; copying it always copies the real value.
 function FieldsContent({ fields }) {
   const [copied, setCopied] = useState(null) // 'label-i' | 'value-i'
+  const [revealed, setRevealed] = useState({}) // index -> shown
 
   async function copyItem(text, key) {
     const ok = await copyToClipboard(text)
@@ -665,7 +668,18 @@ function FieldsContent({ fields }) {
             </button>
           </div>
           <div className="flex items-center gap-1 px-3 py-2.5 flex-1 min-w-0">
-            <span className="flex-1 font-mono text-sm text-gray-800 truncate">{field.value}</span>
+            <span className="flex-1 font-mono text-sm text-gray-800 truncate">
+              {field.secret && !revealed[i] ? '•'.repeat(16) : field.value}
+            </span>
+            {field.secret && (
+              <button
+                onClick={() => setRevealed((r) => ({ ...r, [i]: !r[i] }))}
+                className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                aria-label={revealed[i] ? `Hide ${field.label}` : `Show ${field.label}`}
+              >
+                {revealed[i] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+            )}
             <button
               onClick={() => copyItem(field.value, `value-${i}`)}
               className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
