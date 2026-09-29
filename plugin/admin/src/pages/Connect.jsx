@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon,
+  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon, LayoutTemplate, UserRound, LayoutGrid,
 } from 'lucide-react'
 import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
@@ -443,9 +443,9 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
 const FIRST_PROMPT_STEP = {
   html: 'Write your first prompt. Try one of these:',
   prompts: [
-    'Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.',
-    'Create an About page that matches the style of my existing pages. Save it as a draft.',
-    'Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.',
+    { title: 'Landing page', Icon: LayoutTemplate, text: 'Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.' },
+    { title: 'About page', Icon: UserRound, text: 'Create an About page that matches the style of my existing pages. Save it as a draft.' },
+    { title: 'Services page', Icon: LayoutGrid, text: 'Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.' },
   ],
 }
 
@@ -935,7 +935,7 @@ function UrlField({ value }) {
   )
 }
 
-// Example prompts, each with a copy button.
+// Example prompts as cards; clicking a card copies its prompt.
 function StepPrompts({ prompts }) {
   const [copied, setCopied] = useState(null)
 
@@ -947,24 +947,27 @@ function StepPrompts({ prompts }) {
   }
 
   return (
-    <ul className="space-y-2">
-      {prompts.map((text, i) => (
-        <li key={i} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 pl-3.5 pr-1 py-1">
-          <span className="flex-1 py-1.5 text-sm text-gray-800">{text}</span>
-          <button
-            onClick={() => copy(text, i)}
-            aria-label="Copy prompt"
-            className={[
-              'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
-              copied === i ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100',
-            ].join(' ')}
-          >
-            {copied === i ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-            {copied === i ? 'Copied' : 'Copy'}
-          </button>
-        </li>
+    <div className="grid gap-3 sm:grid-cols-3">
+      {prompts.map(({ title, Icon, text }, i) => (
+        <button
+          key={i}
+          onClick={() => copy(text, i)}
+          className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-indigo-300 hover:shadow-sm"
+        >
+          <span className="flex items-center gap-2">
+            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <Icon className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-semibold text-gray-900">{title}</span>
+          </span>
+          <span className="flex-1 text-sm leading-relaxed text-gray-600">{text}</span>
+          <span className={['flex items-center gap-1.5 text-xs font-medium', copied === i ? 'text-green-600' : 'text-gray-400 group-hover:text-indigo-600'].join(' ')}>
+            {copied === i ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied === i ? 'Copied' : 'Copy prompt'}
+          </span>
+        </button>
       ))}
-    </ul>
+    </div>
   )
 }
 
