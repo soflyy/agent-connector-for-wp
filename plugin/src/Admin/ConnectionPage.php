@@ -78,7 +78,7 @@ final class ConnectionPage {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Agent Connector — Connection', 'agent-connector-for-wp' ),
+			__( 'Agent Connector: Connection', 'agent-connector-for-wp' ),
 			__( 'Connection', 'agent-connector-for-wp' ),
 			Config::CAP,
 			self::MENU_SLUG,
@@ -142,6 +142,8 @@ final class ConnectionPage {
 				'serverUrl'             => Connection::endpoint_url(),
 				'serverName'            => Connection::server_name(),
 				'siteName'              => (string) get_bloginfo( 'name' ),
+				'siteIcon'              => (string) get_site_icon_url( 512 ),
+				'assetsUrl'             => plugins_url( 'assets/', AGENT_CONNECTOR_FOR_WP_FILE ),
 				'username'              => $user instanceof \WP_User ? $user->user_login : '',
 				'pwAvailable'           => $this->pw_available( $user instanceof \WP_User ? $user : null ),
 				'uapActive'             => $this->is_uap_active(),

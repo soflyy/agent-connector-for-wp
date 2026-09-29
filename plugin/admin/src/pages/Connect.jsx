@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  MousePointer2, Bot, SquareTerminal, Bird, Rocket, Pi, Search, ChevronDown, ChevronRight,
+  MousePointer2, Bot, SquareTerminal, Bird, Rocket, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
 import { api, initial, DEMO_URL } from '../api'
+import { downloadMcpb } from '../mcpb'
 
 // On local environments the site isn't reachable over the internet, so OAuth
 // only works for agents running on the same machine (CLI tools); hosted
@@ -52,8 +53,12 @@ function isLocalEnvironment() {
 // blocks (see the `|| perAgent.other` / find('other') lookups). ChatGPT's
 // hosted connectors run in OpenAI's cloud, so it's the only fallback agent
 // without `cli`; the rest are apps on the operator's machine.
+//
+// `mcpb: true` offers a one-click MCP Bundle download (see ../mcpb.js) ahead
+// of the manual application-password instructions. `passwordOnly: true` marks
+// an entry the OAuth flow can't serve, so the method picker is skipped.
 const AGENTS = [
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', mcpb: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
   { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
   { id: 'cursor',         label: 'Cursor',          Icon: MousePointer2,   bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
@@ -62,12 +67,13 @@ const AGENTS = [
   { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,        bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
   { id: 'vscode-copilot', label: 'VS Code Copilot', Icon: VscVscode,       bg: '#e7f0fb', fg: '#0078d4', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'cline',          label: 'Cline',           Icon: Bot,             bg: '#f3e8ff', fg: '#7c3aed', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'windsurf',       label: 'Windsurf',        Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'windsurf',       label: 'Windsurf / Devin', Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'zed',            label: 'Zed',             Icon: SiZedindustries, bg: '#e8eefe', fg: '#1d4ed8', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'opencode',       label: 'OpenCode',        Icon: SquareTerminal,  bg: '#f1f5f9', fg: '#334155', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'goose',          label: 'Goose',           Icon: Bird,            bg: '#fef3c7', fg: '#b45309', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'antigravity',    label: 'Antigravity',     Icon: Rocket,          bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'pi',             label: 'Pi',              Icon: Pi,              bg: '#fdf2f8', fg: '#db2777', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'mcpb',           label: 'One-click install (.mcpb)', Icon: Package, bg: '#fff7ed', fg: '#ea580c', cli: true, passwordOnly: true, mcpb: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '', oauthVideoUrl: '' },
 ]
 
@@ -193,7 +199,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Run this in your terminal to add the server to Codex CLI. It writes to ~/.codex/config.toml automatically (Node.js required).',
           value: codexCliCmd,
           steps: [
-            'Copy the command below',
+            'Copy the command above',
             'Open your terminal and paste it',
             'Codex CLI will confirm the server was added',
           ],
@@ -209,7 +215,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             value: codexCliCmd,
             steps: [
               '<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">Install Codex CLI</a>',
-              'Copy the command below',
+              'Copy the command above',
               'Open your terminal and paste it',
             ],
           },
@@ -233,7 +239,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
               'Open Codex Desktop → <strong>Settings</strong>',
               'Click <strong>MCP Servers</strong>',
               'Click <strong>Add Server</strong>',
-              'Manually enter the MCP server settings below',
+              'Manually enter the MCP server settings above',
             ],
           },
         ],
@@ -246,7 +252,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Run this in your terminal to add the server to Claude Code (Node.js required).',
           value: claudeCodeCmd,
           steps: [
-            'Copy the command below',
+            'Copy the command above',
             'Open your terminal and paste it',
             'Claude Code will confirm the server was added',
           ],
@@ -260,9 +266,9 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
           value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
-            'Copy the JSON below',
+            'Copy the JSON above',
             'Open <code>claude_desktop_config.json</code>',
-            'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file',
+            'Merge the <code>mcpServers</code> entry into the file. Don\'t replace the whole file',
             'Save and restart Claude Desktop',
           ],
         }],
@@ -282,7 +288,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
           ],
           steps: [
-            'Add an MCP server with the settings below',
+            'Add an MCP server with the settings above',
           ],
         }],
       },
@@ -298,73 +304,231 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 // page for the admin to approve — no application password, no local proxy, no
 // Node.js. See src/OAuth/Server.php.
 
-function buildOAuth(serverName, serverUrl) {
-  // A universal copyable URL block used as the fallback for every client.
-  const urlBlock = {
-    kind: 'url', title: 'MCP Server URL',
-    value: serverUrl,
-  }
+// Screenshots for the OAuth steps, keyed by `<agent>/<step>`, as paths under
+// assets/images/connect/. A key without an entry renders a placeholder (see
+// StepScreenshot).
+const OAUTH_SCREENSHOTS = {
+  'claude-desktop/customize': 'claude-desktop/01-customize.webp',
+  'claude-desktop/connectors': 'claude-desktop/02-connectors.webp',
+  'claude-desktop/add': 'claude-desktop/03-add-custom-connector.webp',
+  'claude-desktop/name-url': 'claude-desktop/04-name-and-url.webp',
+  'claude-desktop/options': 'claude-desktop/05-add.webp',
+  'claude-desktop/connect': 'claude-desktop/06-connect.webp',
+  'claude-desktop/authorize': 'claude-desktop/07-authorize.webp',
+  'claude-desktop/connected': 'claude-desktop/08-connected.webp',
+}
 
-  // `add --transport http` registers the remote server; `login` runs the OAuth
-  // sign-in up front, so the first tool call just works instead of stopping to
+// A step with a screenshot under it; `extra` adds step fields such as `copy`.
+function shot(key, html, alt, extra = {}) {
+  const path = OAUTH_SCREENSHOTS[key]
+  return { html, screenshot: { src: path ? `${initial.assetsUrl}images/connect/${path}` : '', alt }, ...extra }
+}
+
+// The final step most clients share: this site's own consent page.
+const authorizeStep = (lead) => shot('authorize', `${lead}, log in if asked, and click <strong>Authorize</strong>`, 'This site\'s Authorize page')
+
+// Instructions as of September 2026. Clients move these menus often; when one
+// changes, update its entry here (and its screenshots).
+function buildOAuth(serverName, serverUrl) {
+  // Blocks for clients configured by pasting the URL: it's shown at the top
+  // and again inside the step that says to paste it (`copy`).
+  const guide = { kind: 'url', title: 'MCP Server URL', value: serverUrl }
+  const withUrl = { copy: serverUrl }
+
+  // `--transport http` is Streamable HTTP. `login` runs the OAuth sign-in up
+  // front, so the first tool call just works instead of stopping to
   // authenticate.
   const claudeCodeHttp = [
-    `claude mcp add --transport streamable-http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
+    `claude mcp add --transport http --scope user ${shellArg(serverName)} ${shellArg(serverUrl)}`,
     `claude mcp login ${shellArg(serverName)}`,
   ].join('\n')
 
-  // `--url` registers a remote (Streamable HTTP) server; Codex handles the
-  // OAuth sign-in itself from there.
+  // `--url` registers a remote (Streamable HTTP) server; Codex detects OAuth
+  // and starts the sign-in itself.
   const codexCliHttp = `codex mcp add ${shellArg(serverName)} --url ${shellArg(serverUrl)}`
 
-  // VS Code and Cursor accept a remote server described by a bare { url } entry.
-  const vscodeRemote = JSON.stringify({ name: serverName, url: serverUrl })
-  const vscodeRemoteCLI = 'code --add-mcp ' + shellArg(vscodeRemote)
-  const cursorRemote = btoa(JSON.stringify({ url: serverUrl }))
-  const cursorRemoteDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorRemote)}`
+  const geminiHttp = `gemini mcp add --transport http --scope user ${shellArg(serverName)} ${shellArg(serverUrl)}`
+
+  // VS Code takes { name, type: 'http', url }; Cursor's install link carries
+  // only the inner server entry, base64-encoded.
+  const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(JSON.stringify({ name: serverName, type: 'http', url: serverUrl }))
+  const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(btoa(JSON.stringify({ url: serverUrl })))}`
+
+  const json = (value) => JSON.stringify(value, null, 2)
 
   const perAgent = {
     'claude-desktop': [{
-      ...urlBlock,
+      ...guide,
       steps: [
-        'Open Claude → <strong>Settings</strong> → <strong>Connectors</strong>',
-        'Click <strong>Add custom connector</strong>',
-        'Paste the MCP Server URL below and click <strong>Add</strong>',
-        'When Claude opens the sign-in page, log in and click <strong>Authorize</strong>',
+        shot('claude-desktop/customize', 'In Claude, click <strong>Customize</strong> in the sidebar', 'Customize in the Claude sidebar'),
+        shot('claude-desktop/connectors', 'Open the <strong>Connectors</strong> tab', 'Connectors tab'),
+        shot('claude-desktop/add', 'Click <strong>Add</strong>, then <strong>Add custom connector</strong>', 'Add custom connector menu'),
+        shot('claude-desktop/name-url', 'Enter a name for your site, paste the MCP Server URL, and click <strong>Continue</strong>', 'Name and MCP server URL fields', withUrl),
+        shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
+        shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
+        shot('claude-desktop/authorize', 'Your browser opens this site: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
+        shot('claude-desktop/connected', 'Done. Back in Claude, your site is connected and you can choose which tools need your approval', 'Connected site with tool permissions'),
       ],
+    }],
+    'chatgpt': [{
+      ...guide,
+      hint: 'Needs a paid plan with <strong>Developer mode</strong>, on chatgpt.com. On Business and Enterprise, an admin may need to enable it for you.',
+      steps: [
+        shot('chatgpt/developer-mode', 'Open <strong>Settings</strong> → <strong>Security and login</strong> and turn on <strong>Developer mode</strong>', 'Developer mode toggle'),
+        shot('chatgpt/plugins', 'Go to <strong>Plugins</strong> and click <strong>+</strong> to create an MCP app', 'Plugins → +'),
+        shot('chatgpt/form', 'Enter a name, paste the MCP Server URL, and set <strong>Authentication</strong> to <strong>OAuth</strong>', 'New app form', withUrl),
+        authorizeStep('Click <strong>Create</strong>. When the sign-in page opens'),
+        shot('chatgpt/use', 'In a chat, click <strong>+</strong> → <strong>Developer mode</strong> and pick the app', 'Selecting the app in a chat'),
+      ],
+    }],
+    'codex-desktop': [{
+      ...guide,
+      hint: 'Codex Desktop is now part of the ChatGPT desktop app. Servers added here also show up in Codex CLI.',
+      steps: [
+        shot('codex-desktop/settings', 'In the ChatGPT desktop app, open <strong>Settings</strong> → <strong>MCP servers</strong>', 'Settings → MCP servers'),
+        shot('codex-desktop/add', 'Click <strong>Add server</strong>, enter a name, and choose <strong>Streamable HTTP</strong>', 'Add server form'),
+        shot('codex-desktop/url', 'Paste the MCP Server URL, save, then click <strong>Restart</strong>', 'Server URL and Restart', withUrl),
+        shot('codex-desktop/authenticate', 'Click <strong>Authenticate</strong> next to the server', 'Authenticate button'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'cursor': [{
+      kind: 'deeplink', title: 'One-click install', button: 'Add to Cursor',
+      value: cursorDeeplink,
+      steps: [
+        shot('cursor/install', 'Click <strong>Add to Cursor</strong> above and confirm <strong>Install</strong> in Cursor', 'Cursor install prompt'),
+        shot('cursor/connect', 'In <strong>Customize</strong> → <strong>MCPs</strong>, click <strong>Authenticate</strong> on the server', 'Customize → MCPs → Authenticate'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }, {
+      kind: 'json', title: 'Or add it by hand',
+      hint: 'Add this to <code>~/.cursor/mcp.json</code>, restart Cursor, then click <strong>Authenticate</strong> in <strong>Customize</strong> → <strong>MCPs</strong>.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
     }],
     'claude-code': [{
       kind: 'command', title: 'Terminal commands',
       value: claudeCodeHttp,
       steps: [
-        'Copy both commands below',
+        'Copy both commands above',
         'Open your terminal and run them in order',
-        'The second command opens your browser: sign in and click <strong>Authorize</strong>',
+        authorizeStep('The second command opens this site in your browser'),
       ],
     }],
     'codex-cli': [{
       kind: 'command', title: 'Terminal command',
       value: codexCliHttp,
       steps: [
-        'Copy the command below',
+        'Copy the command above',
         'Open your terminal and paste it',
-        'When Codex opens the sign-in page, log in and click <strong>Authorize</strong>',
+        authorizeStep(`Codex opens this site in your browser (if it doesn't, run <code>codex mcp login ${serverName}</code>)`),
       ],
     }],
-    'codex-desktop': [{
-      ...urlBlock,
+    'gemini-cli': [{
+      kind: 'command', title: 'Terminal command',
+      value: geminiHttp,
       steps: [
-        'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
-        'Click <strong>Add Server</strong> and choose the remote / URL option',
-        'Paste the MCP Server URL below',
-        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+        'Copy the command above and run it in your terminal',
+        `Start <code>gemini</code> and run <code>/mcp auth ${serverName}</code>`,
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'vscode-copilot': [{
+      kind: 'deeplink', title: 'One-click install', button: 'Add to VS Code',
+      value: vscodeDeeplink,
+      steps: [
+        shot('vscode/install', 'Click <strong>Add to VS Code</strong> above and click <strong>Install</strong> on the server page', 'VS Code server Install page'),
+        shot('vscode/allow', 'When VS Code says the server wants to authenticate, click <strong>Allow</strong>', 'Authentication prompt'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }, {
+      ...guide, title: 'Or add it by hand',
+      steps: [
+        shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
+        shot('vscode/http', 'Choose <strong>HTTP</strong>, paste the MCP Server URL, and give it a name', 'Server URL prompt', withUrl),
+        'Choose <strong>Global</strong> to use it in every workspace, then allow the sign-in as above',
+      ],
+    }],
+    'cline': [{
+      ...guide,
+      steps: [
+        shot('cline/customize', 'In the Cline panel, click <strong>Customize</strong> (the wrench), then the <strong>MCP</strong> tab', 'Customize → MCP'),
+        shot('cline/add', 'Click <strong>Add Remote Server</strong>, enter a name, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>', 'Add Remote Server form', withUrl),
+        shot('cline/authenticate', 'Click <strong>Add Server</strong>, then <strong>Authenticate</strong> on the server', 'Authenticate button'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'windsurf': [{
+      kind: 'json', title: 'MCP config',
+      hint: 'Windsurf is now Devin Desktop. Add this to <code>~/.config/devin/mcp_config.json</code>, merging it with any servers already there.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
+      steps: [
+        'Copy the JSON above into <code>~/.config/devin/mcp_config.json</code> and save',
+        shot('windsurf/customizations', 'In Devin Desktop, open <strong>Open customizations</strong> from the new-tab menu', 'Customizations → MCP servers'),
+        shot('windsurf/authenticate', 'If the server says <strong>Needs auth</strong>, click <strong>Authenticate</strong>', 'Authenticate button'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'zed': [{
+      ...guide,
+      steps: [
+        shot('zed/settings', 'Open <strong>Settings</strong> → <strong>AI</strong> → <strong>MCP Servers</strong>', 'Settings → AI → MCP Servers'),
+        shot('zed/add', 'Click <strong>Add Server</strong> → <strong>Add Remote Server</strong> and paste the MCP Server URL', 'Add Remote Server', withUrl),
+        shot('zed/authenticate', 'Click <strong>Authenticate</strong> on the server', 'Authenticate button'),
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'opencode': [{
+      kind: 'json', title: 'opencode.json',
+      hint: 'Add this to your project\'s <code>opencode.json</code>, or to <code>~/.config/opencode/opencode.json</code> for every project.',
+      value: json({ $schema: 'https://opencode.ai/config.json', mcp: { [serverName]: { type: 'remote', url: serverUrl, enabled: true } } }),
+      steps: [
+        'Copy the JSON above into <code>opencode.json</code>, merging it with anything already there',
+        `Run <code>opencode mcp auth ${serverName}</code> in your terminal`,
+        authorizeStep('Your browser opens this site'),
+      ],
+    }],
+    'goose': [{
+      ...guide,
+      steps: [
+        shot('goose/extensions', 'In Goose, open the sidebar and click <strong>Extensions</strong> → <strong>Add custom extension</strong>', 'Extensions → Add custom extension'),
+        shot('goose/form', 'Enter a name, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>', 'Custom extension form', withUrl),
+        authorizeStep('Click <strong>Add Extension</strong>. When your browser opens this site'),
+      ],
+    }],
+    'antigravity': [{
+      kind: 'json', title: 'mcp_config.json',
+      hint: 'Antigravity needs <code>serverUrl</code> (not <code>url</code>). Merge this with any servers already in the file.',
+      value: json({ mcpServers: { [serverName]: { serverUrl } } }),
+      steps: [
+        shot('antigravity/manage', 'In the agent panel, click <strong>…</strong> → <strong>MCP Servers</strong> → <strong>Manage MCP Servers</strong> → <strong>View raw config</strong>', 'Manage MCP Servers → View raw config'),
+        'Paste the JSON above into the file and save',
+        shot('antigravity/authenticate', 'Open <strong>Agent Settings</strong> → <strong>Customizations</strong> and click <strong>Authenticate</strong> next to the server', 'Customizations → Authenticate'),
+        authorizeStep('In your browser, sign in to this site'),
+        shot('antigravity/code', 'Copy the code shown, paste it back in Antigravity, and click <strong>Submit</strong>', 'Pasting the authorization code'),
+      ],
+    }],
+    'pi': [{
+      kind: 'command', title: 'Install MCP support',
+      hint: 'Pi has no built-in MCP support; the community <code>pi-mcp-adapter</code> extension adds it.',
+      value: 'pi install npm:pi-mcp-adapter',
+      steps: [
+        'Run the command above, then restart Pi',
+      ],
+    }, {
+      kind: 'json', title: 'MCP config',
+      hint: 'Add this to <code>~/.config/mcp/mcp.json</code>, merging it with any servers already there.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl, auth: 'oauth' } } }),
+      steps: [
+        'Copy the JSON above into <code>~/.config/mcp/mcp.json</code> and save',
+        `In Pi, run <code>/mcp-auth ${serverName}</code>`,
+        authorizeStep('Your browser opens this site'),
       ],
     }],
     'other': [{
-      ...urlBlock,
+      ...guide,
       steps: [
-        'Add a remote (Streamable HTTP) MCP server with the URL below',
-        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+        { html: 'Add a remote (Streamable HTTP) MCP server with this URL', ...withUrl },
+        authorizeStep('When prompted, open the sign-in page'),
       ],
     }],
   }
@@ -372,7 +536,6 @@ function buildOAuth(serverName, serverUrl) {
   return {
     url: serverUrl,
     agents: AGENTS.map((a) => ({ id: a.id, label: a.label, blocks: perAgent[a.id] || perAgent.other })),
-    extras: { vscodeRemoteCLI, cursorRemoteDeeplink },
   }
 }
 
@@ -462,7 +625,7 @@ function CodeContent({ block }) {
         </button>
         {copyFailed && (
           <p className="text-center text-xs text-gray-400">
-            Clipboard unavailable — text is selected, press <strong className="text-gray-300">Ctrl+C</strong> / <strong className="text-gray-300">⌘C</strong> to copy
+            Clipboard unavailable. The text is selected, so press <strong className="text-gray-300">Ctrl+C</strong> / <strong className="text-gray-300">⌘C</strong> to copy
           </p>
         )}
       </div>
@@ -515,8 +678,106 @@ function FieldsContent({ fields }) {
   )
 }
 
+// Builds the .mcpb in the browser on click (block.value holds its params).
+function McpbContent({ block }) {
+  const [state, setState] = useState('idle') // 'idle' | 'building' | 'done' | 'error'
+
+  async function download() {
+    setState('building')
+    try {
+      await downloadMcpb(block.value)
+      setState('done')
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={download}
+        disabled={state === 'building'}
+        className={[
+          'w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold text-white transition-all disabled:opacity-60',
+          state === 'done' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-500',
+        ].join(' ')}
+      >
+        {state === 'done' ? <Check className="w-5 h-5" /> : state === 'building' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+        {state === 'done' ? 'Downloaded. Download again' : block.button}
+      </button>
+      {state === 'error' && (
+        <p className="text-center text-sm text-red-600">Couldn't build the file. Please try again.</p>
+      )}
+    </div>
+  )
+}
+
+// A URL in a light, input-like field with a copy button. The host is
+// emphasized so the site is easy to recognize at a glance.
+function UrlField({ value }) {
+  const [copied, setCopied] = useState(false)
+  const m = /^(\w+:\/\/)([^/]*)(.*)$/.exec(value) || ['', '', value, '']
+
+  async function copy() {
+    if (await copyToClipboard(value)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 pl-3.5 pr-1 py-1">
+      <code className="flex-1 min-w-0 truncate font-mono text-sm text-gray-500 bg-transparent p-0 m-0">
+        {m[1]}<span className="text-gray-900">{m[2]}</span>{m[3]}
+      </code>
+      <button
+        onClick={copy}
+        aria-label="Copy MCP Server URL"
+        className={[
+          'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+          copied ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100',
+        ].join(' ')}
+      >
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
+// A step's screenshot, or a placeholder until its src is set. Every one sits
+// centered in a frame with the same minimum height, so small and large
+// captures read as one set; a tall capture grows its frame rather than
+// shrinking to unreadable.
+// Screenshots are 2x (retina) captures, so they're shown at no more than half
+// their pixel width.
+function StepScreenshot({ screenshot }) {
+  const [maxWidth, setMaxWidth] = useState(null)
+  return (
+    <div className="flex items-center justify-center min-h-[350px] rounded-xl bg-gray-100 p-6">
+      {screenshot.src ? (
+        <img
+          src={screenshot.src}
+          alt={screenshot.alt}
+          loading="lazy"
+          onLoad={(e) => setMaxWidth(e.currentTarget.naturalWidth / 2)}
+          style={maxWidth ? { maxWidth: `min(100%, ${maxWidth}px)` } : undefined}
+          className="w-auto h-auto max-w-full rounded-lg shadow-md"
+        />
+      ) : (
+        <span className="flex items-center gap-2 text-xs text-gray-400">
+          <ImageIcon className="w-4 h-4" />
+          Screenshot: {screenshot.alt}
+        </span>
+      )}
+    </div>
+  )
+}
+
 function Block({ block, videoUrl }) {
-  const titleIcon = block.kind === 'command'
+  const titleIcon = block.kind === 'mcpb'
+    ? <Package className="w-4 h-4" />
+    : block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
     : block.kind === 'json'
     ? <FileCode className="w-4 h-4" />
@@ -528,19 +789,50 @@ function Block({ block, videoUrl }) {
     ? <Settings className="w-4 h-4" />
     : <MessageSquare className="w-4 h-4" />
 
+  // What to copy or click comes first; the instructions follow it.
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      {/* Steps — top gray section */}
+      <div className="p-6 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <span className="text-gray-400">{titleIcon}</span>
+          {block.title}
+        </div>
+        {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
+
+        {block.kind === 'url' ? (
+          <UrlField value={block.value} />
+        ) : block.kind === 'deeplink' ? (
+          <a
+            href={block.value}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
+          >
+            <ExternalLink className="w-5 h-5" />
+            {block.button || block.title}
+          </a>
+        ) : block.kind === 'fields' ? (
+          <FieldsContent fields={block.value} />
+        ) : block.kind === 'mcpb' ? (
+          <McpbContent block={block} />
+        ) : (
+          <CodeContent block={block} />
+        )}
+      </div>
+
       {block.steps?.length > 0 && (
-        <div className="bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{block.stepsTitle || 'How to install'}</p>
-          <ol className="space-y-2">
+        <div className="border-t border-gray-100 px-6 py-5 space-y-4">
+          <p className="text-sm font-medium text-gray-500">{block.stepsTitle || 'How to install'}</p>
+          <ol className="space-y-5">
             {block.steps.map((step, i) => (
               <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
                   {i + 1}
                 </span>
-                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
+                {/* A step is an HTML string, or { html, copy, screenshot } to add a copyable URL and an image under it. */}
+                <div className="flex-1 min-w-0 space-y-3 pt-0.5">
+                  <p className="text-base text-gray-700" dangerouslySetInnerHTML={{ __html: typeof step === 'string' ? step : step.html }} />
+                  {step.copy && <UrlField value={step.copy} />}
+                  {step.screenshot && <StepScreenshot screenshot={step.screenshot} />}
+                </div>
               </li>
             ))}
           </ol>
@@ -557,29 +849,6 @@ function Block({ block, videoUrl }) {
           )}
         </div>
       )}
-
-      {/* Content — bottom white section */}
-      <div className="border-t border-gray-100 p-6 space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-          {titleIcon}
-          {block.title}
-        </div>
-        {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
-
-        {block.kind === 'deeplink' ? (
-          <a
-            href={block.value}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
-          >
-            <ExternalLink className="w-5 h-5" />
-            {block.button || block.title}
-          </a>
-        ) : block.kind === 'fields' ? (
-          <FieldsContent fields={block.value} />
-        ) : (
-          <CodeContent block={block} />
-        )}
-      </div>
     </div>
   )
 }
@@ -774,7 +1043,7 @@ function GeneratedPasswordNotice({ password }) {
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
         <span className="font-medium text-green-800">App password created</span>
-        <span className="text-green-600 hidden sm:inline">— store it somewhere safe; it won't be shown again.</span>
+        <span className="text-green-600 hidden sm:inline">Store it somewhere safe; it won't be shown again.</span>
         <button
           onClick={() => setOpen((o) => !o)}
           className="ml-auto flex items-center gap-1.5 text-green-700 hover:text-green-900 font-medium transition-colors"
@@ -806,7 +1075,7 @@ function GeneratedPasswordNotice({ password }) {
           </div>
           {copyFailed && (
             <p className="text-xs text-gray-500">
-              Clipboard unavailable — text is selected, press <strong>Ctrl+C</strong> / <strong>⌘C</strong> to copy
+              Clipboard unavailable. The text is selected, so press <strong>Ctrl+C</strong> / <strong>⌘C</strong> to copy
             </p>
           )}
         </div>
@@ -830,6 +1099,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
   const [error, setError] = useState(null)
   const [generatedPassword, setGeneratedPassword] = useState(null)
   const [connection, setConnection] = useState(null)
+  const [showManual, setShowManual] = useState(false)
 
   async function handleGenerate() {
     setGenerating(true)
@@ -860,15 +1130,51 @@ function AppPasswordFlow({ selectedAgent, status }) {
   const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
     ?? connection?.agents?.find((a) => a.id === 'other')
 
+  // The .mcpb is built client-side from whichever password is in play, so it
+  // works for both the generated (server-built) and existing paths.
+  let blocks = agentData?.blocks ?? []
+  let manualBlocks = []
+  if (connection && agentMeta.mcpb) {
+    const mcpbBlock = {
+      kind: 'mcpb', title: 'One-click install',
+      hint: 'Download the file below and double click it. This file includes your application password, so keep it private.',
+      button: 'Download .mcpb file',
+      value: {
+        serverName: initial.serverName,
+        serverUrl: initial.serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        username: connection.username ?? initial.username,
+        password: generatedPassword ?? existingPw,
+      },
+    }
+    // The agent's own instructions (Claude Desktop's JSON config) stay
+    // available behind the "Or install manually" toggle.
+    manualBlocks = agentMeta.id === 'mcpb' ? [] : blocks
+    blocks = [mcpbBlock]
+  }
+
   if (connection) {
     return (
       <div className="space-y-6">
         {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
         <div className="space-y-6">
-          {agentData?.blocks?.length
-            ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
+          {blocks.length
+            ? blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
             : <p className="text-base text-gray-400">No configuration available for this agent.</p>
           }
+          {manualBlocks.length > 0 && (
+            <div className="space-y-6">
+              <button
+                onClick={() => setShowManual((v) => !v)}
+                className="flex items-center gap-2 text-base font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                {showManual ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                Or install manually
+              </button>
+              {showManual && manualBlocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -944,7 +1250,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
         </div>
         <div>
           <h2 className="text-xl font-bold text-gray-900">Use an existing password</h2>
-          <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally — never sent to the server.</p>
+          <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally and never sent to the server.</p>
         </div>
       </div>
 
@@ -983,13 +1289,13 @@ const AUTH_METHODS = [
     id: 'oauth',
     label: 'OAuth',
     Icon: ShieldCheck,
-    description: 'The agent signs in to this site and you approve access. No password to copy, no proxy to install.',
+    description: 'Sign in and approve access. No password needed.',
   },
   {
     id: 'password',
     label: 'Application Password',
     Icon: KeyRound,
-    description: 'Authenticate with a WordPress application password through a local proxy (Node.js required).',
+    description: 'Use a WordPress application password.',
   },
 ]
 
@@ -1042,7 +1348,10 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
-  const [method, setMethod] = useState(localCaveat ? 'password' : 'oauth')
+  // An agent the OAuth flow can't serve (the .mcpb entry) goes straight to
+  // the application password, with no method picker.
+  const passwordOnly = !!agentMeta.passwordOnly
+  const [method, setMethod] = useState(passwordOnly || localCaveat ? 'password' : 'oauth')
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -1055,24 +1364,21 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-        <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
-      </div>
+      {!passwordOnly && (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
+          <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
+        </div>
+      )}
 
       {method === 'oauth' ? (
         <div className="space-y-4">
-          <p className="text-base text-gray-500">
-            Connect over OAuth: the agent signs in to this site and you approve access. No password to copy, no proxy to install.
-          </p>
           {localCaveat && (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
-                This site runs in a local environment, so OAuth may not work: it can't be reached
-                over the internet, which hosted agents need to complete the sign-in. Agents running
-                on this computer (like CLI tools) can usually connect fine. If OAuth fails, use an
-                application password instead.
+                This site is local, so the agent may not be able to reach it to sign in. If OAuth
+                fails, use an application password instead.
               </span>
             </div>
           )}
@@ -1085,9 +1391,11 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-base text-gray-500">
-            Authenticate with a WordPress application password. The agent connects through a local <code>npx</code> proxy, so Node.js is required.
-          </p>
+          {!agentMeta.mcpb && (
+            <p className="text-base text-gray-500">
+              Authenticate with a WordPress application password. The agent connects through a local <code>npx</code> proxy, so Node.js is required.
+            </p>
+          )}
           <AppPasswordFlow selectedAgent={selectedAgent} status={status} />
         </div>
       )}
