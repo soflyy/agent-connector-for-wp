@@ -391,47 +391,6 @@ final class Connection {
 				),
 			),
 			array(
-				'id'     => 'chatgpt',
-				'label'  => __( 'ChatGPT', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server automatically (Node.js required).', 'agent-connector-for-wp' ),
-						'value' => self::codex_cli( $name, $env ),
-						'steps' => array(
-							'<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">' . __( 'Install Codex CLI', 'agent-connector-for-wp' ) . '</a>',
-							__( 'Copy the command above', 'agent-connector-for-wp' ),
-							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
-						),
-					),
-					array(
-						'kind'       => 'fields',
-						'title'      => __( 'MCP server settings', 'agent-connector-for-wp' ),
-						'hint'       => null,
-						'noVideo'    => true,
-						'stepsTitle' => __( 'Manual install', 'agent-connector-for-wp' ),
-						'value'      => array(
-							array( 'label' => 'Transport',       'value' => 'STDIO' ),
-							array( 'label' => 'Name',            'value' => $name ),
-							array( 'label' => 'Command',         'value' => 'npx' ),
-							array( 'label' => 'Argument 1',      'value' => '-y' ),
-							array( 'label' => 'Argument 2',      'value' => self::PROXY_PACKAGE . '@latest' ),
-							array( 'heading' => __( 'Environment Variables', 'agent-connector-for-wp' ) ),
-							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
-							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
-							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
-						),
-						'steps'      => array(
-							__( 'Open the ChatGPT desktop app → <strong>Settings</strong>', 'agent-connector-for-wp' ),
-							__( 'Click <strong>MCP Servers</strong>', 'agent-connector-for-wp' ),
-							__( 'Click <strong>Add Server</strong>', 'agent-connector-for-wp' ),
-							__( 'Manually enter the MCP server settings above', 'agent-connector-for-wp' ),
-						),
-					),
-				),
-			),
-			array(
 				'id'     => 'claude-code',
 				'label'  => __( 'Claude Code CLI', 'agent-connector-for-wp' ),
 				'blocks' => array(

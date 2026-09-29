@@ -62,7 +62,7 @@ function isLocalEnvironment() {
 // an entry the OAuth flow can't serve, so the method picker is skipped.
 const AGENTS = [
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', mcpb: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
-  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
+  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
   { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
@@ -208,45 +208,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         }],
       },
       {
-        id: 'chatgpt',
-        label: 'ChatGPT',
-        blocks: [
-          {
-            kind: 'command', title: 'Terminal command',
-            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
-            value: codexCliCmd,
-            steps: [
-              '<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">Install Codex CLI</a>',
-              'Copy the command above',
-              'Open your terminal and paste it',
-            ],
-          },
-          {
-            kind: 'fields', title: 'MCP server settings',
-            hint: null,
-            noVideo: true,
-            stepsTitle: 'Manual install',
-            value: [
-              { label: 'Transport',       value: 'STDIO' },
-              { label: 'Name',            value: serverName },
-              { label: 'Command',         value: 'npx' },
-              { label: 'Argument 1',      value: '-y' },
-              { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
-              { heading: 'Environment Variables' },
-              { label: 'WP_API_URL',      value: env.WP_API_URL },
-              { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
-              { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
-            ],
-            steps: [
-              'Open the ChatGPT desktop app → <strong>Settings</strong>',
-              'Click <strong>MCP Servers</strong>',
-              'Click <strong>Add Server</strong>',
-              'Manually enter the MCP server settings above',
-            ],
-          },
-        ],
-      },
-      {
         id: 'claude-code',
         label: 'Claude Code CLI',
         blocks: [{
@@ -306,10 +267,10 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 // page for the admin to approve — no application password, no local proxy, no
 // Node.js. See src/OAuth/Server.php.
 
-// Screenshots for the OAuth steps, keyed by `<agent>/<step>`, as paths under
+// Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
 // assets/images/connect/. A key without an entry renders a placeholder (see
 // StepScreenshot).
-const OAUTH_SCREENSHOTS = {
+const STEP_SCREENSHOTS = {
   'claude-desktop/customize': 'claude-desktop/01-customize.webp',
   'claude-desktop/connectors': 'claude-desktop/02-connectors.webp',
   'claude-desktop/add': 'claude-desktop/03-add-custom-connector.webp',
@@ -323,11 +284,42 @@ const OAUTH_SCREENSHOTS = {
   'chatgpt/form': 'chatgpt/03-form.webp',
   'chatgpt/continue': 'chatgpt/04-continue.webp',
   'chatgpt/authorize': 'chatgpt/05-authorize.webp',
+  'chatgpt/password-settings': 'chatgpt/password-01-settings-mcps.webp',
+  'chatgpt/password-add': 'chatgpt/password-02-add-mcp-server.webp',
+  'chatgpt/password-command': 'chatgpt/password-03-command.webp',
+  'chatgpt/password-env': 'chatgpt/password-04-env-save.webp',
+}
+
+// ChatGPT's application-password setup: its own "Connect to a custom MCP"
+// form, running the same stdio proxy as the other password paths. ChatGPT's
+// Create MCP App (the OAuth path) can't send a password, so this is the only
+// way there. Built here rather than server-side so it can carry screenshots.
+function chatgptPasswordBlock({ name, serverUrl, username, password }) {
+  return {
+    kind: 'fields', title: 'MCP server settings', noVideo: true,
+    value: [
+      { label: 'Name',            value: name },
+      { label: 'Type',            value: 'STDIO' },
+      { label: 'Command',         value: 'npx' },
+      { label: 'Argument 1',      value: '-y' },
+      { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
+      { heading: 'Environment variables' },
+      { label: 'WP_API_URL',      value: serverUrl },
+      { label: 'WP_API_USERNAME', value: username },
+      { label: 'WP_API_PASSWORD', value: password },
+    ],
+    steps: [
+      shot('chatgpt/password-settings', 'In the ChatGPT desktop app, open <strong>Settings</strong> → <strong>Plugins</strong> → <strong>MCPs</strong>', 'Settings → Plugins → MCPs'),
+      shot('chatgpt/password-add', 'Click <strong>Add</strong>, then <strong>Add MCP server</strong>', 'Add → Add MCP server'),
+      shot('chatgpt/password-command', 'Enter the name, keep <strong>Type</strong> on <strong>STDIO</strong>, and add the command and both arguments from above', 'Name, type, command and arguments'),
+      shot('chatgpt/password-env', 'Add the three environment variables from above and click <strong>Save</strong>', 'Environment variables and Save'),
+    ],
+  }
 }
 
 // A step with a screenshot under it; `extra` adds step fields such as `copy`.
 function shot(key, html, alt, extra = {}) {
-  const path = OAUTH_SCREENSHOTS[key]
+  const path = STEP_SCREENSHOTS[key]
   return { html, screenshot: { src: path ? `${initial.assetsUrl}images/connect/${path}` : '', alt }, ...extra }
 }
 
@@ -1129,6 +1121,14 @@ function AppPasswordFlow({ selectedAgent, status }) {
   // works for both the generated (server-built) and existing paths.
   let blocks = agentData?.blocks ?? []
   let manualBlocks = []
+  if (connection && agentMeta.id === 'chatgpt') {
+    blocks = [chatgptPasswordBlock({
+      name: initial.siteName || initial.serverName,
+      serverUrl: initial.serverUrl,
+      username: connection.username ?? initial.username,
+      password: generatedPassword ?? existingPw,
+    })]
+  }
   if (connection && agentMeta.mcpb) {
     const mcpbBlock = {
       kind: 'mcpb', title: 'One-click install',
