@@ -562,11 +562,39 @@ async function copyToClipboard(text, el) {
 }
 
 
+// JSON split into colored spans: keys, string values, literals (numbers,
+// true/false/null) and punctuation. Whitespace and anything unmatched is
+// kept as plain text, so the rendered text is exactly the source.
+const JSON_TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}[\],:])/g
+
+function highlightJson(text) {
+  const out = []
+  let last = 0
+  for (const m of text.matchAll(JSON_TOKEN)) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    const [, str, colon, literal, number, punct] = m
+    if (str && colon) {
+      out.push(<span key={m.index} className="text-sky-300">{str}</span>, <span key={m.index + 'c'} className="text-gray-500">{colon}</span>)
+    } else if (str) {
+      out.push(<span key={m.index} className="text-emerald-300">{str}</span>)
+    } else if (literal || number) {
+      out.push(<span key={m.index} className="text-violet-300">{literal || number}</span>)
+    } else {
+      out.push(<span key={m.index} className="text-gray-500">{punct}</span>)
+    }
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return out
+}
+
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
   const textareaRef = useRef(null)
+  const preRef = useRef(null)
   const isCommand = block.kind === 'command'
+  const isJson = block.kind === 'json'
 
   useEffect(() => {
     const el = textareaRef.current
@@ -582,6 +610,13 @@ function CodeContent({ block }) {
       setCopyFailed(false)
       setTimeout(() => setCopied(false), 2000)
     } else {
+      // Leave the text selected so the fallback message below is true.
+      if (preRef.current) {
+        const range = document.createRange()
+        range.selectNodeContents(preRef.current)
+        window.getSelection()?.removeAllRanges()
+        window.getSelection()?.addRange(range)
+      }
       setCopyFailed(true)
       setTimeout(() => setCopyFailed(false), 8000)
     }
@@ -601,17 +636,27 @@ function CodeContent({ block }) {
         {isCommand && (
           <span className="absolute left-4 top-4 text-green-400 font-mono text-sm select-none pointer-events-none">$&nbsp;</span>
         )}
-        <textarea
-          ref={textareaRef}
-          readOnly
-          value={block.value}
-          onClick={selectAndCopy}
-          style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
-          className={[
-            'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
-            isCommand ? 'pl-10' : '',
-          ].join(' ')}
-        />
+        {isJson ? (
+          <pre
+            ref={preRef}
+            onClick={selectAndCopy}
+            className="m-0 p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words cursor-pointer"
+          >
+            <code className="bg-transparent p-0 text-inherit">{highlightJson(block.value)}</code>
+          </pre>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            readOnly
+            value={block.value}
+            onClick={selectAndCopy}
+            style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
+            className={[
+              'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
+              isCommand ? 'pl-10' : '',
+            ].join(' ')}
+          />
+        )}
       </div>
 
       <div className="p-4 pt-0 space-y-2">
