@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9b814200deeda4b1fd05c72c403eccf9",
+    "content-hash": "06501a82d0146e8acbb2413037ebee24",
     "packages": [
         {
             "name": "automattic/jetpack-autoloader",
@@ -72,52 +72,47 @@
         },
         {
             "name": "wordpress/mcp-adapter",
-            "version": "v0.5.0",
+            "version": "v0.6.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/WordPress/mcp-adapter.git",
-                "reference": "7bfc49f46b3ea7544dded49d5a606089f825a80b"
+                "url": "https://github.com/WordPress/mcp-adapter",
+                "reference": "23cb53e0b82f39238eec1c38cb055e28aa30fa7c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WordPress/mcp-adapter/zipball/7bfc49f46b3ea7544dded49d5a606089f825a80b",
-                "reference": "7bfc49f46b3ea7544dded49d5a606089f825a80b",
+                "url": "https://api.github.com/repos/WordPress/mcp-adapter/zipball/23cb53e0b82f39238eec1c38cb055e28aa30fa7c",
+                "reference": "23cb53e0b82f39238eec1c38cb055e28aa30fa7c",
                 "shasum": ""
             },
             "require": {
+                "automattic/jetpack-autoloader": "^5.0",
                 "ext-json": "*",
                 "php": "^7.4 || ^8.0",
                 "wordpress/php-mcp-schema": "^0.1.0"
             },
             "require-dev": {
-                "automattic/vipwpcs": "^3.0",
+                "automattic/vipwpcs": "^3.1",
                 "php-stubs/wordpress-stubs": "^6.9",
                 "php-stubs/wp-cli-stubs": "^2.12",
-                "phpcompatibility/php-compatibility": "10.x-dev as 9.99.99",
-                "phpcompatibility/phpcompatibility-wp": "^2.1",
+                "phpcompatibility/phpcompatibility-wp": "^3.0.0-alpha",
                 "phpstan/extension-installer": "^1.3",
-                "phpstan/php-8-stubs": "^0.4.24",
-                "phpstan/phpstan": "^2.1.22",
-                "phpstan/phpstan-deprecation-rules": "^2.0.3",
+                "phpstan/php-8-stubs": "^0.4.36",
+                "phpstan/phpstan": "^2.2.6",
+                "phpstan/phpstan-deprecation-rules": "^2.0.5",
                 "phpunit/phpunit": "^9.6",
                 "slevomat/coding-standard": "^8.0",
                 "szepeviktor/phpstan-wordpress": "^2.0",
-                "wp-phpunit/wp-phpunit": "^6.5",
-                "wpackagist-plugin/plugin-check": "^1.6",
+                "wp-phpunit/wp-phpunit": "^7.0",
                 "yoast/phpunit-polyfills": "^4.0"
             },
             "type": "wordpress-plugin",
-            "extra": {
-                "installer-paths": {
-                    "vendor/{$vendor}/{$name}/": [
-                        "wpackagist-plugin/plugin-check"
-                    ]
-                }
-            },
             "autoload": {
                 "psr-4": {
                     "WP\\MCP\\": "includes/"
-                }
+                },
+                "exclude-from-classmap": [
+                    "tests/phpunit/"
+                ]
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
@@ -145,20 +140,20 @@
                 "issues": "https://github.com/wordpress/mcp-adapter/issues",
                 "source": "https://github.com/wordpress/mcp-adapter"
             },
-            "time": "2026-04-14T12:12:58+00:00"
+            "time": "2026-08-13T05:16:13+00:00"
         },
         {
             "name": "wordpress/php-mcp-schema",
-            "version": "v0.1.1",
+            "version": "v0.1.3",
             "source": {
                 "type": "git",
-                "url": "https://github.com/WordPress/php-mcp-schema.git",
-                "reference": "e2118ec421ead51a3e17a3d8160f4537727e91b9"
+                "url": "https://github.com/WordPress/php-mcp-schema",
+                "reference": "b2fcf97aa023ce46e9f03493c194a72d5a46bea2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WordPress/php-mcp-schema/zipball/e2118ec421ead51a3e17a3d8160f4537727e91b9",
-                "reference": "e2118ec421ead51a3e17a3d8160f4537727e91b9",
+                "url": "https://api.github.com/repos/WordPress/php-mcp-schema/zipball/b2fcf97aa023ce46e9f03493c194a72d5a46bea2",
+                "reference": "b2fcf97aa023ce46e9f03493c194a72d5a46bea2",
                 "shasum": ""
             },
             "require": {
@@ -192,11 +187,7 @@
                 "php",
                 "schema"
             ],
-            "support": {
-                "issues": "https://github.com/WordPress/php-mcp-schema/issues",
-                "source": "https://github.com/WordPress/php-mcp-schema/tree/v0.1.1"
-            },
-            "time": "2026-04-10T19:35:16+00:00"
+            "time": "2026-08-10T09:12:14+00:00"
         },
         {
             "name": "yahnis-elsts/plugin-update-checker",
@@ -259,5 +250,5 @@
         "php": ">=8.1"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
