@@ -277,6 +277,9 @@ const STEP_SCREENSHOTS = {
   'claude-code/authorize': 'claude-code/01-authorize.webp',
   'codex-cli/authorize': 'codex-cli/01-authorize.webp',
   'gemini/authorize': 'gemini/01-authorize.webp',
+  'cursor/password-customize': 'cursor/password-01-customize.webp',
+  'cursor/password-new': 'cursor/password-02-new-mcp-server.webp',
+  'cursor/password-file': 'cursor/password-03-mcp-json.webp',
   'cursor/install': 'cursor/01-install.webp',
   'cursor/connect': 'cursor/02-authenticate.webp',
   'cursor/authorize': 'cursor/03-authorize.webp',
@@ -307,10 +310,12 @@ const PASSWORD_CONFIGS = {
   cursor: {
     file: '~/.cursor/mcp.json',
     wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
-    steps: [
-      'Open <code>~/.cursor/mcp.json</code> (create it if it doesn\'t exist)',
-      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
-      'Save and restart Cursor, then check the server is on in <strong>Customize</strong> → <strong>MCPs</strong>',
+    // A function: shot() and FIRST_PROMPT_STEP are defined further down.
+    steps: () => [
+      shot('cursor/password-customize', 'In Cursor, click <strong>Customize</strong> in the sidebar', 'Customize in the Cursor sidebar'),
+      shot('cursor/password-new', 'Open <strong>MCPs</strong> and click <strong>New MCP Server</strong>', 'MCPs → New MCP Server'),
+      shot('cursor/password-file', 'Cursor opens <code>~/.cursor/mcp.json</code>. Replace its contents with the JSON above and save. If it already lists other servers, add just this one inside <code>mcpServers</code>', 'The mcp.json file in the editor'),
+      FIRST_PROMPT_STEP,
     ],
   },
   'vscode-copilot': {
@@ -400,7 +405,7 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
     kind: 'json', title: config.file,
     hint: config.hint || null,
     value: JSON.stringify(config.wrap(name, entry), null, 2),
-    steps: config.steps,
+    steps: typeof config.steps === 'function' ? config.steps() : config.steps,
   }
 }
 
