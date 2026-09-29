@@ -313,8 +313,20 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
       shot('chatgpt/password-add', 'Click <strong>Add</strong>, then <strong>Add MCP server</strong>', 'Add → Add MCP server'),
       shot('chatgpt/password-command', 'Enter the name, keep <strong>Type</strong> on <strong>STDIO</strong>, and add the command and both arguments from above', 'Name, type, command and arguments'),
       shot('chatgpt/password-env', 'Add the three environment variables from above and click <strong>Save</strong>', 'Environment variables and Save'),
+      FIRST_PROMPT_STEP,
     ],
   }
+}
+
+// The last step of every screenshot walkthrough: something to try once
+// connected. Read-only first, then a draft that's easy to review and delete.
+const FIRST_PROMPT_STEP = {
+  html: 'Write your first prompt. Try one of these:',
+  prompts: [
+    'Give me an overview of my WordPress site: its name, theme, active plugins, and how many posts and pages it has.',
+    'List my 5 most recent posts with their status and publish date.',
+    'Write a short welcome post for my site and save it as a draft so I can review it.',
+  ],
 }
 
 // A step with a screenshot under it; `extra` adds step fields such as `copy`.
@@ -367,6 +379,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
         shot('claude-desktop/authorize', 'Your browser opens this site: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
         shot('claude-desktop/connected', 'Done. Back in Claude, your site is connected and you can choose which tools need your approval', 'Connected site with tool permissions'),
+        FIRST_PROMPT_STEP,
       ],
     }],
     'chatgpt': [{
@@ -377,6 +390,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('chatgpt/form', 'Enter a name for your site, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>', 'Create MCP App form', withUrl),
         shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
         shot('chatgpt/authorize', 'Your browser opens this site: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
+        FIRST_PROMPT_STEP,
       ],
     }],
     'cursor': [{
@@ -732,6 +746,39 @@ function UrlField({ value }) {
   )
 }
 
+// Example prompts, each with a copy button.
+function StepPrompts({ prompts }) {
+  const [copied, setCopied] = useState(null)
+
+  async function copy(text, i) {
+    if (await copyToClipboard(text)) {
+      setCopied(i)
+      setTimeout(() => setCopied(null), 2000)
+    }
+  }
+
+  return (
+    <ul className="space-y-2">
+      {prompts.map((text, i) => (
+        <li key={i} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 pl-3.5 pr-1 py-1">
+          <span className="flex-1 py-1.5 text-sm text-gray-800">{text}</span>
+          <button
+            onClick={() => copy(text, i)}
+            aria-label="Copy prompt"
+            className={[
+              'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+              copied === i ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100',
+            ].join(' ')}
+          >
+            {copied === i ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            {copied === i ? 'Copied' : 'Copy'}
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 // A step's screenshot, or a placeholder until its src is set. Every one sits
 // centered in a frame with the same minimum height, so small and large
 // captures read as one set; a tall capture grows its frame rather than
@@ -814,10 +861,11 @@ function Block({ block, videoUrl }) {
                 <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
                   {i + 1}
                 </span>
-                {/* A step is an HTML string, or { html, copy, screenshot } to add a copyable URL and an image under it. */}
+                {/* A step is an HTML string, or { html, copy, prompts, screenshot } to add a copyable URL, example prompts and an image under it. */}
                 <div className="flex-1 min-w-0 space-y-3 pt-0.5">
                   <p className="text-base text-gray-700" dangerouslySetInnerHTML={{ __html: typeof step === 'string' ? step : step.html }} />
                   {step.copy && <UrlField value={step.copy} />}
+                  {step.prompts && <StepPrompts prompts={step.prompts} />}
                   {step.screenshot && <StepScreenshot screenshot={step.screenshot} />}
                 </div>
               </li>
