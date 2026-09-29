@@ -4,7 +4,7 @@ import {
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
   Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon,
 } from 'lucide-react'
-import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
+import { SiOpenai, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
 import { CursorIcon, AntigravityIcon, ClaudeIcon } from '../components/BrandIcons'
 import { api, initial, DEMO_URL } from '../api'
@@ -66,7 +66,6 @@ const AGENTS = [
   { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
-  { id: 'gemini-cli',     label: 'Gemini CLI',      Icon: SiGooglegemini,  bg: '#eef2ff', fg: '#4285f4', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'vscode-copilot', label: 'VS Code Copilot', Icon: VscVscode,       bg: '#e7f0fb', fg: '#0078d4', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'cline',          label: 'Cline',           Icon: Bot,             bg: '#f3e8ff', fg: '#7c3aed', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'windsurf',       label: 'Windsurf / Devin', Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
@@ -120,12 +119,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 
   const cursorConfig = btoa(JSON.stringify(serverEntry))
   const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorConfig)}`
-
-  const geminiCmd = [
-    'gemini', 'mcp', 'add',
-    ...Object.entries(env).flatMap(([k, v]) => ['-e', shellArg(`${k}=${v}`)]),
-    shellArg(serverName), 'npx', '-y', shellArg(PROXY_PACKAGE),
-  ].join(' ')
 
   const agentPrompt = [
     'Configure an MCP server for me.',
@@ -281,7 +274,6 @@ const STEP_SCREENSHOTS = {
   'claude-desktop/connected': 'claude-desktop/08-connected.webp',
   'claude-code/authorize': 'claude-code/01-authorize.webp',
   'codex-cli/authorize': 'codex-cli/01-authorize.webp',
-  'gemini-cli/authorize': 'gemini-cli/01-authorize.webp',
   'chatgpt/customize': 'chatgpt/01-customize.webp',
   'chatgpt/create-mcp-app': 'chatgpt/02-create-mcp-app.webp',
   'chatgpt/form': 'chatgpt/03-form.webp',
@@ -362,8 +354,6 @@ function buildOAuth(serverName, serverUrl) {
   // and starts the sign-in itself.
   const codexCliHttp = `codex mcp add ${shellArg(serverName)} --url ${shellArg(serverUrl)}`
 
-  const geminiHttp = `gemini mcp add --transport http --scope user ${shellArg(serverName)} ${shellArg(serverUrl)}`
-
   // VS Code takes { name, type: 'http', url }; Cursor's install link carries
   // only the inner server entry, base64-encoded.
   const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(JSON.stringify({ name: serverName, type: 'http', url: serverUrl }))
@@ -427,16 +417,6 @@ function buildOAuth(serverName, serverUrl) {
         'Copy the command above',
         'Open your terminal and paste it',
         shot('codex-cli/authorize', `Codex opens this site in your browser: log in if asked, then click <strong>Authorize</strong>. If it doesn't open, run <code>codex mcp login ${serverName}</code>`, 'This site\'s Authorize page'),
-        FIRST_PROMPT_STEP,
-      ],
-    }],
-    'gemini-cli': [{
-      kind: 'command', title: 'Terminal command',
-      value: geminiHttp,
-      steps: [
-        'Copy the command above and run it in your terminal',
-        `Start <code>gemini</code> and run <code>/mcp auth ${serverName}</code>`,
-        shot('gemini-cli/authorize', 'Your browser opens this site: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
         FIRST_PROMPT_STEP,
       ],
     }],
