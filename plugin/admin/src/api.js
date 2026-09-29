@@ -90,6 +90,8 @@ export const initial = {
   serverUrl: cfg.serverUrl ?? '',
   serverName: cfg.serverName ?? '',
   siteName: cfg.siteName ?? '',
+  siteIcon: cfg.siteIcon ?? '',
+  assetsUrl: cfg.assetsUrl ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
   uapActive: bool(cfg.uapActive),
