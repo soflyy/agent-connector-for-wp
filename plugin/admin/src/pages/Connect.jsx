@@ -274,6 +274,16 @@ const STEP_SCREENSHOTS = {
   'claude-desktop/connected': 'claude-desktop/08-connected.webp',
   'claude-code/authorize': 'claude-code/01-authorize.webp',
   'codex-cli/authorize': 'codex-cli/01-authorize.webp',
+  'cursor/authorize': 'cursor/01-authorize.webp',
+  'vscode-copilot/authorize': 'vscode-copilot/01-authorize.webp',
+  'cline/authorize': 'cline/01-authorize.webp',
+  'windsurf/authorize': 'windsurf/01-authorize.webp',
+  'zed/authorize': 'zed/01-authorize.webp',
+  'opencode/authorize': 'opencode/01-authorize.webp',
+  'goose/authorize': 'goose/01-authorize.webp',
+  'antigravity/authorize': 'antigravity/01-authorize.webp',
+  'pi/authorize': 'pi/01-authorize.webp',
+  'other/authorize': 'other/01-authorize.webp',
   'chatgpt/customize': 'chatgpt/01-customize.webp',
   'chatgpt/create-mcp-app': 'chatgpt/02-create-mcp-app.webp',
   'chatgpt/form': 'chatgpt/03-form.webp',
@@ -332,7 +342,7 @@ function shot(key, html, alt, extra = {}) {
 }
 
 // The final step most clients share: this site's own consent page.
-const authorizeStep = (lead) => shot('authorize', `${lead}, log in if asked, and click <strong>Authorize</strong>`, 'This site\'s Authorize page')
+const authorizeStep = (agent, lead) => shot(`${agent}/authorize`, `${lead}, log in if asked, and click <strong>Authorize</strong>`, 'This site\'s Authorize page')
 
 // Instructions as of September 2026. Clients move these menus often; when one
 // changes, update its entry here (and its screenshots).
@@ -393,7 +403,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         shot('cursor/install', 'Click <strong>Add to Cursor</strong> above and confirm <strong>Install</strong> in Cursor', 'Cursor install prompt'),
         shot('cursor/connect', 'In <strong>Customize</strong> → <strong>MCPs</strong>, click <strong>Authenticate</strong> on the server', 'Customize → MCPs → Authenticate'),
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('cursor', 'Your browser opens this site'),
       ],
     }, {
       kind: 'json', title: 'Or add it by hand',
@@ -426,7 +436,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         shot('vscode/install', 'Click <strong>Add to VS Code</strong> above and click <strong>Install</strong> on the server page', 'VS Code server Install page'),
         shot('vscode/allow', 'When VS Code says the server wants to authenticate, click <strong>Allow</strong>', 'Authentication prompt'),
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('vscode-copilot', 'Your browser opens this site'),
       ],
     }, {
       ...guide, title: 'Or add it by hand',
@@ -442,7 +452,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('cline/customize', 'In the Cline panel, click <strong>Customize</strong> (the wrench), then the <strong>MCP</strong> tab', 'Customize → MCP'),
         shot('cline/add', 'Click <strong>Add Remote Server</strong>, enter a name, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>', 'Add Remote Server form', withUrl),
         shot('cline/authenticate', 'Click <strong>Add Server</strong>, then <strong>Authenticate</strong> on the server', 'Authenticate button'),
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('cline', 'Your browser opens this site'),
       ],
     }],
     'windsurf': [{
@@ -453,7 +463,7 @@ function buildOAuth(serverName, serverUrl) {
         'Copy the JSON above into <code>~/.config/devin/mcp_config.json</code> and save',
         shot('windsurf/customizations', 'In Devin Desktop, open <strong>Open customizations</strong> from the new-tab menu', 'Customizations → MCP servers'),
         shot('windsurf/authenticate', 'If the server says <strong>Needs auth</strong>, click <strong>Authenticate</strong>', 'Authenticate button'),
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('windsurf', 'Your browser opens this site'),
       ],
     }],
     'zed': [{
@@ -462,7 +472,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('zed/settings', 'Open <strong>Settings</strong> → <strong>AI</strong> → <strong>MCP Servers</strong>', 'Settings → AI → MCP Servers'),
         shot('zed/add', 'Click <strong>Add Server</strong> → <strong>Add Remote Server</strong> and paste the MCP Server URL', 'Add Remote Server', withUrl),
         shot('zed/authenticate', 'Click <strong>Authenticate</strong> on the server', 'Authenticate button'),
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('zed', 'Your browser opens this site'),
       ],
     }],
     'opencode': [{
@@ -472,7 +482,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         'Copy the JSON above into <code>opencode.json</code>, merging it with anything already there',
         `Run <code>opencode mcp auth ${serverName}</code> in your terminal`,
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('opencode', 'Your browser opens this site'),
       ],
     }],
     'goose': [{
@@ -480,7 +490,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         shot('goose/extensions', 'In Goose, open the sidebar and click <strong>Extensions</strong> → <strong>Add custom extension</strong>', 'Extensions → Add custom extension'),
         shot('goose/form', 'Enter a name, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>', 'Custom extension form', withUrl),
-        authorizeStep('Click <strong>Add Extension</strong>. When your browser opens this site'),
+        authorizeStep('goose', 'Click <strong>Add Extension</strong>. When your browser opens this site'),
       ],
     }],
     'antigravity': [{
@@ -491,7 +501,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('antigravity/manage', 'In the agent panel, click <strong>…</strong> → <strong>MCP Servers</strong> → <strong>Manage MCP Servers</strong> → <strong>View raw config</strong>', 'Manage MCP Servers → View raw config'),
         'Paste the JSON above into the file and save',
         shot('antigravity/authenticate', 'Open <strong>Agent Settings</strong> → <strong>Customizations</strong> and click <strong>Authenticate</strong> next to the server', 'Customizations → Authenticate'),
-        authorizeStep('In your browser, sign in to this site'),
+        authorizeStep('antigravity', 'In your browser, sign in to this site'),
         shot('antigravity/code', 'Copy the code shown, paste it back in Antigravity, and click <strong>Submit</strong>', 'Pasting the authorization code'),
       ],
     }],
@@ -509,14 +519,14 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         'Copy the JSON above into <code>~/.config/mcp/mcp.json</code> and save',
         `In Pi, run <code>/mcp-auth ${serverName}</code>`,
-        authorizeStep('Your browser opens this site'),
+        authorizeStep('pi', 'Your browser opens this site'),
       ],
     }],
     'other': [{
       ...guide,
       steps: [
         { html: 'Add a remote (Streamable HTTP) MCP server with this URL', ...withUrl },
-        authorizeStep('When prompted, open the sign-in page'),
+        authorizeStep('other', 'When prompted, open the sign-in page'),
       ],
     }],
   }
