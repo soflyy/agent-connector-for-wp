@@ -413,7 +413,6 @@ final class Authorize {
 		<form method="post" action="<?php echo esc_url( $form_action ); ?>">
 			<input type="hidden" name="<?php echo esc_attr( self::NONCE_FIELD ); ?>" value="<?php echo esc_attr( $nonce ); ?>" />
 			<input type="hidden" name="client_id" value="<?php echo esc_attr( $params['client_id'] ); ?>" />
-			<?php // esc_attr, not esc_url: esc_url blanks native-app schemes such as cursor://. The value was already matched against the client's registered URIs. ?>
 			<input type="hidden" name="redirect_uri" value="<?php echo esc_attr( $params['redirect_uri'] ); ?>" />
 			<input type="hidden" name="scope" value="<?php echo esc_attr( $params['scope'] ); ?>" />
 			<input type="hidden" name="state" value="<?php echo esc_attr( $params['state'] ); ?>" />
