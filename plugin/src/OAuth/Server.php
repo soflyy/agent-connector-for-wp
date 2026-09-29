@@ -63,6 +63,11 @@ final class Server {
 		// CORS preflight (OPTIONS).
 		add_action( 'init', array( self::class, 'handle_preflight' ), 1 );
 
+		// Buffer stray output (PHP notices from other plugins) on our routes.
+		// Priority 0: rest_api_init fires before the REST server runs its own
+		// checks, which is where e.g. the deprecated rest_enabled hook warns.
+		add_action( 'rest_api_init', array( self::class, 'buffer_stray_output' ), 0 );
+
 		// REST API route registration.
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
 
@@ -503,6 +508,9 @@ final class Server {
 			static function ( $served, $result, $request ) {
 				$route = $request->get_route();
 
+				// Drop stray output before the JSON goes out (see buffer_stray_output()).
+				self::discard_stray_output();
+
 				if ( 0 === strpos( $route, '/' . self::REST_NAMESPACE . '/' ) || 0 === strpos( $route, '/mcp/' ) ) {
 					self::send_cors_headers();
 				}
@@ -518,5 +526,50 @@ final class Server {
 			10,
 			4
 		);
+	}
+
+	/**
+	 * Output-buffer level opened by buffer_stray_output(), or 0 when none.
+	 */
+	private static int $stray_buffer_level = 0;
+
+	/**
+	 * Start buffering output for requests to this server's routes.
+	 *
+	 * On sites that display PHP errors, a notice raised by another plugin
+	 * during the REST bootstrap (e.g. hooking the deprecated rest_enabled
+	 * filter) is printed before these endpoints respond. That output sends the
+	 * headers early, so the consent page loses its Content-Type and its
+	 * anti-framing headers, redirects fail, and JSON responses arrive
+	 * corrupted. Buffering from here lets discard_stray_output() drop it
+	 * before any of our own headers or body go out. The notices still reach
+	 * the debug log when one is configured.
+	 */
+	public static function buffer_stray_output(): void {
+		// rest_api_init also fires outside real REST requests (e.g. when core
+		// builds the REST server for embeds), where there is no parsed route.
+		$route = isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] )
+			? (string) ( $GLOBALS['wp']->query_vars['rest_route'] ?? '' )
+			: '';
+		if ( 0 !== strpos( $route, '/' . self::REST_NAMESPACE . '/' ) || self::$stray_buffer_level ) {
+			return;
+		}
+
+		ob_start();
+		self::$stray_buffer_level = ob_get_level();
+	}
+
+	/**
+	 * Throw away whatever buffer_stray_output() captured and stop buffering.
+	 */
+	public static function discard_stray_output(): void {
+		if ( ! self::$stray_buffer_level ) {
+			return;
+		}
+
+		while ( ob_get_level() >= self::$stray_buffer_level ) {
+			ob_end_clean();
+		}
+		self::$stray_buffer_level = 0;
 	}
 }

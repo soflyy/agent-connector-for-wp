@@ -46,6 +46,10 @@ final class Authorize {
 	 * @return WP_Error|void
 	 */
 	public static function handle_get( WP_REST_Request $request ) {
+		// This handler writes its own headers and HTML (or redirects), so
+		// clear any stray output first; see Server::buffer_stray_output().
+		Server::discard_stray_output();
+
 		$params = self::extract_params( $request );
 
 		// Establish a trusted redirect target first. These two are the only
@@ -152,6 +156,7 @@ final class Authorize {
 	 * @return WP_Error|void
 	 */
 	public static function handle_post( WP_REST_Request $request ) {
+		Server::discard_stray_output();
 		self::restore_user_from_cookie();
 
 		$nonce = sanitize_text_field( (string) ( $request->get_param( self::NONCE_FIELD ) ?? '' ) );
