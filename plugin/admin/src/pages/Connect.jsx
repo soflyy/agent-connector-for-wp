@@ -277,7 +277,9 @@ const STEP_SCREENSHOTS = {
   'claude-code/authorize': 'claude-code/01-authorize.webp',
   'codex-cli/authorize': 'codex-cli/01-authorize.webp',
   'gemini/authorize': 'gemini/01-authorize.webp',
-  'cursor/authorize': 'cursor/01-authorize.webp',
+  'cursor/install': 'cursor/01-install.webp',
+  'cursor/connect': 'cursor/02-authenticate.webp',
+  'cursor/authorize': 'cursor/03-authorize.webp',
   'vscode-copilot/authorize': 'vscode-copilot/01-authorize.webp',
   'cline/authorize': 'cline/01-authorize.webp',
   'windsurf/authorize': 'windsurf/01-authorize.webp',
@@ -404,9 +406,10 @@ function buildOAuth(serverName, serverUrl) {
       kind: 'deeplink', title: 'One-click install', button: 'Add to Cursor',
       value: cursorDeeplink,
       steps: [
-        shot('cursor/install', 'Click <strong>Add to Cursor</strong> above and confirm <strong>Install</strong> in Cursor', 'Cursor install prompt'),
+        shot('cursor/install', 'Click <strong>Add to Cursor</strong> above. When Cursor asks <strong>Install MCP server?</strong>, click <strong>Install</strong>', 'Install MCP server dialog'),
         shot('cursor/connect', 'In <strong>Customize</strong> → <strong>MCPs</strong>, click <strong>Authenticate</strong> on the server', 'Customize → MCPs → Authenticate'),
         authorizeStep('cursor', 'Your browser opens this site'),
+        FIRST_PROMPT_STEP,
       ],
     }, {
       kind: 'json', title: 'Or add it by hand',
