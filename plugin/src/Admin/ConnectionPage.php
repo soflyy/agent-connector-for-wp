@@ -31,6 +31,38 @@ final class ConnectionPage {
 	public function register(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'in_admin_header', array( $this, 'hide_foreign_notices' ) );
+	}
+
+	/**
+	 * Keep other plugins' and core's admin notices (update nags, promos) off
+	 * this page, so the app gets the full screen. The plugin's own notices stay,
+	 * e.g. the sandbox safe-mode notice, which explains how to recover.
+	 *
+	 * Runs on in_admin_header, which fires before any notice hook.
+	 */
+	public function hide_foreign_notices(): void {
+		$screen = get_current_screen();
+		if ( ! $screen || $screen->id !== $this->hook_suffix ) {
+			return;
+		}
+
+		global $wp_filter;
+		foreach ( array( 'admin_notices', 'all_admin_notices', 'network_admin_notices', 'user_admin_notices' ) as $hook ) {
+			if ( empty( $wp_filter[ $hook ] ) ) {
+				continue;
+			}
+			foreach ( $wp_filter[ $hook ]->callbacks as $priority => $callbacks ) {
+				foreach ( $callbacks as $callback ) {
+					$function = $callback['function'];
+					$is_ours  = is_array( $function ) && is_object( $function[0] )
+						&& 0 === strpos( get_class( $function[0] ), 'AgentConnectorForWp\\' );
+					if ( ! $is_ours ) {
+						remove_action( $hook, $function, $priority );
+					}
+				}
+			}
+		}
 	}
 
 	public function register_menu(): void {
