@@ -412,7 +412,7 @@ function buildOAuth(serverName, serverUrl) {
         FIRST_PROMPT_STEP,
       ],
     }, {
-      kind: 'json', title: 'Or install manually',
+      kind: 'json', title: 'mcp.json', manual: true,
       hint: 'Add this to <code>~/.cursor/mcp.json</code>, restart Cursor, then click <strong>Authenticate</strong> in <strong>Customize</strong> → <strong>MCPs</strong>.',
       value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
     }],
@@ -457,7 +457,7 @@ function buildOAuth(serverName, serverUrl) {
         authorizeStep('vscode-copilot', 'Your browser opens this site'),
       ],
     }, {
-      ...guide, title: 'Or install manually',
+      ...guide, manual: true,
       steps: [
         shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
         shot('vscode/http', 'Choose <strong>HTTP</strong>, paste the MCP Server URL, and give it a name', 'Server URL prompt', withUrl),
@@ -962,6 +962,37 @@ function Block({ block, videoUrl }) {
   )
 }
 
+// Renders an agent's blocks. Blocks marked `manual` (the do-it-yourself
+// fallback to a one-click or copy-paste route) sit behind a collapsed
+// "Or install manually" toggle below the rest.
+function BlockList({ blocks, videoUrl }) {
+  const [showManual, setShowManual] = useState(false)
+  const primary = blocks.filter((b) => !b.manual)
+  const manual = blocks.filter((b) => b.manual)
+
+  if (!blocks.length) {
+    return <p className="text-base text-gray-400">No configuration available for this agent.</p>
+  }
+
+  return (
+    <div className="space-y-6">
+      {primary.map((block, i) => <Block key={i} block={block} videoUrl={videoUrl} />)}
+      {manual.length > 0 && (
+        <div className="space-y-6">
+          <button
+            onClick={() => setShowManual((v) => !v)}
+            className="flex items-center gap-2 text-base font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            {showManual ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Or install manually
+          </button>
+          {showManual && manual.map((block, i) => <Block key={i} block={block} videoUrl={videoUrl} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Shared layout shell — every step uses this exact wrapper for consistent width
 const SHELL = 'max-w-3xl mx-auto space-y-8'
 
@@ -1208,7 +1239,6 @@ function AppPasswordFlow({ selectedAgent, status }) {
   const [error, setError] = useState(null)
   const [generatedPassword, setGeneratedPassword] = useState(null)
   const [connection, setConnection] = useState(null)
-  const [showManual, setShowManual] = useState(false)
 
   async function handleGenerate() {
     setGenerating(true)
@@ -1242,7 +1272,6 @@ function AppPasswordFlow({ selectedAgent, status }) {
   // The .mcpb is built client-side from whichever password is in play, so it
   // works for both the generated (server-built) and existing paths.
   let blocks = agentData?.blocks ?? []
-  let manualBlocks = []
   if (connection && agentMeta.id === 'chatgpt') {
     blocks = [chatgptPasswordBlock({
       name: initial.siteName || initial.serverName,
@@ -1266,33 +1295,15 @@ function AppPasswordFlow({ selectedAgent, status }) {
       },
     }
     // The agent's own instructions (Claude Desktop's JSON config) stay
-    // available behind the "Or install manually" toggle.
-    manualBlocks = agentMeta.id === 'mcpb' ? [] : blocks
-    blocks = [mcpbBlock]
+    // available as the manual fallback.
+    blocks = agentMeta.id === 'mcpb' ? [mcpbBlock] : [mcpbBlock, ...blocks.map((b) => ({ ...b, manual: true }))]
   }
 
   if (connection) {
     return (
       <div className="space-y-6">
         {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
-        <div className="space-y-6">
-          {blocks.length
-            ? blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
-            : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-          }
-          {manualBlocks.length > 0 && (
-            <div className="space-y-6">
-              <button
-                onClick={() => setShowManual((v) => !v)}
-                className="flex items-center gap-2 text-base font-semibold text-gray-500 hover:text-gray-800 transition-colors"
-              >
-                {showManual ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                Or install manually
-              </button>
-              {showManual && manualBlocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)}
-            </div>
-          )}
-        </div>
+        <BlockList blocks={blocks} videoUrl={agentMeta.videoUrl} />
       </div>
     )
   }
@@ -1500,12 +1511,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
               </span>
             </div>
           )}
-          <div className="space-y-6">
-            {agentData?.blocks?.length
-              ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.oauthVideoUrl} />)
-              : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-            }
-          </div>
+          <BlockList blocks={agentData?.blocks ?? []} videoUrl={agentMeta.oauthVideoUrl} />
         </div>
       ) : (
         <div className="space-y-4">
