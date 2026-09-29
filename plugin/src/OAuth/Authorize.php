@@ -161,7 +161,7 @@ final class Authorize {
 
 		$action                = sanitize_text_field( (string) ( $request->get_param( 'action' ) ?? '' ) );
 		$client_id             = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
-		$redirect_uri          = esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) );
+		$redirect_uri          = Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) );
 		$scope                 = sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? '' ) );
 		$state                 = sanitize_text_field( (string) ( $request->get_param( 'state' ) ?? '' ) );
 		$code_challenge        = sanitize_text_field( (string) ( $request->get_param( 'code_challenge' ) ?? '' ) );
@@ -291,7 +291,7 @@ final class Authorize {
 		return array(
 			'response_type'         => sanitize_text_field( (string) ( $request->get_param( 'response_type' ) ?? '' ) ),
 			'client_id'             => sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) ),
-			'redirect_uri'          => esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) ),
+			'redirect_uri'          => Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) ),
 			'scope'                 => sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? 'mcp:tools' ) ),
 			'state'                 => sanitize_text_field( (string) ( $request->get_param( 'state' ) ?? '' ) ),
 			'code_challenge'        => sanitize_text_field( (string) ( $request->get_param( 'code_challenge' ) ?? '' ) ),
@@ -413,7 +413,8 @@ final class Authorize {
 		<form method="post" action="<?php echo esc_url( $form_action ); ?>">
 			<input type="hidden" name="<?php echo esc_attr( self::NONCE_FIELD ); ?>" value="<?php echo esc_attr( $nonce ); ?>" />
 			<input type="hidden" name="client_id" value="<?php echo esc_attr( $params['client_id'] ); ?>" />
-			<input type="hidden" name="redirect_uri" value="<?php echo esc_url( $params['redirect_uri'] ); ?>" />
+			<?php // esc_attr, not esc_url: esc_url blanks native-app schemes such as cursor://. The value was already matched against the client's registered URIs. ?>
+			<input type="hidden" name="redirect_uri" value="<?php echo esc_attr( $params['redirect_uri'] ); ?>" />
 			<input type="hidden" name="scope" value="<?php echo esc_attr( $params['scope'] ); ?>" />
 			<input type="hidden" name="state" value="<?php echo esc_attr( $params['state'] ); ?>" />
 			<input type="hidden" name="code_challenge" value="<?php echo esc_attr( $params['code_challenge'] ); ?>" />
