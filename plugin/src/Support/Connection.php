@@ -457,7 +457,7 @@ final class Connection {
 							array( 'heading' => __( 'Environment Variables', 'agent-connector-for-wp' ) ),
 							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
 							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
-							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
+							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'], 'secret' => true ),
 						),
 						'steps' => array(
 							__( 'Add an MCP server with the settings above', 'agent-connector-for-wp' ),
