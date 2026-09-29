@@ -316,6 +316,11 @@ const OAUTH_SCREENSHOTS = {
   'claude-desktop/connect': 'claude-desktop/06-connect.webp',
   'claude-desktop/authorize': 'claude-desktop/07-authorize.webp',
   'claude-desktop/connected': 'claude-desktop/08-connected.webp',
+  'chatgpt/customize': 'chatgpt/01-customize.webp',
+  'chatgpt/create-mcp-app': 'chatgpt/02-create-mcp-app.webp',
+  'chatgpt/form': 'chatgpt/03-form.webp',
+  'chatgpt/continue': 'chatgpt/04-continue.webp',
+  'chatgpt/authorize': 'chatgpt/05-authorize.webp',
 }
 
 // A step with a screenshot under it; `extra` adds step fields such as `copy`.
@@ -372,13 +377,12 @@ function buildOAuth(serverName, serverUrl) {
     }],
     'chatgpt': [{
       ...guide,
-      hint: 'Needs a paid plan with <strong>Developer mode</strong>, on chatgpt.com. On Business and Enterprise, an admin may need to enable it for you.',
       steps: [
-        shot('chatgpt/developer-mode', 'Open <strong>Settings</strong> → <strong>Security and login</strong> and turn on <strong>Developer mode</strong>', 'Developer mode toggle'),
-        shot('chatgpt/plugins', 'Go to <strong>Plugins</strong> and click <strong>+</strong> to create an MCP app', 'Plugins → +'),
-        shot('chatgpt/form', 'Enter a name, paste the MCP Server URL, and set <strong>Authentication</strong> to <strong>OAuth</strong>', 'New app form', withUrl),
-        authorizeStep('Click <strong>Create</strong>. When the sign-in page opens'),
-        shot('chatgpt/use', 'In a chat, click <strong>+</strong> → <strong>Developer mode</strong> and pick the app', 'Selecting the app in a chat'),
+        shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
+        shot('chatgpt/create-mcp-app', 'In <strong>Plugins</strong>, click <strong>Add</strong>, then <strong>Create MCP App</strong>', 'Add → Create MCP App'),
+        shot('chatgpt/form', 'Enter a name for your site, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>', 'Create MCP App form', withUrl),
+        shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
+        shot('chatgpt/authorize', 'Your browser opens this site: log in if asked, then click <strong>Authorize</strong>', 'This site\'s Authorize page'),
       ],
     }],
     'codex-desktop': [{
