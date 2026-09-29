@@ -391,8 +391,8 @@ final class Connection {
 				),
 			),
 			array(
-				'id'     => 'codex-desktop',
-				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
+				'id'     => 'chatgpt',
+				'label'  => __( 'ChatGPT', 'agent-connector-for-wp' ),
 				'blocks' => array(
 					array(
 						'kind'  => 'command',
@@ -423,7 +423,7 @@ final class Connection {
 							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
 						),
 						'steps'      => array(
-							__( 'Open Codex Desktop → <strong>Settings</strong>', 'agent-connector-for-wp' ),
+							__( 'Open the ChatGPT desktop app → <strong>Settings</strong>', 'agent-connector-for-wp' ),
 							__( 'Click <strong>MCP Servers</strong>', 'agent-connector-for-wp' ),
 							__( 'Click <strong>Add Server</strong>', 'agent-connector-for-wp' ),
 							__( 'Manually enter the MCP server settings above', 'agent-connector-for-wp' ),
