@@ -290,25 +290,6 @@ final class Connection {
 	}
 
 	/**
-	 * A `gemini mcp add` command. Env flags (`-e KEY=VAL`) precede the name.
-	 *
-	 * @param array<string,string> $env Proxy environment variables.
-	 */
-	private static function gemini_cli( string $name, array $env ): string {
-		$parts = array( 'gemini', 'mcp', 'add' );
-		foreach ( $env as $key => $value ) {
-			$parts[] = '-e';
-			$parts[] = self::shell_arg( $key . '=' . $value );
-		}
-		$parts[] = self::shell_arg( $name );
-		$parts[] = 'npx';
-		$parts[] = '-y';
-		$parts[] = self::shell_arg( self::PROXY_PACKAGE );
-
-		return implode( ' ', $parts );
-	}
-
-	/**
 	 * VS Code's install JSON: the server entry plus a top-level "name" key.
 	 *
 	 * Shared by both the `code --add-mcp` command and the vscode: deeplink.
