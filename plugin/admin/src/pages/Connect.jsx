@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  MousePointer2, Bot, SquareTerminal, Bird, Rocket, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon,
+  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon,
 } from 'lucide-react'
 import { SiOpenai, SiAnthropic, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
+import { CursorIcon, AntigravityIcon } from '../components/BrandIcons'
 import { api, initial, DEMO_URL } from '../api'
 import { downloadMcpb } from '../mcpb'
 
@@ -62,7 +63,7 @@ function isLocalEnvironment() {
 const AGENTS = [
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', mcpb: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
   { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
-  { id: 'cursor',         label: 'Cursor',          Icon: MousePointer2,   bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
   { id: 'gemini-cli',     label: 'Gemini CLI',      Icon: SiGooglegemini,  bg: '#eef2ff', fg: '#4285f4', cli: true, videoUrl: '', oauthVideoUrl: '' },
@@ -72,7 +73,7 @@ const AGENTS = [
   { id: 'zed',            label: 'Zed',             Icon: SiZedindustries, bg: '#e8eefe', fg: '#1d4ed8', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'opencode',       label: 'OpenCode',        Icon: SquareTerminal,  bg: '#f1f5f9', fg: '#334155', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'goose',          label: 'Goose',           Icon: Bird,            bg: '#fef3c7', fg: '#b45309', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'antigravity',    label: 'Antigravity',     Icon: Rocket,          bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'antigravity',    label: 'Antigravity',     Icon: AntigravityIcon, bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'pi',             label: 'Pi',              Icon: Pi,              bg: '#fdf2f8', fg: '#db2777', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'mcpb',           label: 'One-click install (.mcpb)', Icon: Package, bg: '#fff7ed', fg: '#ea580c', cli: true, passwordOnly: true, mcpb: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '', oauthVideoUrl: '' },
