@@ -983,23 +983,20 @@ function StepPrompts({ prompts }) {
   )
 }
 
-// A step's screenshot, or a placeholder until its src is set. Every one sits
-// centered in a frame with the same minimum height, so small and large
-// captures read as one set; a tall capture grows its frame rather than
-// shrinking to unreadable.
-// Screenshots are 2x (retina) captures, so they're shown at no more than half
-// their pixel width.
+// A step's screenshot, or a placeholder until its src is set. Every frame has
+// the same fixed height; a capture is shown at its pixel size (the crops are
+// small UI pieces) and scaled down only when it doesn't fit, so tall dialogs
+// shrink instead of stretching the frame. Clicking opens it full size.
 function StepScreenshot({ screenshot }) {
-  const [maxWidth, setMaxWidth] = useState(null)
-  const img = (className) => (
-    <img
-      src={screenshot.src}
-      alt={screenshot.alt}
-      loading="lazy"
-      onLoad={(e) => setMaxWidth(e.currentTarget.naturalWidth / 2)}
-      style={maxWidth ? { maxWidth: `min(100%, ${maxWidth}px)` } : undefined}
-      className={`w-auto h-auto max-w-full ${className}`}
-    />
+  const [zoomed, setZoomed] = useState(false)
+
+  const zoom = zoomed && (
+    <div
+      onClick={() => setZoomed(false)}
+      className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-8 cursor-zoom-out"
+    >
+      <img src={screenshot.src} alt={screenshot.alt} className="max-h-full max-w-full rounded-lg shadow-2xl" />
+    </div>
   )
 
   // This plugin's consent page: the browser window is the whole canvas.
@@ -1018,20 +1015,36 @@ function StepScreenshot({ screenshot }) {
           </span>
         </div>
         <div className="flex justify-center bg-[#f0f0f1] px-6 py-10">
-          {img('rounded-lg shadow-sm')}
+          <img
+            src={screenshot.src}
+            alt={screenshot.alt}
+            loading="lazy"
+            onClick={() => setZoomed(true)}
+            className="h-auto w-auto max-w-full max-h-[540px] rounded-lg shadow-sm cursor-zoom-in"
+          />
         </div>
+        {zoom}
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[350px] rounded-xl bg-gray-100 p-6">
-      {screenshot.src ? img('rounded-lg shadow-md') : (
+    <div className="flex h-[360px] items-center justify-center rounded-xl bg-gray-100 p-6">
+      {screenshot.src ? (
+        <img
+          src={screenshot.src}
+          alt={screenshot.alt}
+          loading="lazy"
+          onClick={() => setZoomed(true)}
+          className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
+        />
+      ) : (
         <span className="flex items-center gap-2 text-xs text-gray-400">
           <ImageIcon className="w-4 h-4" />
           Screenshot: {screenshot.alt}
         </span>
       )}
+      {zoom}
     </div>
   )
 }
