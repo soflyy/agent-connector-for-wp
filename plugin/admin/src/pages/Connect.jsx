@@ -1708,7 +1708,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         <div className="space-y-4">
           {!agentMeta.mcpb && (
             <p className="text-base text-gray-500">
-              Authenticate with a WordPress application password. The agent connects through a local <code>npx</code> proxy, so Node.js is required.
+              The agent connects through a local <code>npx</code> proxy, so Node.js is required.
             </p>
           )}
           <AppPasswordFlow selectedAgent={selectedAgent} status={status} />
