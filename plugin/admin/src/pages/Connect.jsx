@@ -961,7 +961,7 @@ function StepPrompts({ prompts }) {
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3">
       {prompts.map(({ title, Icon, text }, i) => (
         <button
           key={i}
