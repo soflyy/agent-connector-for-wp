@@ -943,7 +943,10 @@ function McpbContent({ block }) {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {block.password && (
+        <FieldsContent fields={[{ label: 'Application password', value: block.password, secret: true }]} />
+      )}
       <button
         onClick={download}
         disabled={state === 'building'}
@@ -1551,7 +1554,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
   if (connection && agentMeta.mcpb) {
     const mcpbBlock = {
       kind: 'mcpb', title: 'One-click install',
-      hint: 'Download the file below and double click it. Requires Node.js. This file includes your application password, so keep it private.',
+      hint: 'Download the file below and double click it. When the app asks for your application password, paste the one below. Requires Node.js.',
       button: 'Download .mcpb file',
       value: {
         serverName: initial.serverName,
@@ -1559,8 +1562,9 @@ function AppPasswordFlow({ selectedAgent, status }) {
         siteName: initial.siteName,
         siteIcon: initial.siteIcon,
         username: connection.username ?? initial.username,
-        password: generatedPassword ?? existingPw,
       },
+      // Not in the file: shown here to paste when the app asks for it.
+      password: generatedPassword ?? existingPw,
     }
     // The agent's own instructions (Claude Desktop's JSON config) stay
     // available as the manual fallback.

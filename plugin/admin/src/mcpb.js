@@ -6,12 +6,11 @@
 // manual mcpServers config, through npx, so it needs Node.js on the machine
 // just like that config does.
 //
-// The connection details, application password included, are written straight
-// into the manifest so installing is a single click with nothing to configure.
-// The file is therefore a credential: the Connect page warns the operator not
-// to share it, and changing the password means downloading a new file. It's
-// built entirely client-side, so an existing password never leaves the
-// browser.
+// The site URL and username are written into the manifest. The application
+// password is not: it's a user_config field the host asks for when the bundle
+// is installed and keeps in its own secure storage, so the file itself holds
+// no credential and is safe to keep or share. The bundle is built entirely
+// client-side.
 
 import JSZip from 'jszip'
 
@@ -32,7 +31,7 @@ export function mcpbFileName(serverName) {
   return `${serverName}.mcpb`
 }
 
-export function buildManifest({ serverName, serverUrl, siteName, username, password }) {
+export function buildManifest({ serverName, serverUrl, siteName, username }) {
   let host = serverUrl
   try { host = new URL(serverUrl).host } catch {}
   const label = siteName || host
@@ -52,16 +51,24 @@ export function buildManifest({ serverName, serverUrl, siteName, username, passw
       mcp_config: {
         command: 'npx',
         args: ['-y', PROXY_PACKAGE],
-        // Fixed values rather than user_config: a manifest with user_config
-        // makes the host show a Configure form before the server starts, and
-        // Claude Desktop won't save one whose values are all pre-filled
-        // defaults, so the install gets stuck there.
+        // URL and username are fixed values, not user_config: Claude Desktop
+        // won't save a Configure form whose fields are all pre-filled
+        // defaults, so the only field is the password, which starts empty.
         env: {
           WP_API_URL: serverUrl,
           WP_API_USERNAME: username,
-          WP_API_PASSWORD: password,
+          WP_API_PASSWORD: '${user_config.wp_api_password}',
           OAUTH_ENABLED: 'false',
         },
+      },
+    },
+    user_config: {
+      wp_api_password: {
+        type: 'string',
+        title: 'Application password',
+        description: `The WordPress application password for ${username} on ${host}. Copy it from the Agent Connector page on your site.`,
+        sensitive: true,
+        required: true,
       },
     },
     icon: 'icon.png',
