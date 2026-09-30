@@ -949,7 +949,7 @@ function UrlField({ value }) {
   )
 }
 
-// Example prompts as cards; clicking a card copies its prompt.
+// Example prompts as a list; clicking a row copies its prompt.
 function StepPrompts({ prompts }) {
   const [copied, setCopied] = useState(null)
 
@@ -961,23 +961,24 @@ function StepPrompts({ prompts }) {
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
       {prompts.map(({ title, Icon, text }, i) => (
         <button
           key={i}
           onClick={() => copy(text, i)}
-          className="group flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 text-left transition-all hover:border-indigo-300 hover:shadow-sm"
+          className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-indigo-50/40"
+          aria-label={`Copy prompt: ${title}`}
         >
-          <span className="flex items-center gap-2">
-            <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-              <Icon className="h-4 w-4" />
-            </span>
-            <span className="text-sm font-semibold text-gray-900">{title}</span>
+          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <Icon className="h-4 w-4" />
           </span>
-          <span className="flex-1 text-sm leading-relaxed text-gray-600">{text}</span>
-          <span className={['flex items-center gap-1.5 text-xs font-medium', copied === i ? 'text-green-600' : 'text-gray-400 group-hover:text-indigo-600'].join(' ')}>
-            {copied === i ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied === i ? 'Copied' : 'Copy prompt'}
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-gray-900">{title}</span>
+            <span className="block text-sm text-gray-600">{text}</span>
+          </span>
+          <span className={['flex flex-shrink-0 items-center gap-1.5 text-xs font-medium', copied === i ? 'text-green-600' : 'text-gray-400 group-hover:text-indigo-600'].join(' ')}>
+            {copied === i ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied === i && 'Copied'}
           </span>
         </button>
       ))}
