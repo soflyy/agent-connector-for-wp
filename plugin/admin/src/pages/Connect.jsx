@@ -295,7 +295,9 @@ const STEP_SCREENSHOTS = {
   'zed/authorize': 'zed/01-authorize.webp',
   'opencode/authorize': 'opencode/01-authorize.webp',
   'goose/authorize': 'goose/01-authorize.webp',
-  'antigravity/authorize': 'antigravity/01-authorize.webp',
+  'antigravity/settings': 'antigravity/01-customizations.webp',
+  'antigravity/open-config': 'antigravity/02-open-mcp-config.webp',
+  'antigravity/authorize': 'antigravity/03-authorize.webp',
   'pi/authorize': 'pi/01-authorize.webp',
   'other/authorize': 'other/01-authorize.webp',
   'chatgpt/customize': 'chatgpt/01-customize.webp',
@@ -372,10 +374,12 @@ const PASSWORD_CONFIGS = {
   antigravity: {
     file: 'mcp_config.json',
     wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
-    steps: [
-      'In the agent panel, click <strong>…</strong> → <strong>MCP Servers</strong> → <strong>Manage MCP Servers</strong> → <strong>View raw config</strong>',
+    steps: () => [
+      shot('antigravity/settings', 'In Antigravity, open <strong>Settings</strong> → <strong>Customizations</strong>', 'Settings → Customizations'),
+      shot('antigravity/open-config', 'Under <strong>Installed MCP Servers</strong>, click <strong>Open MCP Config</strong>', 'Installed MCP Servers → Open MCP Config'),
       'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
-      'Save the file and click <strong>Refresh</strong>',
+      'Save the file, then click the refresh icon next to <strong>Installed MCP Servers</strong>',
+      FIRST_PROMPT_STEP,
     ],
   },
   pi: {
@@ -643,11 +647,13 @@ function buildOAuth(serverName, serverUrl) {
       hint: 'Antigravity needs <code>serverUrl</code> (not <code>url</code>). Merge this with any servers already in the file.',
       value: json({ mcpServers: { [serverName]: { serverUrl } } }),
       steps: [
-        shot('antigravity/manage', 'In the agent panel, click <strong>…</strong> → <strong>MCP Servers</strong> → <strong>Manage MCP Servers</strong> → <strong>View raw config</strong>', 'Manage MCP Servers → View raw config'),
-        'Paste the JSON above into the file and save',
-        shot('antigravity/authenticate', 'Open <strong>Agent Settings</strong> → <strong>Customizations</strong> and click <strong>Authenticate</strong> next to the server', 'Customizations → Authenticate'),
+        shot('antigravity/settings', 'In Antigravity, open <strong>Settings</strong> → <strong>Customizations</strong>', 'Settings → Customizations'),
+        shot('antigravity/open-config', 'Under <strong>Installed MCP Servers</strong>, click <strong>Open MCP Config</strong>', 'Installed MCP Servers → Open MCP Config'),
+        'Paste the JSON above into the file and save. If it already lists servers, add this one inside <code>mcpServers</code>',
+        'Back in Customizations, click the refresh icon next to <strong>Installed MCP Servers</strong>. If the server asks you to sign in, click <strong>Authenticate</strong>',
         authorizeStep('antigravity'),
-        shot('antigravity/code', 'Copy the code shown, paste it back in Antigravity, and click <strong>Submit</strong>', 'Pasting the authorization code'),
+        'If Antigravity shows a code, copy it back into Antigravity and click <strong>Submit</strong>',
+        FIRST_PROMPT_STEP,
       ],
     }],
     'pi': [{
