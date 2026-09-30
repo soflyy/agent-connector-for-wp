@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, Image as ImageIcon, LayoutTemplate, UserRound, LayoutGrid,
+  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, LayoutTemplate, UserRound, LayoutGrid,
 } from 'lucide-react'
 import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
@@ -263,8 +263,8 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 // Node.js. See src/OAuth/Server.php.
 
 // Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
-// assets/images/connect/. A key without an entry renders a placeholder (see
-// StepScreenshot). A file named `…@2x.webp` is a retina capture of a small
+// assets/images/connect/. A step whose key has no entry is shown as text
+// only. A file named `…@2x.webp` is a retina capture of a small
 // area and is shown at half its pixel size so it stays sharp.
 const STEP_SCREENSHOTS = {
   'claude-desktop/customize': 'claude-desktop/01-customize@2x.webp',
@@ -466,8 +466,9 @@ const FIRST_PROMPT_STEP = {
 // of this dashboard.
 function shot(key, html, alt, extra = {}) {
   const path = STEP_SCREENSHOTS[key]
+  if (!path) return { html, ...extra }
   const browserUrl = key.endsWith('/authorize') ? 'mysite.com/wp-json/acfw-auth/v1/authorize' : null
-  return { html, screenshot: { src: path ? `${initial.assetsUrl}images/connect/${path}` : '', alt, browserUrl }, ...extra }
+  return { html, screenshot: { src: `${initial.assetsUrl}images/connect/${path}`, alt, browserUrl }, ...extra }
 }
 
 // The final step most clients share: this site's own consent page.
@@ -984,10 +985,10 @@ function StepPrompts({ prompts }) {
   )
 }
 
-// A step's screenshot, or a placeholder until its src is set. Every frame has
-// the same fixed height; a capture is shown at its pixel size (the crops are
-// small UI pieces) and scaled down only when it doesn't fit, so tall dialogs
-// shrink instead of stretching the frame. Clicking opens it full size.
+// A step's screenshot. Every frame has the same fixed height; a capture is
+// shown at its pixel size (half that for an @2x file) and scaled down only
+// when it doesn't fit, so tall dialogs shrink instead of stretching the frame.
+// Clicking opens it full size.
 function StepScreenshot({ screenshot }) {
   const [zoomed, setZoomed] = useState(false)
 
@@ -1001,7 +1002,7 @@ function StepScreenshot({ screenshot }) {
   )
 
   // This plugin's consent page: the browser window is the whole canvas.
-  if (screenshot.src && screenshot.browserUrl) {
+  if (screenshot.browserUrl) {
     return (
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2.5">
@@ -1031,23 +1032,16 @@ function StepScreenshot({ screenshot }) {
 
   return (
     <div className="flex h-[360px] items-center justify-center rounded-xl bg-gray-100 p-6">
-      {screenshot.src ? (
-        <img
-          src={screenshot.src}
-          alt={screenshot.alt}
-          loading="lazy"
-          onClick={() => setZoomed(true)}
-          onLoad={(e) => {
-            if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.width = `${e.currentTarget.naturalWidth / 2}px`
-          }}
-          className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
-        />
-      ) : (
-        <span className="flex items-center gap-2 text-xs text-gray-400">
-          <ImageIcon className="w-4 h-4" />
-          Screenshot: {screenshot.alt}
-        </span>
-      )}
+      <img
+        src={screenshot.src}
+        alt={screenshot.alt}
+        loading="lazy"
+        onClick={() => setZoomed(true)}
+        onLoad={(e) => {
+          if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.width = `${e.currentTarget.naturalWidth / 2}px`
+        }}
+        className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
+      />
       {zoom}
     </div>
   )
