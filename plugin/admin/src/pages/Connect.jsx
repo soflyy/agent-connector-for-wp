@@ -319,12 +319,11 @@ const PASSWORD_CONFIGS = {
   cursor: {
     file: '~/.cursor/mcp.json',
     wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
-    // A function: shot() and FIRST_PROMPT_STEP are defined further down.
+    // A function: shot() is defined further down.
     steps: () => [
       shot('cursor/password-customize', 'In Cursor, click <strong>Customize</strong> in the sidebar', 'Customize in the Cursor sidebar'),
       shot('cursor/password-new', 'Open <strong>MCPs</strong> and click <strong>New MCP Server</strong>', 'MCPs → New MCP Server'),
       shot('cursor/password-file', 'Cursor opens <code>~/.cursor/mcp.json</code>. Replace its contents with the JSON above and save. If it already lists other servers, add just this one inside <code>mcpServers</code>', 'The mcp.json file in the editor'),
-      FIRST_PROMPT_STEP,
     ],
   },
   'vscode-copilot': {
@@ -380,7 +379,6 @@ const PASSWORD_CONFIGS = {
       shot('antigravity/open-config', 'Under <strong>Installed MCP Servers</strong>, click <strong>Open MCP Config</strong>', 'Installed MCP Servers → Open MCP Config'),
       'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
       'Save the file, then click the refresh icon next to <strong>Installed MCP Servers</strong>',
-      FIRST_PROMPT_STEP,
     ],
   },
   pi: {
@@ -443,14 +441,13 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
       shot('chatgpt/password-add', 'Click <strong>Add</strong>, then <strong>Add MCP server</strong>', 'Add → Add MCP server'),
       shot('chatgpt/password-command', 'Enter the name, keep <strong>Type</strong> on <strong>STDIO</strong>, and add the command and both arguments from above', 'Name, type, command and arguments'),
       shot('chatgpt/password-env', 'Add the three environment variables from above and click <strong>Save</strong>', 'Environment variables and Save'),
-      FIRST_PROMPT_STEP,
     ],
   }
 }
 
-// The last step of every screenshot walkthrough: something to try once
-// connected. Site-building tasks, each saved as a draft so nothing goes live
-// before the operator has looked at it.
+// The last step of every way to connect (added by BlockList): something to
+// try once connected. Site-building tasks, each saved as a draft so nothing
+// goes live before the operator has looked at it.
 const FIRST_PROMPT_STEP = {
   html: 'Write your first prompt. Try one of these:',
   prompts: [
@@ -518,7 +515,6 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
         authorizeStep('claude-desktop'),
         shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'chatgpt': [{
@@ -529,7 +525,6 @@ function buildOAuth(serverName, serverUrl) {
         shot('chatgpt/form', 'Enter a name for your site, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>', 'Create MCP App form', withUrl),
         shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
         authorizeStep('chatgpt'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'cursor': [{
@@ -539,7 +534,6 @@ function buildOAuth(serverName, serverUrl) {
         shot('cursor/install', 'Click <strong>Add to Cursor</strong> above. When Cursor asks <strong>Install MCP server?</strong>, click <strong>Install</strong>', 'Install MCP server dialog'),
         shot('cursor/connect', 'In <strong>Customize</strong> → <strong>MCPs</strong>, click <strong>Authenticate</strong> on the server', 'Customize → MCPs → Authenticate'),
         authorizeStep('cursor'),
-        FIRST_PROMPT_STEP,
       ],
     }, {
       kind: 'json', title: 'mcp.json', manual: true,
@@ -553,7 +547,6 @@ function buildOAuth(serverName, serverUrl) {
         'Copy both commands above',
         'Open your terminal and run them in order',
         shot('claude-code/authorize', 'The second command opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>', 'This site\'s Authorize page'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'codex-cli': [{
@@ -563,7 +556,6 @@ function buildOAuth(serverName, serverUrl) {
         'Copy the command above',
         'Open your terminal and paste it',
         shot('codex-cli/authorize', `Codex opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>. If nothing opens, run <code>codex mcp login ${serverName}</code>`, 'This site\'s Authorize page'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'gemini': [{
@@ -577,7 +569,6 @@ function buildOAuth(serverName, serverUrl) {
         shot('gemini/consent', 'Tick <strong>I understand and accept the security and privacy risks</strong> and click <strong>Connect</strong>', 'Security and privacy confirmation'),
         authorizeStep('gemini'),
         shot('gemini/save', 'Back in Gemini, check the available actions and click <strong>Connect</strong>', 'Save your custom app dialog'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'vscode-copilot': [{
@@ -655,7 +646,6 @@ function buildOAuth(serverName, serverUrl) {
         authorizeStep('antigravity'),
         shot('antigravity/code', 'A page with a code opens. Click <strong>Copy to Clipboard</strong>', 'Copy to Clipboard'),
         shot('antigravity/submit', 'In Antigravity, paste the code into the field next to the server and click <strong>Submit</strong>', 'Pasting the code and clicking Submit'),
-        FIRST_PROMPT_STEP,
       ],
     }],
     'pi': [{
@@ -1147,10 +1137,24 @@ function Block({ block, videoUrl }) {
 // Renders an agent's blocks. Blocks marked `manual` (the do-it-yourself
 // fallback to a one-click or copy-paste route) sit behind a collapsed
 // "Or install manually" toggle below the rest.
+// Ends a path (the main blocks, or the manual ones) with FIRST_PROMPT_STEP on
+// its last block, so every agent gets it without listing it.
+function withFirstPrompt(path) {
+  return path.map((block, i) => {
+    if (i < path.length - 1) return block
+    const hasSteps = block.steps?.length > 0
+    return {
+      ...block,
+      steps: [...(block.steps || []), FIRST_PROMPT_STEP],
+      stepsTitle: hasSteps ? block.stepsTitle : 'Once connected',
+    }
+  })
+}
+
 function BlockList({ blocks, videoUrl }) {
   const [showManual, setShowManual] = useState(false)
-  const primary = blocks.filter((b) => !b.manual)
-  const manual = blocks.filter((b) => b.manual)
+  const primary = withFirstPrompt(blocks.filter((b) => !b.manual))
+  const manual = withFirstPrompt(blocks.filter((b) => b.manual))
 
   if (!blocks.length) {
     return <p className="text-base text-gray-400">No configuration available for this agent.</p>
