@@ -1473,7 +1473,9 @@ function AppPasswordFlow({ selectedAgent, status }) {
   }
   if (connection && agentMeta.mcpb) {
     const mcpbBlock = {
-      kind: 'mcpb', title: 'One-click install',
+      // The agent's video walks through the manual JSON setup, so it goes
+      // with that block, not this one.
+      kind: 'mcpb', title: 'One-click install', noVideo: true,
       hint: 'Download the file below and double click it. Requires Node.js. This file includes your application password, so keep it private.',
       button: 'Download .mcpb file',
       value: {
