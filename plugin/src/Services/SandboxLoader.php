@@ -106,8 +106,8 @@ final class SandboxLoader {
 	}
 
 	/**
-	 * Shutdown callback: if a fatal happened while a sandbox file was loading,
-	 * persist a `.crashed` marker so the next request enters safe mode.
+	 * Shutdown callback: if a sandbox file never returned control to the load
+	 * loop, persist a `.crashed` marker so the next request enters safe mode.
 	 */
 	public function detect_crash_on_shutdown(): void {
 		// No sandbox file was loading when the request ended → not our crash.
@@ -115,19 +115,29 @@ final class SandboxLoader {
 			return;
 		}
 
+		// Reaching shutdown with $current_file still set means the
+		// require_once() of that file never returned control to the loop.
+		// That happens for a genuine PHP fatal (E_ERROR/E_PARSE/...), but
+		// just as easily for a deliberate exit()/die() in the file's own
+		// top-level code — e.g. a stray `if (php_sapi_name() !== 'cli') {
+		// exit(...); }` guard, which is not a PHP error at all. Both halt
+		// every future request identically, so both must trip safe mode;
+		// only checking error_get_last() misses the exit()/die() case
+		// entirely and leaves the site down with no recovery.
 		$error = error_get_last();
-		if ( null === $error ) {
-			return;
-		}
-
-		// Only the fatal error types that actually kill execution.
 		$fatal = E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR;
-		if ( 0 === ( (int) $error['type'] & $fatal ) ) {
-			return;
-		}
+		$is_fatal_error = null !== $error && 0 !== ( (int) $error['type'] & $fatal );
 
-		$error['sandbox_file'] = $this->current_file;
-		$json                  = wp_json_encode( $error );
+		if ( $is_fatal_error ) {
+			$data = $error;
+		} else {
+			$data = array(
+				'message' => 'Sandbox file ended the request early (exit/die) instead of returning control to the loader.',
+			);
+		}
+		$data['sandbox_file'] = $this->current_file;
+
+		$json = wp_json_encode( $data );
 		if ( false === $json ) {
 			$json = '{}';
 		}
