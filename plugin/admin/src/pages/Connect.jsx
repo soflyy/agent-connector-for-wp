@@ -264,11 +264,12 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 
 // Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
 // assets/images/connect/. A key without an entry renders a placeholder (see
-// StepScreenshot).
+// StepScreenshot). A file named `…@2x.webp` is a retina capture of a small
+// area and is shown at half its pixel size so it stays sharp.
 const STEP_SCREENSHOTS = {
-  'claude-desktop/customize': 'claude-desktop/01-customize.webp',
-  'claude-desktop/connectors': 'claude-desktop/02-connectors.webp',
-  'claude-desktop/add': 'claude-desktop/03-add-custom-connector.webp',
+  'claude-desktop/customize': 'claude-desktop/01-customize@2x.webp',
+  'claude-desktop/connectors': 'claude-desktop/02-connectors@2x.webp',
+  'claude-desktop/add': 'claude-desktop/03-add-custom-connector@2x.webp',
   'claude-desktop/name-url': 'claude-desktop/04-name-and-url.webp',
   'claude-desktop/options': 'claude-desktop/05-add.webp',
   'claude-desktop/connect': 'claude-desktop/06-connect.webp',
@@ -1042,6 +1043,9 @@ function StepScreenshot({ screenshot }) {
           alt={screenshot.alt}
           loading="lazy"
           onClick={() => setZoomed(true)}
+          onLoad={(e) => {
+            if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.width = `${e.currentTarget.naturalWidth / 2}px`
+          }}
           className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
         />
       ) : (
