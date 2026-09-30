@@ -15,3 +15,8 @@
 #agent-connector-for-wp-app *::after {
   box-sizing: border-box;
 }
+
+#agent-connector-for-wp-app {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
