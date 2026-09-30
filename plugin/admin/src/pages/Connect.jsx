@@ -450,9 +450,13 @@ const FIRST_PROMPT_STEP = {
 }
 
 // A step with a screenshot under it; `extra` adds step fields such as `copy`.
+// Screenshots of this plugin's own consent page are drawn inside a browser
+// window, so they read as "what your browser will show" rather than as part
+// of this dashboard.
 function shot(key, html, alt, extra = {}) {
   const path = STEP_SCREENSHOTS[key]
-  return { html, screenshot: { src: path ? `${initial.assetsUrl}images/connect/${path}` : '', alt }, ...extra }
+  const browserUrl = key.endsWith('/authorize') ? 'mysite.com/wp-json/acfw-auth/v1/authorize' : null
+  return { html, screenshot: { src: path ? `${initial.assetsUrl}images/connect/${path}` : '', alt, browserUrl }, ...extra }
 }
 
 // The final step most clients share: this site's own consent page.
@@ -981,7 +985,31 @@ function StepScreenshot({ screenshot }) {
   const [maxWidth, setMaxWidth] = useState(null)
   return (
     <div className="flex items-center justify-center min-h-[350px] rounded-xl bg-gray-100 p-6">
-      {screenshot.src ? (
+      {screenshot.src && screenshot.browserUrl ? (
+        <div className="w-full max-w-lg overflow-hidden rounded-lg border border-gray-300 bg-white shadow-lg">
+          <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2">
+            <span className="flex gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
+            </span>
+            <span className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-500">
+              <Lock className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">{screenshot.browserUrl}</span>
+            </span>
+          </div>
+          <div className="flex justify-center bg-[#f0f0f1] px-6 py-8">
+            <img
+              src={screenshot.src}
+              alt={screenshot.alt}
+              loading="lazy"
+              onLoad={(e) => setMaxWidth(e.currentTarget.naturalWidth / 2)}
+              style={maxWidth ? { maxWidth: `min(100%, ${maxWidth}px)` } : undefined}
+              className="w-auto h-auto max-w-full rounded-lg shadow-sm"
+            />
+          </div>
+        </div>
+      ) : screenshot.src ? (
         <img
           src={screenshot.src}
           alt={screenshot.alt}
