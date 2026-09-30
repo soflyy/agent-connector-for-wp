@@ -427,7 +427,7 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
 // way there. Built here rather than server-side so it can carry screenshots.
 function chatgptPasswordBlock({ name, serverUrl, username, password }) {
   return {
-    kind: 'fields', title: 'MCP server settings', noVideo: true,
+    kind: 'fields', title: 'MCP server settings',
     value: [
       { label: 'Name',            value: name },
       { label: 'Type',            value: 'STDIO' },
@@ -1047,7 +1047,7 @@ function StepScreenshot({ screenshot }) {
   )
 }
 
-function Block({ block, videoUrl }) {
+function Block({ block }) {
   const titleIcon = block.kind === 'mcpb'
     ? <Package className="w-4 h-4" />
     : block.kind === 'command'
@@ -1114,9 +1114,9 @@ function Block({ block, videoUrl }) {
               </li>
             ))}
           </ol>
-          {videoUrl && !block.noVideo && (
+          {block.videoUrl && (
             <a
-              href={videoUrl}
+              href={block.videoUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
@@ -1148,7 +1148,14 @@ function withFirstPrompt(path) {
   })
 }
 
-function BlockList({ blocks, videoUrl }) {
+// An agent's video walks through its own setup, so it goes on the first of its
+// own blocks: once, and never on blocks added around them like the .mcpb
+// download.
+function withVideo(blocks, videoUrl) {
+  return videoUrl ? blocks.map((block, i) => (i === 0 ? { ...block, videoUrl } : block)) : blocks
+}
+
+function BlockList({ blocks }) {
   const [showManual, setShowManual] = useState(false)
   const primary = withFirstPrompt(blocks.filter((b) => !b.manual))
   const manual = withFirstPrompt(blocks.filter((b) => b.manual))
@@ -1159,7 +1166,7 @@ function BlockList({ blocks, videoUrl }) {
 
   return (
     <div className="space-y-6">
-      {primary.map((block, i) => <Block key={i} block={block} videoUrl={videoUrl} />)}
+      {primary.map((block, i) => <Block key={i} block={block} />)}
       {manual.length > 0 && (
         <div className="space-y-6">
           <button
@@ -1169,7 +1176,7 @@ function BlockList({ blocks, videoUrl }) {
             {showManual ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             Or install manually
           </button>
-          {showManual && manual.map((block, i) => <Block key={i} block={block} videoUrl={videoUrl} />)}
+          {showManual && manual.map((block, i) => <Block key={i} block={block} />)}
         </div>
       )}
     </div>
@@ -1471,11 +1478,10 @@ function AppPasswordFlow({ selectedAgent, status }) {
       password: generatedPassword ?? existingPw,
     })]
   }
+  blocks = withVideo(blocks, agentMeta.videoUrl)
   if (connection && agentMeta.mcpb) {
     const mcpbBlock = {
-      // The agent's video walks through the manual JSON setup, so it goes
-      // with that block, not this one.
-      kind: 'mcpb', title: 'One-click install', noVideo: true,
+      kind: 'mcpb', title: 'One-click install',
       hint: 'Download the file below and double click it. Requires Node.js. This file includes your application password, so keep it private.',
       button: 'Download .mcpb file',
       value: {
@@ -1496,7 +1502,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
     return (
       <div className="space-y-6">
         {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
-        <BlockList blocks={blocks} videoUrl={agentMeta.videoUrl} />
+        <BlockList blocks={blocks} />
       </div>
     )
   }
@@ -1704,7 +1710,7 @@ function GenerateStep({ selectedAgent, status, onBack }) {
               </span>
             </div>
           )}
-          <BlockList blocks={agentData?.blocks ?? []} videoUrl={agentMeta.oauthVideoUrl} />
+          <BlockList blocks={withVideo(agentData?.blocks ?? [], agentMeta.oauthVideoUrl)} />
         </div>
       ) : (
         <div className="space-y-4">
