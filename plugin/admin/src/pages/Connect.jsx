@@ -1093,7 +1093,20 @@ function Block({ block }) {
 
       {block.steps?.length > 0 && (
         <div className="border-t border-gray-100 px-6 py-5 space-y-4">
-          <p className="text-sm font-medium text-gray-500">{block.stepsTitle || 'How to install'}</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-500">{block.stepsTitle || 'How to install'}</p>
+            {block.videoUrl && (
+              <a
+                href={block.videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex flex-shrink-0 items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                <Play className="w-4 h-4 text-indigo-500" />
+                Watch video instructions
+              </a>
+            )}
+          </div>
           {/* A timeline: numbered squares joined by a line down to the next step. */}
           <ol>
             {block.steps.map((step, i) => (
@@ -1114,17 +1127,6 @@ function Block({ block }) {
               </li>
             ))}
           </ol>
-          {block.videoUrl && (
-            <a
-              href={block.videoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-            >
-              <Play className="w-4 h-4 text-indigo-500" />
-              Watch video instructions
-            </a>
-          )}
         </div>
       )}
     </div>
