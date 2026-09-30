@@ -1075,15 +1075,19 @@ function Block({ block, videoUrl }) {
       {block.steps?.length > 0 && (
         <div className="border-t border-gray-100 px-6 py-5 space-y-4">
           <p className="text-sm font-medium text-gray-500">{block.stepsTitle || 'How to install'}</p>
-          <ol className="space-y-5">
+          {/* A timeline: numbered squares joined by a line down to the next step. */}
+          <ol>
             {block.steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold flex items-center justify-center">
+              <li key={i} className="relative flex items-start gap-4 pb-8 last:pb-0">
+                {i < block.steps.length - 1 && (
+                  <span className="absolute left-3.5 top-9 bottom-1 w-px bg-gray-200" aria-hidden="true" />
+                )}
+                <span className="relative flex-shrink-0 w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-semibold flex items-center justify-center">
                   {i + 1}
                 </span>
                 {/* A step is an HTML string, or { html, copy, prompts, screenshot } to add a copyable URL, example prompts and an image under it. */}
-                <div className="flex-1 min-w-0 space-y-3 pt-0.5">
-                  <p className="text-base text-gray-700" dangerouslySetInnerHTML={{ __html: typeof step === 'string' ? step : step.html }} />
+                <div className="flex-1 min-w-0 space-y-4 pt-0.5">
+                  <p className="text-base font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: typeof step === 'string' ? step : step.html }} />
                   {step.copy && <UrlField value={step.copy} />}
                   {step.prompts && <StepPrompts prompts={step.prompts} />}
                   {step.screenshot && <StepScreenshot screenshot={step.screenshot} />}
