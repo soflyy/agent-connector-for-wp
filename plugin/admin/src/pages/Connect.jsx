@@ -451,12 +451,17 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
 // The last step of every way to connect (added by BlockList): something to
 // try once connected. Site-building tasks, each saved as a draft so nothing
 // goes live before the operator has looked at it.
+// Each prompt names the MCP server, so an agent with several connected knows
+// which site to work on.
+const onServer = (text) => initial.serverName
+  ? `Using the ${initial.serverName} MCP server, ${text[0].toLowerCase()}${text.slice(1)}`
+  : text
 const FIRST_PROMPT_STEP = {
   html: 'Write your first prompt. Try one of these:',
   prompts: [
-    { title: 'Landing page', Icon: LayoutTemplate, text: 'Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.' },
-    { title: 'About page', Icon: UserRound, text: 'Create an About page that matches the style of my existing pages. Save it as a draft.' },
-    { title: 'Services page', Icon: LayoutGrid, text: 'Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.' },
+    { title: 'Landing page', Icon: LayoutTemplate, text: onServer('Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.') },
+    { title: 'About page', Icon: UserRound, text: onServer('Create an About page that matches the style of my existing pages. Save it as a draft.') },
+    { title: 'Services page', Icon: LayoutGrid, text: onServer('Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.') },
   ],
 }
 
@@ -514,7 +519,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/customize', 'In Claude, click <strong>Customize</strong> in the sidebar', 'Customize in the Claude sidebar'),
         shot('claude-desktop/connectors', 'Open the <strong>Connectors</strong> tab', 'Connectors tab'),
         shot('claude-desktop/add', 'Click <strong>Add</strong>, then <strong>Add custom connector</strong>', 'Add custom connector menu'),
-        shot('claude-desktop/name-url', 'Enter a name for your site, paste the MCP Server URL, and click <strong>Continue</strong>', 'Name and MCP server URL fields', withUrl),
+        shot('claude-desktop/name-url', `Name it <code>${serverName}</code>, paste the MCP Server URL, and click <strong>Continue</strong>`, 'Name and MCP server URL fields', withUrl),
         shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
         authorizeStep('claude-desktop'),
@@ -526,7 +531,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
         shot('chatgpt/create-mcp-app', 'In <strong>Plugins</strong>, click <strong>Add</strong>, then <strong>Create MCP App</strong>', 'Add → Create MCP App'),
-        shot('chatgpt/form', 'Enter a name for your site, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>', 'Create MCP App form', withUrl),
+        shot('chatgpt/form', `Name it <code>${serverName}</code>, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>`, 'Create MCP App form', withUrl),
         shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
         authorizeStep('chatgpt'),
       ],
@@ -587,7 +592,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide, manual: true,
       steps: [
         shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
-        shot('vscode/http', 'Choose <strong>HTTP</strong>, paste the MCP Server URL, and give it a name', 'Server URL prompt', withUrl),
+        shot('vscode/http', `Choose <strong>HTTP</strong>, paste the MCP Server URL, and name it <code>${serverName}</code>`, 'Server URL prompt', withUrl),
         'Choose <strong>Global</strong> to use it in every workspace, then allow the sign-in as above',
       ],
     }],
@@ -595,7 +600,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide,
       steps: [
         shot('cline/customize', 'In the Cline panel, click <strong>Customize</strong> (the wrench), then the <strong>MCP</strong> tab', 'Customize → MCP'),
-        shot('cline/add', 'Click <strong>Add Remote Server</strong>, enter a name, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>', 'Add Remote Server form', withUrl),
+        shot('cline/add', `Click <strong>Add Remote Server</strong>, name it <code>${serverName}</code>, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>`, 'Add Remote Server form', withUrl),
         shot('cline/authenticate', 'Click <strong>Add Server</strong>, then <strong>Authenticate</strong> on the server', 'Authenticate button'),
         authorizeStep('cline'),
       ],
@@ -634,7 +639,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide,
       steps: [
         shot('goose/extensions', 'In Goose, open the sidebar and click <strong>Extensions</strong> → <strong>Add custom extension</strong>', 'Extensions → Add custom extension'),
-        shot('goose/form', 'Enter a name, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>', 'Custom extension form', withUrl),
+        shot('goose/form', `Name it <code>${serverName}</code>, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>`, 'Custom extension form', withUrl),
         authorizeStep('goose', 'Click <strong>Add Extension</strong>.'),
       ],
     }],
@@ -1475,7 +1480,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
   }
   if (connection && agentMeta.id === 'chatgpt') {
     blocks = [chatgptPasswordBlock({
-      name: initial.siteName || initial.serverName,
+      name: initial.serverName,
       serverUrl: initial.serverUrl,
       username: connection.username ?? initial.username,
       password: generatedPassword ?? existingPw,
