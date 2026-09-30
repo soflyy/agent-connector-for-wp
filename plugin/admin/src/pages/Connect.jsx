@@ -506,7 +506,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
         authorizeStep('claude-desktop'),
-        shot('claude-desktop/connected', 'Done. Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
+        shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
         FIRST_PROMPT_STEP,
       ],
     }],
