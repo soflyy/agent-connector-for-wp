@@ -312,6 +312,10 @@ const STEP_SCREENSHOTS = {
   'chatgpt/form': 'chatgpt/03-form.webp',
   'chatgpt/continue': 'chatgpt/04-continue.webp',
   'chatgpt/authorize': 'chatgpt/05-authorize.webp',
+  'chatgpt/plugin-customize': 'chatgpt/plugin-01-customize.webp',
+  'chatgpt/plugin-upload': 'chatgpt/plugin-02-upload-archive.webp',
+  'chatgpt/plugin-add': 'chatgpt/plugin-03-add-plugin.webp',
+  'chatgpt/plugin-install': 'chatgpt/plugin-04-install.webp',
   'chatgpt/password-settings': 'chatgpt/password-01-settings-mcps.webp',
   'chatgpt/password-add': 'chatgpt/password-02-add-mcp-server.webp',
   'chatgpt/password-command': 'chatgpt/password-03-command.webp',
@@ -422,6 +426,17 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
     value: JSON.stringify(config.wrap(name, entry), null, 2),
     steps: typeof config.steps === 'function' ? config.steps() : config.steps,
   }
+}
+
+// Installing the downloaded ChatGPT plugin, the same for both sign-in
+// methods (OAuth adds the sign-in after it).
+function chatgptPluginSteps() {
+  return [
+    shot('chatgpt/plugin-customize', 'In ChatGPT, open <strong>Customize</strong> and click <strong>Plugins</strong>', 'Customize → Plugins'),
+    shot('chatgpt/plugin-upload', 'Click <strong>Add</strong>, then <strong>Upload plugin archive</strong>', 'Add → Upload plugin archive'),
+    shot('chatgpt/plugin-add', 'Drag in the file you downloaded (or use <strong>click to upload</strong>), then click <strong>Add plugin</strong>', 'New Plugin dialog'),
+    shot('chatgpt/plugin-install', 'Click <strong>Install plugin</strong>', 'Install plugin button'),
+  ]
 }
 
 // ChatGPT's application-password setup: its own "Connect to a custom MCP"
@@ -545,9 +560,8 @@ function buildOAuth(serverName, serverUrl) {
         prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
       },
       steps: [
-        shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
-        'In <strong>Plugins</strong>, click <strong>Add</strong>, choose the file you downloaded, and click <strong>Add plugin</strong>',
-        authorizeStep('chatgpt', 'Open the plugin and sign in when ChatGPT asks.'),
+        ...chatgptPluginSteps(),
+        authorizeStep('chatgpt', 'ChatGPT asks you to sign in to the plugin.'),
       ],
     }, {
       ...guide, manual: true,
@@ -1512,6 +1526,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
       hint: 'Download the plugin below and upload it to ChatGPT. Requires Node.js. This file includes your application password, so keep it private.',
       button: 'Download ChatGPT plugin',
       download: downloadChatgptPlugin,
+      steps: chatgptPluginSteps(),
       value: {
         serverName: initial.serverName,
         serverUrl: initial.serverUrl,
