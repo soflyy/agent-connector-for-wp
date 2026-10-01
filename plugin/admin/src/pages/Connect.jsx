@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  MousePointer2, Bot, SquareTerminal, Bird, Rocket, Pi, Search, ChevronDown, ChevronRight,
+  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, LayoutTemplate, UserRound, LayoutGrid,
 } from 'lucide-react'
-import { SiOpenai, SiAnthropic, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
+import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
+import { CursorIcon, AntigravityIcon, ClaudeIcon } from '../components/BrandIcons'
 import { api, initial, DEMO_URL } from '../api'
+import { downloadMcpb } from '../mcpb'
+import { downloadChatgptPlugin } from '../chatgptPlugin'
 
 // On local environments the site isn't reachable over the internet, so OAuth
 // only works for agents running on the same machine (CLI tools); hosted
@@ -40,6 +43,7 @@ function isLocalEnvironment() {
 
 // `cli: true` marks an agent that runs on the operator's own machine, so it
 // can reach a local site and needs none of the local-environment caveats.
+// `httpsOnly: true` marks an agent whose OAuth connector refuses http:// URLs.
 //
 // The two video fields are per auth method and are not interchangeable:
 // `videoUrl` walks through the application-password + proxy setup, which looks
@@ -49,25 +53,32 @@ function isLocalEnvironment() {
 // picker's collapsed set, so this order is UI, not just cosmetics.
 //
 // Agents without dedicated instructions fall back to the generic "Other"
-// blocks (see the `|| perAgent.other` / find('other') lookups). ChatGPT's
-// hosted connectors run in OpenAI's cloud, so it's the only fallback agent
-// without `cli`; the rest are apps on the operator's machine.
+// blocks (see the `|| perAgent.other` / find('other') lookups).
+//
+// ChatGPT covers the ChatGPT desktop app, which now includes Codex: its OAuth
+// steps add a Create MCP App (connected from OpenAI's cloud, hence no `cli`),
+// its application-password steps configure Codex's local MCP servers.
+//
+// `mcpb: true` offers a one-click MCP Bundle download (see ../mcpb.js) ahead
+// of the manual application-password instructions. `passwordOnly: true` marks
+// an entry the OAuth flow can't serve, so the method picker is skipped;
+// `oauthOnly: true` is the reverse, for hosted apps that only take a URL.
 const AGENTS = [
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
-  { id: 'codex-desktop',  label: 'Codex Desktop',   Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: 'https://www.loom.com/share/086dbe81a3eb4ea3bfb0a45f7f4d9779', oauthVideoUrl: '' },
-  { id: 'cursor',         label: 'Cursor',          Icon: MousePointer2,   bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'claude-code',    label: 'Claude Code CLI', Icon: SiAnthropic, bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', mcpb: true, httpsOnly: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
+  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', httpsOnly: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'claude-code',    label: 'Claude Code CLI', Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
-  { id: 'gemini-cli',     label: 'Gemini CLI',      Icon: SiGooglegemini,  bg: '#eef2ff', fg: '#4285f4', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,        bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
+  { id: 'gemini',         label: 'Gemini (Spark)',  Icon: SiGooglegemini,  bg: '#eef2ff', fg: '#4285f4', oauthOnly: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'vscode-copilot', label: 'VS Code Copilot', Icon: VscVscode,       bg: '#e7f0fb', fg: '#0078d4', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'cline',          label: 'Cline',           Icon: Bot,             bg: '#f3e8ff', fg: '#7c3aed', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'windsurf',       label: 'Windsurf',        Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'windsurf',       label: 'Windsurf / Devin', Icon: SiWindsurf,      bg: '#e6fbf4', fg: '#0d9488', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'zed',            label: 'Zed',             Icon: SiZedindustries, bg: '#e8eefe', fg: '#1d4ed8', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'opencode',       label: 'OpenCode',        Icon: SquareTerminal,  bg: '#f1f5f9', fg: '#334155', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'goose',          label: 'Goose',           Icon: Bird,            bg: '#fef3c7', fg: '#b45309', cli: true, videoUrl: '', oauthVideoUrl: '' },
-  { id: 'antigravity',    label: 'Antigravity',     Icon: Rocket,          bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'antigravity',    label: 'Antigravity',     Icon: AntigravityIcon, bg: '#e0f2fe', fg: '#0369a1', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'pi',             label: 'Pi',              Icon: Pi,              bg: '#fdf2f8', fg: '#db2777', cli: true, videoUrl: '', oauthVideoUrl: '' },
+  { id: 'mcpb',           label: 'One-click install (.mcpb)', Icon: Package, bg: '#fff7ed', fg: '#ea580c', cli: true, passwordOnly: true, mcpb: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'other',          label: 'Other',            Icon: Sparkles,    bg: '#f1f5f9', fg: '#64748b', videoUrl: '', oauthVideoUrl: '' },
 ]
 
@@ -112,12 +123,6 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 
   const cursorConfig = btoa(JSON.stringify(serverEntry))
   const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorConfig)}`
-
-  const geminiCmd = [
-    'gemini', 'mcp', 'add',
-    ...Object.entries(env).flatMap(([k, v]) => ['-e', shellArg(`${k}=${v}`)]),
-    shellArg(serverName), 'npx', '-y', shellArg(PROXY_PACKAGE),
-  ].join(' ')
 
   const agentPrompt = [
     'Configure an MCP server for me.',
@@ -193,50 +198,11 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Run this in your terminal to add the server to Codex CLI. It writes to ~/.codex/config.toml automatically (Node.js required).',
           value: codexCliCmd,
           steps: [
-            'Copy the command below',
+            'Copy the command above',
             'Open your terminal and paste it',
             'Codex CLI will confirm the server was added',
           ],
         }],
-      },
-      {
-        id: 'codex-desktop',
-        label: 'Codex Desktop',
-        blocks: [
-          {
-            kind: 'command', title: 'Terminal command',
-            hint: 'Run this in your terminal to add the server automatically (Node.js required).',
-            value: codexCliCmd,
-            steps: [
-              '<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">Install Codex CLI</a>',
-              'Copy the command below',
-              'Open your terminal and paste it',
-            ],
-          },
-          {
-            kind: 'fields', title: 'MCP server settings',
-            hint: null,
-            noVideo: true,
-            stepsTitle: 'Manual install',
-            value: [
-              { label: 'Transport',       value: 'STDIO' },
-              { label: 'Name',            value: serverName },
-              { label: 'Command',         value: 'npx' },
-              { label: 'Argument 1',      value: '-y' },
-              { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
-              { heading: 'Environment Variables' },
-              { label: 'WP_API_URL',      value: env.WP_API_URL },
-              { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
-              { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
-            ],
-            steps: [
-              'Open Codex Desktop → <strong>Settings</strong>',
-              'Click <strong>MCP Servers</strong>',
-              'Click <strong>Add Server</strong>',
-              'Manually enter the MCP server settings below',
-            ],
-          },
-        ],
       },
       {
         id: 'claude-code',
@@ -246,7 +212,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Run this in your terminal to add the server to Claude Code (Node.js required).',
           value: claudeCodeCmd,
           steps: [
-            'Copy the command below',
+            'Copy the command above',
             'Open your terminal and paste it',
             'Claude Code will confirm the server was added',
           ],
@@ -260,9 +226,9 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
           hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
           value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
           steps: [
-            'Copy the JSON below',
+            'Copy the JSON above',
             'Open <code>claude_desktop_config.json</code>',
-            'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file',
+            'Merge the <code>mcpServers</code> entry into the file. Don\'t replace the whole file',
             'Save and restart Claude Desktop',
           ],
         }],
@@ -279,10 +245,10 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
             { label: 'Arguments',       value: `-y ${PROXY_PACKAGE}@latest` },
             { label: 'WP_API_URL',      value: env.WP_API_URL },
             { label: 'WP_API_USERNAME', value: env.WP_API_USERNAME },
-            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD },
+            { label: 'WP_API_PASSWORD', value: env.WP_API_PASSWORD, secret: true },
           ],
           steps: [
-            'Add an MCP server with the settings below',
+            'Add an MCP server with the settings above',
           ],
         }],
       },
@@ -298,73 +264,461 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 // page for the admin to approve — no application password, no local proxy, no
 // Node.js. See src/OAuth/Server.php.
 
-function buildOAuth(serverName, serverUrl) {
-  // A universal copyable URL block used as the fallback for every client.
-  const urlBlock = {
-    kind: 'url', title: 'MCP Server URL',
-    value: serverUrl,
-  }
+// Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
+// assets/images/connect/. A step whose key has no entry is shown as text
+// only. A file named `…@2x.webp` is a retina capture of a small
+// area and is shown at half its pixel size so it stays sharp.
+const STEP_SCREENSHOTS = {
+  'claude-desktop/customize': 'claude-desktop/01-customize@2x.webp',
+  'claude-desktop/connectors': 'claude-desktop/02-connectors@2x.webp',
+  'claude-desktop/add': 'claude-desktop/03-add-custom-connector@2x.webp',
+  'claude-desktop/name-url': 'claude-desktop/04-name-and-url.webp',
+  'claude-desktop/options': 'claude-desktop/05-add.webp',
+  'claude-desktop/connect': 'claude-desktop/06-connect.webp',
+  'claude-desktop/continue': 'claude-desktop/07-continue@2x.webp',
+  'claude-desktop/authorize': 'claude-desktop/08-authorize.webp',
+  'claude-desktop/connected': 'claude-desktop/09-connected.webp',
+  'claude-code/authorize': 'claude-code/01-authorize.webp',
+  'codex-cli/authorize': 'codex-cli/01-authorize.webp',
+  'gemini/spark': 'gemini/01-spark@2x.webp',
+  'gemini/connected-apps': 'gemini/02-connected-apps@2x.webp',
+  'gemini/url': 'gemini/03-custom-app-url@2x.webp',
+  'gemini/confirm': 'gemini/04-confirm-url@2x.webp',
+  'gemini/consent': 'gemini/05-consent@2x.webp',
+  'gemini/authorize': 'gemini/06-authorize.webp',
+  'gemini/save': 'gemini/07-save@2x.webp',
+  'cursor/password-customize': 'cursor/password-01-customize.webp',
+  'cursor/password-new': 'cursor/password-02-new-mcp-server.webp',
+  'cursor/password-file': 'cursor/password-03-mcp-json.webp',
+  'cursor/install': 'cursor/01-install.webp',
+  'cursor/connect': 'cursor/02-authenticate.webp',
+  'cursor/authorize': 'cursor/03-authorize.webp',
+  'vscode-copilot/authorize': 'vscode-copilot/01-authorize.webp',
+  'cline/authorize': 'cline/01-authorize.webp',
+  'windsurf/authorize': 'windsurf/01-authorize.webp',
+  'zed/authorize': 'zed/01-authorize.webp',
+  'opencode/authorize': 'opencode/01-authorize.webp',
+  'goose/authorize': 'goose/01-authorize.webp',
+  'antigravity/settings': 'antigravity/01-customizations@2x.webp',
+  'antigravity/open-config': 'antigravity/02-open-mcp-config@2x.webp',
+  'antigravity/authenticate': 'antigravity/03-authenticate@2x.webp',
+  'antigravity/authorize': 'antigravity/04-authorize.webp',
+  'antigravity/code': 'antigravity/05-code@2x.webp',
+  'antigravity/submit': 'antigravity/06-submit@2x.webp',
+  'pi/authorize': 'pi/01-authorize.webp',
+  'other/authorize': 'other/01-authorize.webp',
+  'chatgpt/customize': 'chatgpt/01-customize.webp',
+  'chatgpt/create-mcp-app': 'chatgpt/02-create-mcp-app.webp',
+  'chatgpt/form': 'chatgpt/03-form.webp',
+  'chatgpt/continue': 'chatgpt/04-continue.webp',
+  'chatgpt/authorize': 'chatgpt/05-authorize.webp',
+  'chatgpt/plugin-sidebar': 'chatgpt/plugin-01-sidebar@2x.webp',
+  'chatgpt/plugin-customize': 'chatgpt/plugin-02-customize@2x.webp',
+  'chatgpt/plugin-upload': 'chatgpt/plugin-03-upload-archive@2x.webp',
+  'chatgpt/plugin-add': 'chatgpt/plugin-04-add-plugin@2x.webp',
+  'chatgpt/plugin-install': 'chatgpt/plugin-05-install@2x.webp',
+  'chatgpt/password-settings': 'chatgpt/password-01-settings-mcps.webp',
+  'chatgpt/password-add': 'chatgpt/password-02-add-mcp-server.webp',
+  'chatgpt/password-command': 'chatgpt/password-03-command.webp',
+  'chatgpt/password-env': 'chatgpt/password-04-env-save.webp',
+}
 
-  // `add --transport http` registers the remote server; `login` runs the OAuth
-  // sign-in up front, so the first tool call just works instead of stopping to
+// Application-password setup as a config file: for each agent, the file it
+// reads, the JSON to merge into it, and how to get there. The server entry is
+// the same stdio proxy everywhere; only the wrapping differs per app.
+const PASSWORD_CONFIGS = {
+  cursor: {
+    file: '~/.cursor/mcp.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    // A function: shot() is defined further down.
+    steps: () => [
+      shot('cursor/password-customize', 'In Cursor, click <strong>Customize</strong> in the sidebar', 'Customize in the Cursor sidebar'),
+      shot('cursor/password-new', 'Open <strong>MCPs</strong> and click <strong>New MCP Server</strong>', 'MCPs → New MCP Server'),
+      shot('cursor/password-file', 'Cursor opens <code>~/.cursor/mcp.json</code>. Replace its contents with the JSON above and save. If it already lists other servers, add just this one inside <code>mcpServers</code>', 'The mcp.json file in the editor'),
+    ],
+  },
+  'vscode-copilot': {
+    file: 'mcp.json',
+    wrap: (name, entry) => ({ servers: { [name]: { type: 'stdio', ...entry } } }),
+    steps: [
+      'Open the Command Palette and run <strong>MCP: Open User Configuration</strong>',
+      'Paste the JSON above. If the file already has <code>servers</code>, add this server inside it instead of replacing the file',
+      'Save the file. VS Code starts the server, and Copilot can use it in agent mode',
+    ],
+  },
+  cline: {
+    file: 'cline_mcp_settings.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'In the Cline panel, open the MCP servers settings and choose to edit <code>cline_mcp_settings.json</code>',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file. Cline reloads its servers automatically',
+    ],
+  },
+  windsurf: {
+    file: '~/.config/devin/mcp_config.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open <code>~/.config/devin/mcp_config.json</code> (create it if it doesn\'t exist)',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file, then check the server in Devin Desktop under <strong>Open customizations</strong>',
+    ],
+  },
+  zed: {
+    file: 'settings.json',
+    wrap: (name, entry) => ({ context_servers: { [name]: entry } }),
+    steps: [
+      'In Zed, run <strong>zed: open settings file</strong> from the command palette',
+      'Add the JSON above. If the file already has <code>context_servers</code>, add this server inside it instead of replacing the file',
+      'Save. The server shows up under <strong>Settings</strong> → <strong>AI</strong> → <strong>MCP Servers</strong>',
+    ],
+  },
+  opencode: {
+    file: 'opencode.json',
+    wrap: (name, entry) => ({ $schema: 'https://opencode.ai/config.json', mcp: { [name]: { type: 'local', command: [entry.command, ...entry.args], environment: entry.env, enabled: true } } }),
+    steps: [
+      'Open <code>opencode.json</code> in your project, or <code>~/.config/opencode/opencode.json</code> for every project',
+      'Paste the JSON above. If the file already has <code>mcp</code>, add this server inside it instead of replacing the file',
+      'Save and restart OpenCode',
+    ],
+  },
+  antigravity: {
+    file: 'mcp_config.json',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: () => [
+      shot('antigravity/settings', 'In Antigravity, open <strong>Settings</strong> → <strong>Customizations</strong>', 'Settings → Customizations'),
+      shot('antigravity/open-config', 'Under <strong>Installed MCP Servers</strong>, click <strong>Open MCP Config</strong>', 'Installed MCP Servers → Open MCP Config'),
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save the file, then click the refresh icon next to <strong>Installed MCP Servers</strong>',
+    ],
+  },
+  pi: {
+    file: '~/.config/mcp/mcp.json',
+    hint: 'Pi needs the <code>pi-mcp-adapter</code> extension for MCP: run <code>pi install npm:pi-mcp-adapter</code> first.',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open <code>~/.config/mcp/mcp.json</code> (create it if it doesn\'t exist)',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save and restart Pi',
+    ],
+  },
+  other: {
+    file: 'your app\'s MCP config file',
+    hint: 'Most apps read this <code>mcpServers</code> format. Check your app\'s docs for where its MCP config file lives.',
+    wrap: (name, entry) => ({ mcpServers: { [name]: entry } }),
+    steps: [
+      'Open your app\'s MCP configuration file',
+      'Paste the JSON above. If the file already has <code>mcpServers</code>, add this server inside it instead of replacing the file',
+      'Save and restart the app',
+    ],
+  },
+}
+
+function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
+  const config = PASSWORD_CONFIGS[agentId]
+  const entry = {
+    command: 'npx',
+    args: ['-y', `${PROXY_PACKAGE}@latest`],
+    env: { WP_API_URL: serverUrl, WP_API_USERNAME: username, WP_API_PASSWORD: password },
+  }
+  return {
+    kind: 'json', title: config.file,
+    hint: config.hint || null,
+    value: JSON.stringify(config.wrap(name, entry), null, 2),
+    steps: typeof config.steps === 'function' ? config.steps() : config.steps,
+  }
+}
+
+// Installing the downloaded ChatGPT plugin, the same for both sign-in
+// methods (OAuth adds the sign-in after it).
+function chatgptPluginSteps() {
+  return [
+    shot('chatgpt/plugin-sidebar', 'In ChatGPT, click the <strong>Customize</strong> icon in the sidebar', 'Customize icon in the sidebar'),
+    shot('chatgpt/plugin-customize', 'Click <strong>Plugins</strong>', 'Customize → Plugins'),
+    shot('chatgpt/plugin-upload', 'Click <strong>Add</strong>, then <strong>Upload plugin archive</strong>', 'Add → Upload plugin archive'),
+    shot('chatgpt/plugin-add', 'Drag in the file you downloaded (or use <strong>click to upload</strong>), then click <strong>Add plugin</strong>', 'New Plugin dialog'),
+    shot('chatgpt/plugin-install', 'Click <strong>Install plugin</strong>', 'Install plugin button'),
+  ]
+}
+
+// ChatGPT's application-password setup: its own "Connect to a custom MCP"
+// form, running the same stdio proxy as the other password paths. ChatGPT's
+// Create MCP App (the OAuth path) can't send a password, so this is the only
+// way there. Built here rather than server-side so it can carry screenshots.
+function chatgptPasswordBlock({ name, serverUrl, username, password }) {
+  return {
+    kind: 'fields', title: 'MCP server settings',
+    value: [
+      { label: 'Name',            value: name },
+      { label: 'Type',            value: 'STDIO' },
+      { label: 'Command',         value: 'npx' },
+      { label: 'Argument 1',      value: '-y' },
+      { label: 'Argument 2',      value: `${PROXY_PACKAGE}@latest` },
+      { heading: 'Environment variables' },
+      { label: 'WP_API_URL',      value: serverUrl },
+      { label: 'WP_API_USERNAME', value: username },
+      { label: 'WP_API_PASSWORD', value: password, secret: true },
+    ],
+    steps: [
+      shot('chatgpt/password-settings', 'In the ChatGPT desktop app, open <strong>Settings</strong> → <strong>Plugins</strong> → <strong>MCPs</strong>', 'Settings → Plugins → MCPs'),
+      shot('chatgpt/password-add', 'Click <strong>Add</strong>, then <strong>Add MCP server</strong>', 'Add → Add MCP server'),
+      shot('chatgpt/password-command', 'Enter the name, keep <strong>Type</strong> on <strong>STDIO</strong>, and add the command and both arguments from above', 'Name, type, command and arguments'),
+      shot('chatgpt/password-env', 'Add the three environment variables from above and click <strong>Save</strong>', 'Environment variables and Save'),
+    ],
+  }
+}
+
+// The last step of every way to connect (added by BlockList): something to
+// try once connected. Site-building tasks, each saved as a draft so nothing
+// goes live before the operator has looked at it.
+// Each prompt names the MCP server, so an agent with several connected knows
+// which site to work on.
+const onServer = (text) => initial.serverName
+  ? `Using the ${initial.serverName} MCP server, ${text[0].toLowerCase()}${text.slice(1)}`
+  : text
+const FIRST_PROMPT_STEP = {
+  html: 'Write your first prompt. Try one of these:',
+  prompts: [
+    { title: 'Landing page', Icon: LayoutTemplate, text: onServer('Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.') },
+    { title: 'About page', Icon: UserRound, text: onServer('Create an About page that matches the style of my existing pages. Save it as a draft.') },
+    { title: 'Services page', Icon: LayoutGrid, text: onServer('Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.') },
+  ],
+}
+
+// A step with a screenshot under it; `extra` adds step fields such as `copy`.
+// Screenshots of this plugin's own consent page are drawn inside a browser
+// window, so they read as "what your browser will show" rather than as part
+// of this dashboard.
+function shot(key, html, alt, extra = {}) {
+  const path = STEP_SCREENSHOTS[key]
+  if (!path) return { html, ...extra }
+  const browserUrl = key.endsWith('/authorize') ? 'mysite.com/wp-json/acfw-auth/v1/authorize' : null
+  return { html, screenshot: { src: `${initial.assetsUrl}images/connect/${path}`, alt, browserUrl }, ...extra }
+}
+
+// The final step most clients share: this site's own consent page.
+// The consent step every OAuth walkthrough shares. `before` is anything the
+// agent needs first, e.g. a button that starts the sign-in.
+const authorizeStep = (agent, before = '') => shot(
+  `${agent}/authorize`,
+  `${before ? before + ' ' : ''}Your WordPress site opens in your browser. Log in if needed and click <strong>Authorize</strong>`,
+  'This site\'s Authorize page',
+)
+
+// Instructions as of September 2026. Clients move these menus often; when one
+// changes, update its entry here (and its screenshots).
+function buildOAuth(serverName, serverUrl) {
+  // Blocks for clients configured by pasting the URL: it's shown at the top
+  // and again inside the step that says to paste it (`copy`).
+  const guide = { kind: 'url', title: 'MCP Server URL', value: serverUrl }
+  const withUrl = { copy: serverUrl }
+
+  // `--transport http` is Streamable HTTP. `login` runs the OAuth sign-in up
+  // front, so the first tool call just works instead of stopping to
   // authenticate.
   const claudeCodeHttp = [
-    `claude mcp add --transport streamable-http ${shellArg(serverName)} ${shellArg(serverUrl)}`,
+    `claude mcp add --transport http --scope user ${shellArg(serverName)} ${shellArg(serverUrl)}`,
     `claude mcp login ${shellArg(serverName)}`,
   ].join('\n')
 
-  // `--url` registers a remote (Streamable HTTP) server; Codex handles the
-  // OAuth sign-in itself from there.
+  // `--url` registers a remote (Streamable HTTP) server; Codex detects OAuth
+  // and starts the sign-in itself.
   const codexCliHttp = `codex mcp add ${shellArg(serverName)} --url ${shellArg(serverUrl)}`
 
-  // VS Code and Cursor accept a remote server described by a bare { url } entry.
-  const vscodeRemote = JSON.stringify({ name: serverName, url: serverUrl })
-  const vscodeRemoteCLI = 'code --add-mcp ' + shellArg(vscodeRemote)
-  const cursorRemote = btoa(JSON.stringify({ url: serverUrl }))
-  const cursorRemoteDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(cursorRemote)}`
+  // VS Code takes { name, type: 'http', url }; Cursor's install link carries
+  // only the inner server entry, base64-encoded.
+  const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(JSON.stringify({ name: serverName, type: 'http', url: serverUrl }))
+  const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(btoa(JSON.stringify({ url: serverUrl })))}`
+
+  const json = (value) => JSON.stringify(value, null, 2)
 
   const perAgent = {
     'claude-desktop': [{
-      ...urlBlock,
+      ...guide,
       steps: [
-        'Open Claude → <strong>Settings</strong> → <strong>Connectors</strong>',
-        'Click <strong>Add custom connector</strong>',
-        'Paste the MCP Server URL below and click <strong>Add</strong>',
-        'When Claude opens the sign-in page, log in and click <strong>Authorize</strong>',
+        shot('claude-desktop/customize', 'In Claude, click <strong>Customize</strong> in the sidebar', 'Customize in the Claude sidebar'),
+        shot('claude-desktop/connectors', 'Open the <strong>Connectors</strong> tab', 'Connectors tab'),
+        shot('claude-desktop/add', 'Click <strong>Add</strong>, then <strong>Add custom connector</strong>', 'Add custom connector menu'),
+        shot('claude-desktop/name-url', `Name it <code>${serverName}</code>, paste the MCP Server URL, and click <strong>Continue</strong>`, 'Name and MCP server URL fields', withUrl),
+        shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
+        shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
+        shot('claude-desktop/continue', 'Your browser will show a confirmation page. Click <strong>Continue connecting</strong>', 'Finish connecting a connector?'),
+        authorizeStep('claude-desktop'),
+        shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
       ],
+    }],
+    // The URL comes first, for anyone who'd rather add the server by hand.
+    'chatgpt': [guide, {
+      // The same plugin as the application-password path, but pointing at
+      // the site's endpoint: ChatGPT signs in over OAuth when it's installed.
+      kind: 'download', title: 'One-click install',
+      hint: 'Download the plugin below and upload it to ChatGPT. It holds no password: you approve access on your site instead.',
+      button: 'Download ChatGPT plugin',
+      download: downloadChatgptPlugin,
+      value: {
+        serverName,
+        serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
+      },
+      steps: [
+        ...chatgptPluginSteps(),
+        authorizeStep('chatgpt', 'ChatGPT asks you to sign in to the plugin.'),
+      ],
+    }, {
+      ...guide, manual: true,
+      steps: [
+        shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
+        shot('chatgpt/create-mcp-app', 'In <strong>Plugins</strong>, click <strong>Add</strong>, then <strong>Create MCP App</strong>', 'Add → Create MCP App'),
+        shot('chatgpt/form', `Name it <code>${serverName}</code>, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>`, 'Create MCP App form', withUrl),
+        shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
+        authorizeStep('chatgpt'),
+      ],
+    }],
+    'cursor': [{
+      kind: 'deeplink', title: 'One-click install', button: 'Add to Cursor',
+      value: cursorDeeplink,
+      steps: [
+        shot('cursor/install', 'Click <strong>Add to Cursor</strong> above. When Cursor asks <strong>Install MCP server?</strong>, click <strong>Install</strong>', 'Install MCP server dialog'),
+        shot('cursor/connect', 'In <strong>Customize</strong> → <strong>MCPs</strong>, click <strong>Authenticate</strong> on the server', 'Customize → MCPs → Authenticate'),
+        authorizeStep('cursor'),
+      ],
+    }, {
+      kind: 'json', title: 'mcp.json', manual: true,
+      hint: 'Add this to <code>~/.cursor/mcp.json</code>, restart Cursor, then click <strong>Authenticate</strong> in <strong>Customize</strong> → <strong>MCPs</strong>.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
     }],
     'claude-code': [{
       kind: 'command', title: 'Terminal commands',
       value: claudeCodeHttp,
       steps: [
-        'Copy both commands below',
+        'Copy both commands above',
         'Open your terminal and run them in order',
-        'The second command opens your browser: sign in and click <strong>Authorize</strong>',
+        shot('claude-code/authorize', 'The second command opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>', 'This site\'s Authorize page'),
       ],
     }],
     'codex-cli': [{
       kind: 'command', title: 'Terminal command',
       value: codexCliHttp,
       steps: [
-        'Copy the command below',
+        'Copy the command above',
         'Open your terminal and paste it',
-        'When Codex opens the sign-in page, log in and click <strong>Authorize</strong>',
+        shot('codex-cli/authorize', `Codex opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>. If nothing opens, run <code>codex mcp login ${serverName}</code>`, 'This site\'s Authorize page'),
       ],
     }],
-    'codex-desktop': [{
-      ...urlBlock,
+    'gemini': [{
+      ...guide,
+      hint: 'Spark connects from Google\'s servers, so this site must be on public HTTPS with a trusted certificate.',
       steps: [
-        'Open Codex Desktop → <strong>Settings</strong> → <strong>MCP Servers</strong>',
-        'Click <strong>Add Server</strong> and choose the remote / URL option',
-        'Paste the MCP Server URL below',
-        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+        shot('gemini/spark', 'Open <strong>gemini.google.com</strong> and switch to <strong>Spark</strong>', 'Switching to Spark'),
+        shot('gemini/connected-apps', 'Click <strong>Connected Apps</strong> in the sidebar', 'Connected Apps in the sidebar'),
+        shot('gemini/url', 'Under <strong>Custom apps for Spark</strong>, paste the MCP Server URL and click <strong>Next</strong>', 'Custom apps for Spark URL field', withUrl),
+        shot('gemini/confirm', 'Check the URL and click <strong>Next</strong>', 'Connect to an MCP server dialog'),
+        shot('gemini/consent', 'Tick <strong>I understand and accept the security and privacy risks</strong> and click <strong>Connect</strong>', 'Security and privacy confirmation'),
+        authorizeStep('gemini'),
+        shot('gemini/save', 'Back in Gemini, check the available actions and click <strong>Connect</strong>', 'Save your custom app dialog'),
+      ],
+    }],
+    'vscode-copilot': [{
+      kind: 'deeplink', title: 'One-click install', button: 'Add to VS Code',
+      value: vscodeDeeplink,
+      steps: [
+        shot('vscode/install', 'Click <strong>Add to VS Code</strong> above and click <strong>Install</strong> on the server page', 'VS Code server Install page'),
+        shot('vscode/allow', 'When VS Code says the server wants to authenticate, click <strong>Allow</strong>', 'Authentication prompt'),
+        authorizeStep('vscode-copilot'),
+      ],
+    }, {
+      ...guide, manual: true,
+      steps: [
+        shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
+        shot('vscode/http', `Choose <strong>HTTP</strong>, paste the MCP Server URL, and name it <code>${serverName}</code>`, 'Server URL prompt', withUrl),
+        'Choose <strong>Global</strong> to use it in every workspace, then allow the sign-in as above',
+      ],
+    }],
+    'cline': [{
+      ...guide,
+      steps: [
+        shot('cline/customize', 'In the Cline panel, click <strong>Customize</strong> (the wrench), then the <strong>MCP</strong> tab', 'Customize → MCP'),
+        shot('cline/add', `Click <strong>Add Remote Server</strong>, name it <code>${serverName}</code>, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>`, 'Add Remote Server form', withUrl),
+        shot('cline/authenticate', 'Click <strong>Add Server</strong>, then <strong>Authenticate</strong> on the server', 'Authenticate button'),
+        authorizeStep('cline'),
+      ],
+    }],
+    'windsurf': [{
+      kind: 'json', title: 'MCP config',
+      hint: 'Windsurf is now Devin Desktop. Add this to <code>~/.config/devin/mcp_config.json</code>, merging it with any servers already there.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl } } }),
+      steps: [
+        'Copy the JSON above into <code>~/.config/devin/mcp_config.json</code> and save',
+        shot('windsurf/customizations', 'In Devin Desktop, open <strong>Open customizations</strong> from the new-tab menu', 'Customizations → MCP servers'),
+        shot('windsurf/authenticate', 'If the server says <strong>Needs auth</strong>, click <strong>Authenticate</strong>', 'Authenticate button'),
+        authorizeStep('windsurf'),
+      ],
+    }],
+    'zed': [{
+      ...guide,
+      steps: [
+        shot('zed/settings', 'Open <strong>Settings</strong> → <strong>AI</strong> → <strong>MCP Servers</strong>', 'Settings → AI → MCP Servers'),
+        shot('zed/add', 'Click <strong>Add Server</strong> → <strong>Add Remote Server</strong> and paste the MCP Server URL', 'Add Remote Server', withUrl),
+        shot('zed/authenticate', 'Click <strong>Authenticate</strong> on the server', 'Authenticate button'),
+        authorizeStep('zed'),
+      ],
+    }],
+    'opencode': [{
+      kind: 'json', title: 'opencode.json',
+      hint: 'Add this to your project\'s <code>opencode.json</code>, or to <code>~/.config/opencode/opencode.json</code> for every project.',
+      value: json({ $schema: 'https://opencode.ai/config.json', mcp: { [serverName]: { type: 'remote', url: serverUrl, enabled: true } } }),
+      steps: [
+        'Copy the JSON above into <code>opencode.json</code>, merging it with anything already there',
+        `Run <code>opencode mcp auth ${serverName}</code> in your terminal`,
+        authorizeStep('opencode'),
+      ],
+    }],
+    'goose': [{
+      ...guide,
+      steps: [
+        shot('goose/extensions', 'In Goose, open the sidebar and click <strong>Extensions</strong> → <strong>Add custom extension</strong>', 'Extensions → Add custom extension'),
+        shot('goose/form', `Name it <code>${serverName}</code>, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>`, 'Custom extension form', withUrl),
+        authorizeStep('goose', 'Click <strong>Add Extension</strong>.'),
+      ],
+    }],
+    'antigravity': [{
+      kind: 'json', title: 'mcp_config.json',
+      hint: 'Antigravity needs <code>serverUrl</code> (not <code>url</code>). Merge this with any servers already in the file.',
+      value: json({ mcpServers: { [serverName]: { serverUrl } } }),
+      steps: [
+        shot('antigravity/settings', 'In Antigravity, open <strong>Settings</strong> → <strong>Customizations</strong>', 'Settings → Customizations'),
+        shot('antigravity/open-config', 'Under <strong>Installed MCP Servers</strong>, click <strong>Open MCP Config</strong>', 'Installed MCP Servers → Open MCP Config'),
+        'Paste the JSON above into the file and save. If it already lists servers, add this one inside <code>mcpServers</code>',
+        shot('antigravity/authenticate', 'Back in Customizations, click the refresh icon next to <strong>Installed MCP Servers</strong>, then click <strong>Authenticate</strong> next to the server', 'Authenticate next to the server'),
+        authorizeStep('antigravity'),
+        shot('antigravity/code', 'A page with a code opens. Click <strong>Copy to Clipboard</strong>', 'Copy to Clipboard'),
+        shot('antigravity/submit', 'In Antigravity, paste the code into the field next to the server and click <strong>Submit</strong>', 'Pasting the code and clicking Submit'),
+      ],
+    }],
+    'pi': [{
+      kind: 'command', title: 'Install MCP support',
+      hint: 'Pi has no built-in MCP support; the community <code>pi-mcp-adapter</code> extension adds it.',
+      value: 'pi install npm:pi-mcp-adapter',
+      steps: [
+        'Run the command above, then restart Pi',
+      ],
+    }, {
+      kind: 'json', title: 'MCP config',
+      hint: 'Add this to <code>~/.config/mcp/mcp.json</code>, merging it with any servers already there.',
+      value: json({ mcpServers: { [serverName]: { url: serverUrl, auth: 'oauth' } } }),
+      steps: [
+        'Copy the JSON above into <code>~/.config/mcp/mcp.json</code> and save',
+        `In Pi, run <code>/mcp-auth ${serverName}</code>`,
+        authorizeStep('pi'),
       ],
     }],
     'other': [{
-      ...urlBlock,
+      ...guide,
       steps: [
-        'Add a remote (Streamable HTTP) MCP server with the URL below',
-        'When prompted, sign in to this site and click <strong>Authorize</strong>',
+        { html: 'Add a remote (Streamable HTTP) MCP server with this URL', ...withUrl },
+        authorizeStep('other'),
       ],
     }],
   }
@@ -372,7 +726,6 @@ function buildOAuth(serverName, serverUrl) {
   return {
     url: serverUrl,
     agents: AGENTS.map((a) => ({ id: a.id, label: a.label, blocks: perAgent[a.id] || perAgent.other })),
-    extras: { vscodeRemoteCLI, cursorRemoteDeeplink },
   }
 }
 
@@ -397,26 +750,71 @@ async function copyToClipboard(text, el) {
 }
 
 
+// JSON split into colored spans: keys, string values, literals (numbers,
+// true/false/null) and punctuation. Whitespace and anything unmatched is
+// kept as plain text, so the rendered text is exactly the source.
+const JSON_TOKEN = /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}[\],:])/g
+
+function highlightJson(text) {
+  const out = []
+  let last = 0
+  for (const m of text.matchAll(JSON_TOKEN)) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    const [, str, colon, literal, number, punct] = m
+    if (str && colon) {
+      out.push(<span key={m.index} className="text-sky-300">{str}</span>, <span key={m.index + 'c'} className="text-gray-500">{colon}</span>)
+    } else if (str) {
+      out.push(<span key={m.index} className="text-emerald-300">{str}</span>)
+    } else if (literal || number) {
+      out.push(<span key={m.index} className="text-violet-300">{literal || number}</span>)
+    } else {
+      out.push(<span key={m.index} className="text-gray-500">{punct}</span>)
+    }
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return out
+}
+
+// One shell command line split into colored spans: the program, quoted
+// values, and flags; everything else (subcommands, spaces) stays plain.
+// The pieces concatenate back to exactly the input.
+function highlightShell(line) {
+  const parts = line.match(/"(?:\\.|[^"\\])*"|'[^']*'|\s+|[^\s"']+|["']/g) || []
+  let seenProgram = false
+  return parts.map((part, i) => {
+    if (/^\s+$/.test(part)) return part
+    if (!seenProgram) {
+      seenProgram = true
+      return <span key={i} className="text-sky-300">{part}</span>
+    }
+    if (part[0] === '"' || part[0] === "'") return <span key={i} className="text-emerald-300">{part}</span>
+    if (part[0] === '-') return <span key={i} className="text-violet-300">{part}</span>
+    return part
+  })
+}
+
 function CodeContent({ block }) {
   const [copied, setCopied] = useState(false)
   const [copyFailed, setCopyFailed] = useState(false)
-  const textareaRef = useRef(null)
+  const preRef = useRef(null)
   const isCommand = block.kind === 'command'
-
-  useEffect(() => {
-    const el = textareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = Math.max(el.scrollHeight, 120) + 'px'
-  }, [block.value])
+  const isJson = block.kind === 'json'
 
   async function selectAndCopy() {
-    const ok = await copyToClipboard(block.value, textareaRef.current)
+    const ok = await copyToClipboard(block.value)
     if (ok) {
       setCopied(true)
       setCopyFailed(false)
       setTimeout(() => setCopied(false), 2000)
     } else {
+      // Leave the text selected so the fallback message below is true.
+      if (preRef.current) {
+        const range = document.createRange()
+        range.selectNodeContents(preRef.current)
+        window.getSelection()?.removeAllRanges()
+        window.getSelection()?.addRange(range)
+      }
       setCopyFailed(true)
       setTimeout(() => setCopyFailed(false), 8000)
     }
@@ -432,22 +830,22 @@ function CodeContent({ block }) {
         </div>
       )}
 
-      <div className="relative">
-        {isCommand && (
-          <span className="absolute left-4 top-4 text-green-400 font-mono text-sm select-none pointer-events-none">$&nbsp;</span>
-        )}
-        <textarea
-          ref={textareaRef}
-          readOnly
-          value={block.value}
-          onClick={selectAndCopy}
-          style={{ height: 'auto', minHeight: '120px', overflow: 'hidden' }}
-          className={[
-            'w-full bg-transparent text-gray-200 text-sm font-mono leading-relaxed resize-none border-0 focus:outline-none cursor-pointer p-4',
-            isCommand ? 'pl-10' : '',
-          ].join(' ')}
-        />
-      </div>
+      <pre
+        ref={preRef}
+        onClick={selectAndCopy}
+        className="m-0 p-4 bg-transparent text-gray-200 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words cursor-pointer"
+      >
+        <code className="block m-0 p-0 bg-transparent text-[inherit]">
+          {isCommand
+            ? block.value.split('\n').map((line, i) => (
+              <span key={i} className="block">
+                <span className="select-none text-green-400">$ </span>
+                {highlightShell(line)}
+              </span>
+            ))
+            : isJson ? highlightJson(block.value) : block.value}
+        </code>
+      </pre>
 
       <div className="p-4 pt-0 space-y-2">
         <button
@@ -462,7 +860,7 @@ function CodeContent({ block }) {
         </button>
         {copyFailed && (
           <p className="text-center text-xs text-gray-400">
-            Clipboard unavailable — text is selected, press <strong className="text-gray-300">Ctrl+C</strong> / <strong className="text-gray-300">⌘C</strong> to copy
+            Clipboard unavailable. The text is selected, so press <strong className="text-gray-300">Ctrl+C</strong> / <strong className="text-gray-300">⌘C</strong> to copy
           </p>
         )}
       </div>
@@ -470,8 +868,11 @@ function CodeContent({ block }) {
   )
 }
 
+// A field with `secret: true` (the application password) is masked until its
+// eye button is pressed; copying it always copies the real value.
 function FieldsContent({ fields }) {
   const [copied, setCopied] = useState(null) // 'label-i' | 'value-i'
+  const [revealed, setRevealed] = useState({}) // index -> shown
 
   async function copyItem(text, key) {
     const ok = await copyToClipboard(text)
@@ -500,7 +901,18 @@ function FieldsContent({ fields }) {
             </button>
           </div>
           <div className="flex items-center gap-1 px-3 py-2.5 flex-1 min-w-0">
-            <span className="flex-1 font-mono text-sm text-gray-800 truncate">{field.value}</span>
+            <span className="flex-1 font-mono text-sm text-gray-800 truncate">
+              {field.secret && !revealed[i] ? '•'.repeat(16) : field.value}
+            </span>
+            {field.secret && (
+              <button
+                onClick={() => setRevealed((r) => ({ ...r, [i]: !r[i] }))}
+                className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                aria-label={revealed[i] ? `Hide ${field.label}` : `Show ${field.label}`}
+              >
+                {revealed[i] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              </button>
+            )}
             <button
               onClick={() => copyItem(field.value, `value-${i}`)}
               className="flex-shrink-0 p-1 rounded text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -515,8 +927,179 @@ function FieldsContent({ fields }) {
   )
 }
 
-function Block({ block, videoUrl }) {
-  const titleIcon = block.kind === 'command'
+// Builds a file in the browser on click: the .mcpb, or whatever
+// block.download builds (block.value holds its params).
+function McpbContent({ block }) {
+  const [state, setState] = useState('idle') // 'idle' | 'building' | 'done' | 'error'
+
+  async function download() {
+    setState('building')
+    try {
+      await (block.download || downloadMcpb)(block.value)
+      setState('done')
+    } catch {
+      setState('error')
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={download}
+        disabled={state === 'building'}
+        className={[
+          'w-full flex items-center justify-center gap-2 py-3 rounded-lg text-base font-semibold text-white transition-all disabled:opacity-60',
+          state === 'done' ? 'bg-green-600' : 'bg-indigo-600 hover:bg-indigo-500',
+        ].join(' ')}
+      >
+        {state === 'done' ? <Check className="w-5 h-5" /> : state === 'building' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+        {state === 'done' ? 'Downloaded. Download again' : block.button}
+      </button>
+      {state === 'error' && (
+        <p className="text-center text-sm text-red-600">Couldn't build the file. Please try again.</p>
+      )}
+    </div>
+  )
+}
+
+// A URL in a light, input-like field with a copy button. The host is
+// emphasized so the site is easy to recognize at a glance.
+function UrlField({ value }) {
+  const [copied, setCopied] = useState(false)
+  const m = /^(\w+:\/\/)([^/]*)(.*)$/.exec(value) || ['', '', value, '']
+
+  async function copy() {
+    if (await copyToClipboard(value)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 pl-3.5 pr-1 py-1">
+      <code className="flex-1 min-w-0 truncate font-mono text-sm text-gray-500 bg-transparent p-0 m-0">
+        {m[1]}<span className="text-gray-900">{m[2]}</span>{m[3]}
+      </code>
+      <button
+        onClick={copy}
+        aria-label="Copy MCP Server URL"
+        className={[
+          'flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-colors',
+          copied ? 'border-green-200 bg-green-50 text-green-700' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-100',
+        ].join(' ')}
+      >
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
+// Example prompts as a list; clicking a row copies its prompt.
+function StepPrompts({ prompts }) {
+  const [copied, setCopied] = useState(null)
+
+  async function copy(text, i) {
+    if (await copyToClipboard(text)) {
+      setCopied(i)
+      setTimeout(() => setCopied(null), 2000)
+    }
+  }
+
+  return (
+    <div className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-white">
+      {prompts.map(({ title, Icon, text }, i) => (
+        <button
+          key={i}
+          onClick={() => copy(text, i)}
+          className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-indigo-50/40"
+          aria-label={`Copy prompt: ${title}`}
+        >
+          <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+            <Icon className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-gray-900">{title}</span>
+            <span className="block text-sm text-gray-600">{text}</span>
+          </span>
+          <span className={['flex flex-shrink-0 items-center gap-1.5 text-xs font-medium', copied === i ? 'text-green-600' : 'text-gray-400 group-hover:text-indigo-600'].join(' ')}>
+            {copied === i ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied === i && 'Copied'}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// A step's screenshot. Every frame has the same fixed height; a capture is
+// shown at its pixel size (half that for an @2x file) and scaled down only
+// when it doesn't fit, so tall dialogs shrink instead of stretching the frame.
+// Clicking opens it full size.
+function StepScreenshot({ screenshot }) {
+  const [zoomed, setZoomed] = useState(false)
+
+  const zoom = zoomed && (
+    <div
+      onClick={() => setZoomed(false)}
+      className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/70 p-8 cursor-zoom-out"
+    >
+      <img src={screenshot.src} alt={screenshot.alt} className="max-h-full max-w-full rounded-lg shadow-2xl" />
+    </div>
+  )
+
+  // This plugin's consent page: the browser window is the whole canvas.
+  if (screenshot.browserUrl) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-2.5">
+          <span className="flex gap-1.5">
+            <span className="h-3 w-3 rounded-full bg-red-400" />
+            <span className="h-3 w-3 rounded-full bg-yellow-400" />
+            <span className="h-3 w-3 rounded-full bg-green-400" />
+          </span>
+          <span className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-500">
+            <Lock className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{screenshot.browserUrl}</span>
+          </span>
+        </div>
+        <div className="flex justify-center bg-[#f0f0f1] px-6 py-10">
+          <img
+            src={screenshot.src}
+            alt={screenshot.alt}
+            loading="lazy"
+            onClick={() => setZoomed(true)}
+            className="h-auto w-auto max-w-full max-h-[540px] rounded-lg shadow-sm cursor-zoom-in"
+          />
+        </div>
+        {zoom}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-[360px] items-center justify-center rounded-xl bg-gray-100 p-6">
+      <img
+        src={screenshot.src}
+        alt={screenshot.alt}
+        loading="lazy"
+        onClick={() => setZoomed(true)}
+        onLoad={(e) => {
+          // A cap rather than a width, so a tall capture still shrinks
+          // proportionally to fit the frame's height.
+          if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.maxWidth = `min(100%, ${e.currentTarget.naturalWidth / 2}px)`
+        }}
+        className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
+      />
+      {zoom}
+    </div>
+  )
+}
+
+function Block({ block }) {
+  const titleIcon = block.kind === 'mcpb' || block.kind === 'download'
+    ? <Package className="w-4 h-4" />
+    : block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
     : block.kind === 'json'
     ? <FileCode className="w-4 h-4" />
@@ -528,58 +1111,125 @@ function Block({ block, videoUrl }) {
     ? <Settings className="w-4 h-4" />
     : <MessageSquare className="w-4 h-4" />
 
+  // What to copy or click comes first; the instructions follow it.
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      {/* Steps — top gray section */}
-      {block.steps?.length > 0 && (
-        <div className="bg-gray-50 px-6 py-5 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{block.stepsTitle || 'How to install'}</p>
-          <ol className="space-y-2">
-            {block.steps.map((step, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <span className="flex-shrink-0 mt-0.5 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                <span className="text-base text-gray-600" dangerouslySetInnerHTML={{ __html: step }} />
-              </li>
-            ))}
-          </ol>
-          {videoUrl && !block.noVideo && (
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
-            >
-              <Play className="w-4 h-4 text-indigo-500" />
-              Watch video instructions
-            </a>
-          )}
-        </div>
-      )}
-
-      {/* Content — bottom white section */}
-      <div className="border-t border-gray-100 p-6 space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-500 uppercase tracking-wider">
-          {titleIcon}
+      <div className="p-6 space-y-3">
+        <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <span className="text-gray-400">{titleIcon}</span>
           {block.title}
         </div>
         {block.hint && <p className="text-sm text-gray-500" dangerouslySetInnerHTML={{ __html: block.hint }} />}
 
-        {block.kind === 'deeplink' ? (
+        {block.kind === 'url' ? (
+          <UrlField value={block.value} />
+        ) : block.kind === 'deeplink' ? (
           <a
             href={block.value}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-medium rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
           >
             <ExternalLink className="w-5 h-5" />
             {block.button || block.title}
           </a>
         ) : block.kind === 'fields' ? (
           <FieldsContent fields={block.value} />
+        ) : block.kind === 'mcpb' || block.kind === 'download' ? (
+          <McpbContent block={block} />
         ) : (
           <CodeContent block={block} />
         )}
       </div>
+
+      {block.steps?.length > 0 && (
+        <div className="border-t border-gray-100 px-6 py-5 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-gray-500">{block.stepsTitle || 'How to install'}</p>
+            {block.videoUrl && (
+              <a
+                href={block.videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex flex-shrink-0 items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+              >
+                <Play className="w-4 h-4 text-indigo-500" />
+                Watch video instructions
+              </a>
+            )}
+          </div>
+          {/* A timeline: numbered squares joined by a line down to the next step. */}
+          <ol>
+            {block.steps.map((step, i) => (
+              <li key={i} className="relative flex items-start gap-4 pb-8 last:pb-0">
+                {i < block.steps.length - 1 && (
+                  <span className="absolute left-3.5 top-9 bottom-1 w-px bg-gray-200" aria-hidden="true" />
+                )}
+                <span className="relative flex-shrink-0 w-7 h-7 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-semibold flex items-center justify-center">
+                  {i + 1}
+                </span>
+                {/* A step is an HTML string, or { html, copy, prompts, screenshot } to add a copyable URL, example prompts and an image under it. */}
+                <div className="flex-1 min-w-0 space-y-4 pt-0.5">
+                  <p className="text-base font-medium text-gray-900" dangerouslySetInnerHTML={{ __html: typeof step === 'string' ? step : step.html }} />
+                  {step.copy && <UrlField value={step.copy} />}
+                  {step.prompts && <StepPrompts prompts={step.prompts} />}
+                  {step.screenshot && <StepScreenshot screenshot={step.screenshot} />}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Renders an agent's blocks. Blocks marked `manual` (the do-it-yourself
+// fallback to a one-click or copy-paste route) sit behind a collapsed
+// "Or install manually" toggle below the rest.
+// Ends a path (the main blocks, or the manual ones) with FIRST_PROMPT_STEP on
+// its last block, so every agent gets it without listing it.
+function withFirstPrompt(path) {
+  return path.map((block, i) => {
+    if (i < path.length - 1) return block
+    const hasSteps = block.steps?.length > 0
+    return {
+      ...block,
+      steps: [...(block.steps || []), FIRST_PROMPT_STEP],
+      stepsTitle: hasSteps ? block.stepsTitle : 'Once connected',
+    }
+  })
+}
+
+// An agent's video walks through its own setup, so it goes on the first of its
+// own blocks: once, and never on blocks added around them like the .mcpb
+// download.
+function withVideo(blocks, videoUrl) {
+  return videoUrl ? blocks.map((block, i) => (i === 0 ? { ...block, videoUrl } : block)) : blocks
+}
+
+function BlockList({ blocks }) {
+  const [showManual, setShowManual] = useState(false)
+  const primary = withFirstPrompt(blocks.filter((b) => !b.manual))
+  const manual = withFirstPrompt(blocks.filter((b) => b.manual))
+
+  if (!blocks.length) {
+    return <p className="text-base text-gray-400">No configuration available for this agent.</p>
+  }
+
+  return (
+    <div className="space-y-6">
+      {primary.map((block, i) => <Block key={i} block={block} />)}
+      {manual.length > 0 && (
+        <div className="space-y-6">
+          <button
+            onClick={() => setShowManual((v) => !v)}
+            className="flex items-center gap-2 text-base font-semibold text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            {showManual ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Or install manually
+          </button>
+          {showManual && manual.map((block, i) => <Block key={i} block={block} />)}
+        </div>
+      )}
     </div>
   )
 }
@@ -774,7 +1424,7 @@ function GeneratedPasswordNotice({ password }) {
       <div className="flex items-center gap-2.5 px-4 py-3">
         <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
         <span className="font-medium text-green-800">App password created</span>
-        <span className="text-green-600 hidden sm:inline">— store it somewhere safe; it won't be shown again.</span>
+        <span className="text-green-600 hidden sm:inline">Store it somewhere safe; it won't be shown again.</span>
         <button
           onClick={() => setOpen((o) => !o)}
           className="ml-auto flex items-center gap-1.5 text-green-700 hover:text-green-900 font-medium transition-colors"
@@ -806,7 +1456,7 @@ function GeneratedPasswordNotice({ password }) {
           </div>
           {copyFailed && (
             <p className="text-xs text-gray-500">
-              Clipboard unavailable — text is selected, press <strong>Ctrl+C</strong> / <strong>⌘C</strong> to copy
+              Clipboard unavailable. The text is selected, so press <strong>Ctrl+C</strong> / <strong>⌘C</strong> to copy
             </p>
           )}
         </div>
@@ -860,16 +1510,68 @@ function AppPasswordFlow({ selectedAgent, status }) {
   const agentData = connection?.agents?.find((a) => a.id === selectedAgent)
     ?? connection?.agents?.find((a) => a.id === 'other')
 
+  // The .mcpb is built client-side from whichever password is in play, so it
+  // works for both the generated (server-built) and existing paths.
+  let blocks = agentData?.blocks ?? []
+  if (connection && PASSWORD_CONFIGS[agentMeta.id]) {
+    blocks = [passwordConfigBlock(agentMeta.id, {
+      name: initial.serverName,
+      serverUrl: initial.serverUrl,
+      username: connection.username ?? initial.username,
+      password: generatedPassword ?? existingPw,
+    })]
+  }
+  if (connection && agentMeta.id === 'chatgpt') {
+    // A ChatGPT plugin to download and upload, built client-side like the
+    // .mcpb, with ChatGPT's own Add MCP server form as the manual fallback.
+    const pluginBlock = {
+      kind: 'download', title: 'One-click install',
+      hint: 'Download the plugin below and upload it to ChatGPT. Requires Node.js. This file includes your application password, so keep it private.',
+      button: 'Download ChatGPT plugin',
+      download: downloadChatgptPlugin,
+      steps: chatgptPluginSteps(),
+      value: {
+        serverName: initial.serverName,
+        serverUrl: initial.serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        username: connection.username ?? initial.username,
+        password: generatedPassword ?? existingPw,
+        prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
+      },
+    }
+    blocks = [pluginBlock, { ...chatgptPasswordBlock({
+      name: initial.serverName,
+      serverUrl: initial.serverUrl,
+      username: connection.username ?? initial.username,
+      password: generatedPassword ?? existingPw,
+    }), manual: true }]
+  }
+  blocks = withVideo(blocks, agentMeta.videoUrl)
+  if (connection && agentMeta.mcpb) {
+    const mcpbBlock = {
+      kind: 'mcpb', title: 'One-click install',
+      hint: 'Download the file below and double click it. Requires Node.js. This file includes your application password, so keep it private.',
+      button: 'Download .mcpb file',
+      value: {
+        serverName: initial.serverName,
+        serverUrl: initial.serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        username: connection.username ?? initial.username,
+        password: generatedPassword ?? existingPw,
+      },
+    }
+    // The agent's own instructions (Claude Desktop's JSON config) stay
+    // available as the manual fallback.
+    blocks = agentMeta.id === 'mcpb' ? [mcpbBlock] : [mcpbBlock, ...blocks.map((b) => ({ ...b, manual: true }))]
+  }
+
   if (connection) {
     return (
       <div className="space-y-6">
         {generatedPassword && <GeneratedPasswordNotice password={generatedPassword} />}
-        <div className="space-y-6">
-          {agentData?.blocks?.length
-            ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.videoUrl} />)
-            : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-          }
-        </div>
+        <BlockList blocks={blocks} />
       </div>
     )
   }
@@ -891,11 +1593,25 @@ function AppPasswordFlow({ selectedAgent, status }) {
           <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl text-base text-red-700">
             <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0" />
             <span>
-              Application passwords require HTTPS and aren't available on this site. On a
-              production environment WordPress only allows them over HTTPS; over plain HTTP they
-              work only when the site's environment type is <code className="font-mono">local</code>{' '}
-              (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
-              <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
+              {status.pwUnavailableReason === 'disabled' || status.pwUnavailableReason === 'disabled_for_user'
+                ? (
+                  status.pwUnavailablePlugin
+                    ? <>Application passwords are disabled by the <strong>{status.pwUnavailablePlugin}</strong> plugin.
+                        {status.pwUnavailableReason === 'disabled_for_user'
+                          ? ' It allows them for other users, but not for your account.'
+                          : ' Disable that restriction (or exclude this site) to generate one.'}
+                      </>
+                    : <>Application passwords are disabled on this site by a plugin or theme, not by HTTPS or the
+                        environment type. Check your security plugins for an "Application Passwords" or "REST API"
+                        restriction and disable it for this site.</>
+                )
+                : <>Application passwords require HTTPS and aren't available on this site. On a
+                    production environment WordPress only allows them over HTTPS; over plain HTTP they
+                    work only when the site's environment type is <code className="font-mono">local</code>{' '}
+                    (set <code className="font-mono">WP_ENVIRONMENT_TYPE</code> to{' '}
+                    <code className="font-mono">local</code> in <code className="font-mono">wp-config.php</code>).
+                  </>
+              }
             </span>
           </div>
         )}
@@ -944,7 +1660,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
         </div>
         <div>
           <h2 className="text-xl font-bold text-gray-900">Use an existing password</h2>
-          <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally — never sent to the server.</p>
+          <p className="text-base text-gray-500 mt-0.5">Built into the connection strings locally and never sent to the server.</p>
         </div>
       </div>
 
@@ -983,22 +1699,24 @@ const AUTH_METHODS = [
     id: 'oauth',
     label: 'OAuth',
     Icon: ShieldCheck,
-    description: 'The agent signs in to this site and you approve access. No password to copy, no proxy to install.',
+    description: 'Sign in and approve access. No password needed.',
   },
   {
     id: 'password',
     label: 'Application Password',
     Icon: KeyRound,
-    description: 'Authenticate with a WordPress application password through a local proxy (Node.js required).',
+    description: 'Use a WordPress application password.',
   },
 ]
 
-function MethodPicker({ method, onSelect, localCaveat }) {
+// `oauthCaveat` is a short reason OAuth may not work here; when set, the
+// application password is recommended instead.
+function MethodPicker({ method, onSelect, oauthCaveat }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       {AUTH_METHODS.map(({ id, label, Icon, description }) => {
         const isSelected = method === id
-        const isRecommended = localCaveat ? id === 'password' : id === 'oauth'
+        const isRecommended = oauthCaveat ? id === 'password' : id === 'oauth'
         return (
           <button
             key={id}
@@ -1019,9 +1737,9 @@ function MethodPicker({ method, onSelect, localCaveat }) {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
                   <Sparkles className="w-3 h-3" /> Recommended
                 </span>
-              ) : localCaveat && id === 'oauth' && (
+              ) : oauthCaveat && id === 'oauth' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold uppercase tracking-wide">
-                  <AlertTriangle className="w-3 h-3" /> May not work locally
+                  <AlertTriangle className="w-3 h-3" /> {oauthCaveat}
                 </span>
               )}
             </div>
@@ -1042,13 +1760,16 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
-  // OAuth is opt-in for now (Settings → Abilities). While it's off the
-  // endpoints don't respond, so offering it here would only produce a broken
-  // sign-in.
-  const oauthEnabled = status.oauthEnabled
-  const [method, setMethod] = useState(
-    !oauthEnabled || localCaveat ? 'password' : 'oauth'
-  )
+  // Some agents' OAuth connectors only accept https:// URLs, so on an http://
+  // site OAuth can't work there at all.
+  const needsHttps = !!agentMeta.httpsOnly && /^http:\/\//i.test(initial.serverUrl)
+  const oauthCaveat = needsHttps ? 'Needs HTTPS' : localCaveat ? 'May not work locally' : null
+
+  // An agent the OAuth flow can't serve (the .mcpb entry) goes straight to
+  // the application password, with no method picker.
+  const passwordOnly = !!agentMeta.passwordOnly
+  const oauthOnly = !!agentMeta.oauthOnly
+  const [method, setMethod] = useState(oauthOnly ? 'oauth' : passwordOnly || oauthCaveat ? 'password' : 'oauth')
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -1061,41 +1782,41 @@ function GenerateStep({ selectedAgent, status, onBack }) {
         Connect <span style={{ color: agentMeta.fg }}>{agentMeta.label}</span>
       </h1>
 
-      {oauthEnabled && (
+      {!passwordOnly && !oauthOnly && (
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-          <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
+          <MethodPicker method={method} onSelect={setMethod} oauthCaveat={oauthCaveat} />
         </div>
       )}
 
       {method === 'oauth' ? (
         <div className="space-y-4">
-          <p className="text-base text-gray-500">
-            Connect over OAuth: the agent signs in to this site and you approve access. No password to copy, no proxy to install.
-          </p>
-          {localCaveat && (
+          {needsHttps ? (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
-                This site runs in a local environment, so OAuth may not work: it can't be reached
-                over the internet, which hosted agents need to complete the sign-in. Agents running
-                on this computer (like CLI tools) can usually connect fine. If OAuth fails, use an
-                application password instead.
+                {agentMeta.label} only accepts <code>https://</code> server URLs, and this site uses{' '}
+                <code>http://</code>. Use an application password instead, or serve the site over HTTPS.
+              </span>
+            </div>
+          ) : localCaveat && (
+            <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>
+                This site is local, so the agent may not be able to reach it to sign in. If OAuth
+                fails, use an application password instead.
               </span>
             </div>
           )}
-          <div className="space-y-6">
-            {agentData?.blocks?.length
-              ? agentData.blocks.map((block, i) => <Block key={i} block={block} videoUrl={agentMeta.oauthVideoUrl} />)
-              : <p className="text-base text-gray-400">No configuration available for this agent.</p>
-            }
-          </div>
+          <BlockList blocks={withVideo(agentData?.blocks ?? [], agentMeta.oauthVideoUrl)} />
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-base text-gray-500">
-            Authenticate with a WordPress application password. The agent connects through a local <code>npx</code> proxy, so Node.js is required.
-          </p>
+          {!agentMeta.mcpb && (
+            <p className="text-base text-gray-500">
+              The agent connects through a local <code>npx</code> proxy, so Node.js is required.
+            </p>
+          )}
           <AppPasswordFlow selectedAgent={selectedAgent} status={status} />
         </div>
       )}

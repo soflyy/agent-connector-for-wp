@@ -63,11 +63,19 @@ final class Server {
 		// CORS preflight (OPTIONS).
 		add_action( 'init', array( self::class, 'handle_preflight' ), 1 );
 
+		// Buffer stray output (PHP notices from other plugins) on our routes.
+		// Priority 0: rest_api_init fires before the REST server runs its own
+		// checks, which is where e.g. the deprecated rest_enabled hook warns.
+		add_action( 'rest_api_init', array( self::class, 'buffer_stray_output' ), 0 );
+
 		// REST API route registration.
 		add_action( 'rest_api_init', array( self::class, 'register_routes' ) );
 
 		// CORS headers on REST responses.
 		add_action( 'rest_api_init', array( self::class, 'add_cors_filters' ) );
+
+		// OAuth-shaped error bodies on our routes.
+		add_filter( 'rest_post_dispatch', array( self::class, 'format_oauth_error' ), 10, 3 );
 
 		// Bearer token interceptor for MCP requests.
 		Interceptor::init();
@@ -89,23 +97,54 @@ final class Server {
 		$home_path = is_string( $home_path ) ? $home_path : '';
 		$relative  = '' !== $home_path ? substr( $request_uri, strlen( $home_path ) ) : $request_uri;
 
-		if ( '/.well-known/oauth-protected-resource' === $relative ) {
-			self::send_protected_resource_metadata();
+		// Path-aware clients insert the resource (or issuer) path after the
+		// well-known segment, e.g. /.well-known/oauth-protected-resource/wp-json/
+		// mcp/mcp-adapter-default-server (RFC 9728 §3.1, RFC 8414 §3.1). Answer
+		// those too; otherwise they fall through to WordPress, whose canonical
+		// redirect sends the client to the homepage HTML.
+		$resource_suffix = self::well_known_suffix( $relative, '/.well-known/oauth-protected-resource' );
+		if ( null !== $resource_suffix ) {
+			self::send_protected_resource_metadata( $resource_suffix );
 		}
 
-		if ( '/.well-known/oauth-authorization-server' === $relative ) {
+		if ( null !== self::well_known_suffix( $relative, '/.well-known/oauth-authorization-server' ) ) {
 			self::send_authorization_server_metadata();
 		}
 	}
 
 	/**
-	 * Send the OAuth protected resource metadata JSON (RFC 9728).
+	 * The path after a well-known prefix: '' for the prefix itself, the
+	 * suffix (without a trailing slash) for a path-aware request, or null
+	 * when the path isn't under the prefix at all.
 	 */
-	private static function send_protected_resource_metadata(): void {
+	private static function well_known_suffix( string $path, string $prefix ): ?string {
+		if ( $path === $prefix || $path === $prefix . '/' ) {
+			return '';
+		}
+		if ( 0 !== strpos( $path, $prefix . '/' ) ) {
+			return null;
+		}
+		return untrailingslashit( substr( $path, strlen( $prefix ) ) );
+	}
+
+	/**
+	 * Send the OAuth protected resource metadata JSON (RFC 9728).
+	 *
+	 * @param string $path The resource path from a path-aware request, or ''.
+	 */
+	private static function send_protected_resource_metadata( string $path = '' ): void {
+		// For a path-aware request the resource identifier is this origin plus
+		// that path, and RFC 9728 §3.3 requires `resource` to match it.
+		$resource = home_url();
+		if ( '' !== $path ) {
+			$parts    = wp_parse_url( home_url() );
+			$resource = $parts['scheme'] . '://' . $parts['host'] . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' ) . $path;
+		}
+
 		self::send_cors_headers();
 		wp_send_json(
 			array(
-				'resource'                 => home_url(),
+				'resource'                 => $resource,
 				'authorization_servers'    => array( home_url() ),
 				'bearer_methods_supported' => array( 'header' ),
 				'scopes_supported'         => self::SCOPES,
@@ -229,12 +268,16 @@ final class Server {
 			if ( ! self::is_valid_redirect_uri( (string) $uri ) ) {
 				return new WP_Error(
 					'invalid_redirect_uri',
-					'Each redirect_uri must be an HTTPS URL or an http:// loopback address (localhost, 127.0.0.1, [::1]).',
+					'Each redirect_uri must be an HTTPS URL, an http:// loopback address (localhost, 127.0.0.1, [::1]), or a native app URI scheme such as cursor://.',
 					array( 'status' => 400 )
 				);
 			}
 		}
-		$redirect_uris = array_map( 'esc_url_raw', array_map( 'strval', $redirect_uris ) );
+		// Every URI passed validation, which only accepts values that
+		// sanitization leaves unchanged, so they're stored exactly as sent.
+		// (Running them through esc_url_raw() again would blank out a
+		// native-app scheme such as cursor://.)
+		$redirect_uris = array_values( array_map( 'strval', $redirect_uris ) );
 
 		if ( ! in_array( $auth_method, array( 'none', 'client_secret_post' ), true ) ) {
 			return new WP_Error(
@@ -274,28 +317,45 @@ final class Server {
 	}
 
 	/**
+	 * Schemes a redirect_uri may never use, even as a native-app scheme: ones a
+	 * browser would execute or resolve locally instead of handing to an app.
+	 */
+	private const BLOCKED_REDIRECT_SCHEMES = array( 'javascript', 'data', 'vbscript', 'file', 'blob', 'about', 'filesystem', 'view-source', 'ftp', 'ws', 'wss' );
+
+	/**
 	 * Validate a client-supplied redirect_uri for Dynamic Client Registration.
 	 *
-	 * Accepts HTTPS URLs (remote/web clients such as claude.ai), and http://
-	 * loopback URLs (localhost, 127.0.0.1, [::1]) which native and CLI clients
-	 * — Claude Code, Claude Desktop, Cursor, VS Code — use for the OAuth
-	 * redirect per RFC 8252 §7.3 ("Loopback Interface Redirection"). Loopback
-	 * http is safe because the response never leaves the user's machine.
+	 * Accepts:
+	 * - HTTPS URLs (remote/web clients such as claude.ai);
+	 * - http:// loopback URLs (localhost, 127.0.0.1, [::1]), which native and
+	 *   CLI clients listen on (RFC 8252 §7.3);
+	 * - private-use URI schemes that desktop apps register with the OS, such
+	 *   as cursor://anysphere.cursor-mcp/oauth/callback (RFC 8252 §7.1).
+	 *   PKCE, which the authorize endpoint requires, is what makes these safe:
+	 *   another app claiming the same scheme gets a code it can't redeem.
 	 *
-	 * Plain http on any non-loopback host is rejected: it would expose the
-	 * authorization code in transit.
+	 * Plain http:// to a non-loopback host is rejected: the authorization code
+	 * would cross the network in cleartext. So are schemes a browser would run
+	 * itself (javascript:, data:, file:, ...), see BLOCKED_REDIRECT_SCHEMES.
 	 *
-	 * @param string $uri The raw redirect_uri from the registration request.
+	 * Only values that sanitization leaves unchanged pass, so an accepted URI
+	 * can be stored and compared verbatim.
 	 */
-	private static function is_valid_redirect_uri( string $uri ): bool {
-		if ( '' === $uri || esc_url_raw( $uri ) !== $uri ) {
-			// Empty, or altered by sanitization (e.g. a disallowed/private-use
-			// scheme, or embedded whitespace) — reject.
+	public static function is_valid_redirect_uri( string $uri ): bool {
+		$scheme = strtolower( (string) wp_parse_url( $uri, PHP_URL_SCHEME ) );
+		if ( '' === $uri || ! preg_match( '/^[a-z][a-z0-9+.\-]*$/', $scheme ) ) {
 			return false;
 		}
 
-		$scheme = strtolower( (string) wp_parse_url( $uri, PHP_URL_SCHEME ) );
-		$host   = strtolower( (string) wp_parse_url( $uri, PHP_URL_HOST ) );
+		// Empty, or altered by sanitization (embedded whitespace, quotes...):
+		// reject. The URI's own scheme is allowed here so esc_url_raw() doesn't
+		// blank out a native-app scheme; which schemes are acceptable is
+		// decided below.
+		if ( esc_url_raw( $uri, array( $scheme ) ) !== $uri ) {
+			return false;
+		}
+
+		$host = strtolower( (string) wp_parse_url( $uri, PHP_URL_HOST ) );
 
 		if ( 'https' === $scheme ) {
 			return '' !== $host;
@@ -306,7 +366,21 @@ final class Server {
 			return in_array( $host, array( 'localhost', '127.0.0.1', '[::1]', '::1' ), true );
 		}
 
-		return false;
+		// A native-app scheme needs something after "scheme:" to route on.
+		return ! in_array( $scheme, self::BLOCKED_REDIRECT_SCHEMES, true )
+			&& strlen( $uri ) > strlen( $scheme ) + 1;
+	}
+
+	/**
+	 * A redirect_uri from a request, returned verbatim when it's one this
+	 * server could have registered, or '' otherwise. Callers then compare it
+	 * exactly against the client's registered list.
+	 *
+	 * @param mixed $uri The raw request parameter.
+	 */
+	public static function sanitize_redirect_uri( $uri ): string {
+		$uri = is_string( $uri ) ? $uri : '';
+		return self::is_valid_redirect_uri( $uri ) ? $uri : '';
 	}
 
 	/**
@@ -388,6 +462,44 @@ final class Server {
 	}
 
 	/**
+	 * Reshape errors on this server's routes into OAuth's error format.
+	 *
+	 * The handlers return WP_Error, which the REST API renders as
+	 * {code, message, data}. OAuth clients expect {error, error_description}
+	 * (RFC 6749 §5.2 for the token endpoint, RFC 7591 §3.2.2 for
+	 * registration) and treat anything else as unreadable; Cursor, for
+	 * example, reports "Invalid OAuth error response" instead of the reason.
+	 *
+	 * @param mixed           $response The dispatched response.
+	 * @param WP_REST_Server  $server   The REST server.
+	 * @param WP_REST_Request $request  The request.
+	 * @return mixed
+	 */
+	public static function format_oauth_error( $response, $server, $request ) {
+		if (
+			! $response instanceof WP_REST_Response
+			|| ! $request instanceof WP_REST_Request
+			|| $response->get_status() < 400
+			|| 0 !== strpos( $request->get_route(), '/' . self::REST_NAMESPACE . '/' )
+		) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+		if ( ! is_array( $data ) || isset( $data['error'] ) || ! isset( $data['code'] ) ) {
+			return $response;
+		}
+
+		$response->set_data(
+			array(
+				'error'             => (string) $data['code'],
+				'error_description' => (string) ( $data['message'] ?? '' ),
+			)
+		);
+		return $response;
+	}
+
+	/**
 	 * Add CORS + cache-control headers to REST responses on our routes.
 	 */
 	public static function add_cors_filters(): void {
@@ -395,6 +507,9 @@ final class Server {
 			'rest_pre_serve_request',
 			static function ( $served, $result, $request ) {
 				$route = $request->get_route();
+
+				// Drop stray output before the JSON goes out (see buffer_stray_output()).
+				self::discard_stray_output();
 
 				if ( 0 === strpos( $route, '/' . self::REST_NAMESPACE . '/' ) || 0 === strpos( $route, '/mcp/' ) ) {
 					self::send_cors_headers();
@@ -411,5 +526,50 @@ final class Server {
 			10,
 			4
 		);
+	}
+
+	/**
+	 * Output-buffer level opened by buffer_stray_output(), or 0 when none.
+	 */
+	private static int $stray_buffer_level = 0;
+
+	/**
+	 * Start buffering output for requests to this server's routes.
+	 *
+	 * On sites that display PHP errors, a notice raised by another plugin
+	 * during the REST bootstrap (e.g. hooking the deprecated rest_enabled
+	 * filter) is printed before these endpoints respond. That output sends the
+	 * headers early, so the consent page loses its Content-Type and its
+	 * anti-framing headers, redirects fail, and JSON responses arrive
+	 * corrupted. Buffering from here lets discard_stray_output() drop it
+	 * before any of our own headers or body go out. The notices still reach
+	 * the debug log when one is configured.
+	 */
+	public static function buffer_stray_output(): void {
+		// rest_api_init also fires outside real REST requests (e.g. when core
+		// builds the REST server for embeds), where there is no parsed route.
+		$route = isset( $GLOBALS['wp'] ) && is_object( $GLOBALS['wp'] )
+			? (string) ( $GLOBALS['wp']->query_vars['rest_route'] ?? '' )
+			: '';
+		if ( 0 !== strpos( $route, '/' . self::REST_NAMESPACE . '/' ) || self::$stray_buffer_level ) {
+			return;
+		}
+
+		ob_start();
+		self::$stray_buffer_level = ob_get_level();
+	}
+
+	/**
+	 * Throw away whatever buffer_stray_output() captured and stop buffering.
+	 */
+	public static function discard_stray_output(): void {
+		if ( ! self::$stray_buffer_level ) {
+			return;
+		}
+
+		while ( ob_get_level() >= self::$stray_buffer_level ) {
+			ob_end_clean();
+		}
+		self::$stray_buffer_level = 0;
 	}
 }

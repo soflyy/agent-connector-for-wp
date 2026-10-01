@@ -67,6 +67,12 @@ final class Config {
 	public const LEGACY_PRODUCTION_OVERRIDE_OPTION = 'agent_connector_for_wp_allow_production';
 
 	/**
+	 * Legacy option from the OAuth rollout ("Enable OAuth sign-in"). OAuth is
+	 * now always on, so this is deleted on activation and never read.
+	 */
+	public const LEGACY_OAUTH_ENABLED_OPTION = 'agent_connector_for_wp_oauth_enabled';
+
+	/**
 	 * Option toggling the debug log of MCP traffic (boolean). When on, every MCP
 	 * event — including raw JSON-RPC request/response bodies — is written to the
 	 * `{prefix}acfw_mcp_events` table and surfaced on the "MCP Events" admin
@@ -83,16 +89,6 @@ final class Config {
 	 * Empty means "never pinned".
 	 */
 	public const LOCKED_HOST_OPTION = 'agent_connector_for_wp_locked_host';
-
-	/**
-	 * Option gating the OAuth 2.1 authorization server (boolean, default OFF).
-	 *
-	 * Temporary rollout flag while the OAuth path settles. Off means the server
-	 * never boots: no discovery documents, no client registration, no consent
-	 * screen, and no Bearer interceptor, so tokens already issued stop
-	 * authenticating. The application-password path is untouched either way.
-	 */
-	public const OAUTH_ENABLED_OPTION = 'agent_connector_for_wp_oauth_enabled';
 
 	/**
 	 * The Enable toggle. Default ON: installing and activating the plugin is
@@ -118,27 +114,31 @@ final class Config {
 	}
 
 	/**
-	 * Whether the OAuth authorization server may boot. Default OFF: OAuth is
-	 * opt-in for now (see OAUTH_ENABLED_OPTION).
+	 * HTTPS, or a local environment — the transport predicate core uses to gate
+	 * Application Passwords ({@see wp_is_application_passwords_supported()} on
+	 * WP 6.7+; the same check inlined on older WP). Reimplemented here (rather
+	 * than calling the core function, which doesn't exist pre-6.7) so we can
+	 * tell "transport too weak" apart from "a plugin filtered availability
+	 * off" when Application Passwords are unavailable.
 	 */
-	public static function is_oauth_enabled(): bool {
-		return (bool) get_option( self::OAUTH_ENABLED_OPTION, false );
+	public static function is_secure_transport(): bool {
+		return is_ssl()
+			|| ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() );
 	}
 
 	/**
 	 * Whether the transport is fit for the OAuth server: HTTPS, or a local
 	 * environment.
 	 *
-	 * Same predicate core uses to gate Application Passwords
-	 * ({@see wp_is_application_passwords_supported()}): over plain HTTP on a
-	 * non-local site, authorization codes and Bearer tokens — which front
-	 * root-equivalent abilities — would cross the wire in cleartext on every
-	 * MCP call. Without this gate OAuth would be the plugin's only credential
-	 * path that still works where core already refuses to mint app passwords.
+	 * Same predicate core uses to gate Application Passwords: over plain HTTP
+	 * on a non-local site, authorization codes and Bearer tokens — which
+	 * front root-equivalent abilities — would cross the wire in cleartext on
+	 * every MCP call. Without this gate OAuth would be the plugin's only
+	 * credential path that still works where core already refuses to mint
+	 * app passwords.
 	 */
 	public static function oauth_transport_allowed(): bool {
-		$allowed = is_ssl()
-			|| ( function_exists( 'wp_get_environment_type' ) && 'local' === wp_get_environment_type() );
+		$allowed = self::is_secure_transport();
 
 		/**
 		 * Filters whether the OAuth server may run on this transport.
@@ -350,8 +350,8 @@ final class Config {
 	/**
 	 * One-time setup on plugin activation: switch the plugin on, pin the domain
 	 * lock to the current host (only if never pinned — an explicit Reconnect is
-	 * the way to re-pin after a domain change), and drop the legacy
-	 * production-override option from the old opt-out model.
+	 * the way to re-pin after a domain change), and drop retired legacy
+	 * options (production override, OAuth opt-in).
 	 */
 	public static function activate(): void {
 		update_option( self::ENABLED_OPTION, true, true );
@@ -361,5 +361,6 @@ final class Config {
 		}
 
 		delete_option( self::LEGACY_PRODUCTION_OVERRIDE_OPTION );
+		delete_option( self::LEGACY_OAUTH_ENABLED_OPTION );
 	}
 }

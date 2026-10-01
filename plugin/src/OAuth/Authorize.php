@@ -46,6 +46,10 @@ final class Authorize {
 	 * @return WP_Error|void
 	 */
 	public static function handle_get( WP_REST_Request $request ) {
+		// This handler writes its own headers and HTML (or redirects), so
+		// clear any stray output first; see Server::buffer_stray_output().
+		Server::discard_stray_output();
+
 		$params = self::extract_params( $request );
 
 		// Establish a trusted redirect target first. These two are the only
@@ -129,15 +133,14 @@ final class Authorize {
 	 * @param string $state        Client state to echo back; '' when absent.
 	 */
 	private static function redirect_with_error( string $redirect_uri, string $error, string $description, string $state = '' ): void {
-		// Note: add_query_arg() URL-encodes values itself — do NOT pre-encode
-		// (e.g. rawurlencode) or state/description arrive double-encoded and
-		// strict clients reject the mismatched state.
+		// add_query_arg() does not encode the values it adds, so encode them
+		// here; state must reach the client exactly as it was sent.
 		$args = array(
-			'error'             => $error,
-			'error_description' => $description,
+			'error'             => rawurlencode( $error ),
+			'error_description' => rawurlencode( $description ),
 		);
 		if ( '' !== $state ) {
-			$args['state'] = $state;
+			$args['state'] = rawurlencode( $state );
 		}
 
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri, validated against the registered list by the caller.
@@ -152,6 +155,7 @@ final class Authorize {
 	 * @return WP_Error|void
 	 */
 	public static function handle_post( WP_REST_Request $request ) {
+		Server::discard_stray_output();
 		self::restore_user_from_cookie();
 
 		$nonce = sanitize_text_field( (string) ( $request->get_param( self::NONCE_FIELD ) ?? '' ) );
@@ -161,9 +165,9 @@ final class Authorize {
 
 		$action                = sanitize_text_field( (string) ( $request->get_param( 'action' ) ?? '' ) );
 		$client_id             = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
-		$redirect_uri          = esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) );
+		$redirect_uri          = Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) );
 		$scope                 = sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? '' ) );
-		$state                 = sanitize_text_field( (string) ( $request->get_param( 'state' ) ?? '' ) );
+		$state                 = self::state_param( $request );
 		$code_challenge        = sanitize_text_field( (string) ( $request->get_param( 'code_challenge' ) ?? '' ) );
 		$code_challenge_method = sanitize_text_field( (string) ( $request->get_param( 'code_challenge_method' ) ?? '' ) );
 
@@ -224,11 +228,11 @@ final class Authorize {
 			);
 		}
 
-		// add_query_arg() URL-encodes values itself; pass raw so state round-trips
-		// back to the client byte-for-byte.
-		$success_args = array( 'code' => $code );
+		// add_query_arg() does not encode the values it adds; state must reach
+		// the client exactly as it was sent.
+		$success_args = array( 'code' => rawurlencode( $code ) );
 		if ( '' !== $state ) {
-			$success_args['state'] = $state;
+			$success_args['state'] = rawurlencode( $state );
 		}
 		$success_url = add_query_arg( $success_args, $redirect_uri );
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri validated against the registered list above.
@@ -291,12 +295,28 @@ final class Authorize {
 		return array(
 			'response_type'         => sanitize_text_field( (string) ( $request->get_param( 'response_type' ) ?? '' ) ),
 			'client_id'             => sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) ),
-			'redirect_uri'          => esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) ),
+			'redirect_uri'          => Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) ),
 			'scope'                 => sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? 'mcp:tools' ) ),
-			'state'                 => sanitize_text_field( (string) ( $request->get_param( 'state' ) ?? '' ) ),
+			'state'                 => self::state_param( $request ),
 			'code_challenge'        => sanitize_text_field( (string) ( $request->get_param( 'code_challenge' ) ?? '' ) ),
 			'code_challenge_method' => sanitize_text_field( (string) ( $request->get_param( 'code_challenge_method' ) ?? '' ) ),
 		);
+	}
+
+	/**
+	 * The client's state value, unchanged.
+	 *
+	 * State is opaque to the server and the client compares it byte for byte
+	 * (VS Code's is a percent-encoded callback URL), so it is not run through
+	 * sanitize_text_field(), which strips percent-encoded octets. It is only
+	 * ever output escaped: esc_attr() on the consent form, rawurlencode() in
+	 * the redirect.
+	 *
+	 * @param WP_REST_Request $request The incoming REST request.
+	 */
+	private static function state_param( WP_REST_Request $request ): string {
+		$state = $request->get_param( 'state' );
+		return is_string( $state ) ? $state : '';
 	}
 
 	/**
@@ -413,7 +433,7 @@ final class Authorize {
 		<form method="post" action="<?php echo esc_url( $form_action ); ?>">
 			<input type="hidden" name="<?php echo esc_attr( self::NONCE_FIELD ); ?>" value="<?php echo esc_attr( $nonce ); ?>" />
 			<input type="hidden" name="client_id" value="<?php echo esc_attr( $params['client_id'] ); ?>" />
-			<input type="hidden" name="redirect_uri" value="<?php echo esc_url( $params['redirect_uri'] ); ?>" />
+			<input type="hidden" name="redirect_uri" value="<?php echo esc_attr( $params['redirect_uri'] ); ?>" />
 			<input type="hidden" name="scope" value="<?php echo esc_attr( $params['scope'] ); ?>" />
 			<input type="hidden" name="state" value="<?php echo esc_attr( $params['state'] ); ?>" />
 			<input type="hidden" name="code_challenge" value="<?php echo esc_attr( $params['code_challenge'] ); ?>" />

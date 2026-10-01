@@ -12,6 +12,7 @@ namespace AgentConnectorForWp\Rest;
 use AgentConnectorForWp\Observability\EventsTable;
 use AgentConnectorForWp\OAuth\Db as OAuthDb;
 use AgentConnectorForWp\Services\PluginDirectory;
+use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use AgentConnectorForWp\Support\Governance;
@@ -52,8 +53,7 @@ final class SettingsController extends WP_REST_Controller {
 					'domain_lock_enabled'     => array( 'type' => 'boolean', 'default' => false ),
 					'hide_production_warning' => array( 'type' => 'boolean', 'default' => false ),
 					'mcp_debug'               => array( 'type' => 'boolean', 'default' => false ),
-					'oauth_enabled'           => array( 'type' => 'boolean', 'default' => false ),
-				),
+									),
 			)
 		);
 
@@ -267,14 +267,14 @@ final class SettingsController extends WP_REST_Controller {
 	}
 
 	public function get_status( WP_REST_Request $request ): WP_REST_Response {
-		$user = wp_get_current_user();
+		$user      = wp_get_current_user();
+		$pw_reason = ApplicationPasswords::unavailable_reason( $user instanceof \WP_User ? $user : null );
 		return new WP_REST_Response(
 			array(
 				'enabled'                 => Config::is_enabled(),
 				'active'                  => Config::can_boot(),
 				'prod_blocked'            => Config::is_blocked_by_production(),
 				'mcp_debug'               => Config::mcp_debug_enabled(),
-				'oauth_enabled'           => Config::is_oauth_enabled(),
 				'oauth_transport_allowed' => Config::oauth_transport_allowed(),
 				'block_production'        => Config::block_production_enabled(),
 				'domain_lock_enabled'     => Config::domain_lock_enabled(),
@@ -285,7 +285,9 @@ final class SettingsController extends WP_REST_Controller {
 				'env_type'                => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
 				'server_url'              => Connection::endpoint_url(),
 				'username'                => $user instanceof \WP_User ? $user->user_login : '',
-				'pw_available'            => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'pw_available'            => null === $pw_reason,
+				'pw_unavailable_reason'   => $pw_reason['type'] ?? null,
+				'pw_unavailable_plugin'   => $pw_reason['plugin'] ?? null,
 				'uap_active'              => $this->is_uap_active(),
 			)
 		);
@@ -297,9 +299,7 @@ final class SettingsController extends WP_REST_Controller {
 		$domain_lock  = (bool) $request->get_param( 'domain_lock_enabled' );
 		$hide_warning = (bool) $request->get_param( 'hide_production_warning' );
 		$mcp_debug    = (bool) $request->get_param( 'mcp_debug' );
-		$oauth        = (bool) $request->get_param( 'oauth_enabled' );
 
-		update_option( Config::OAUTH_ENABLED_OPTION, $oauth, true );
 		update_option( Config::ENABLED_OPTION, $enable, true );
 		update_option( Config::BLOCK_PRODUCTION_OPTION, $block_prod, true );
 		update_option( Config::DOMAIN_LOCK_OPTION, $domain_lock, true );
@@ -340,8 +340,9 @@ final class SettingsController extends WP_REST_Controller {
 			return new WP_Error( 'no_user', __( 'Could not determine the current user.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
 		}
 
-		if ( ! $this->pw_available( $user ) ) {
-			return new WP_Error( 'pw_unavailable', __( 'Application passwords are not available on this site.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
+		$pw_reason = ApplicationPasswords::unavailable_reason( $user );
+		if ( null !== $pw_reason ) {
+			return new WP_Error( 'pw_unavailable', ApplicationPasswords::unavailable_message( $pw_reason ), array( 'status' => 400 ) );
 		}
 
 		$name = (string) $request->get_param( 'name' );
@@ -816,19 +817,6 @@ final class SettingsController extends WP_REST_Controller {
 
 	private function is_uap_active(): bool {
 		return PluginDirectory::is_universal_abilities_active();
-	}
-
-	private function pw_available( ?\WP_User $user ): bool {
-		if ( ! class_exists( WP_Application_Passwords::class ) || ! function_exists( 'wp_is_application_passwords_available' ) ) {
-			return false;
-		}
-		if ( ! wp_is_application_passwords_available() ) {
-			return false;
-		}
-		if ( $user instanceof \WP_User && function_exists( 'wp_is_application_passwords_available_for_user' ) ) {
-			return (bool) wp_is_application_passwords_available_for_user( $user );
-		}
-		return true;
 	}
 
 	public function dismiss_production_warning(): WP_REST_Response {

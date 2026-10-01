@@ -290,25 +290,6 @@ final class Connection {
 	}
 
 	/**
-	 * A `gemini mcp add` command. Env flags (`-e KEY=VAL`) precede the name.
-	 *
-	 * @param array<string,string> $env Proxy environment variables.
-	 */
-	private static function gemini_cli( string $name, array $env ): string {
-		$parts = array( 'gemini', 'mcp', 'add' );
-		foreach ( $env as $key => $value ) {
-			$parts[] = '-e';
-			$parts[] = self::shell_arg( $key . '=' . $value );
-		}
-		$parts[] = self::shell_arg( $name );
-		$parts[] = 'npx';
-		$parts[] = '-y';
-		$parts[] = self::shell_arg( self::PROXY_PACKAGE );
-
-		return implode( ' ', $parts );
-	}
-
-	/**
 	 * VS Code's install JSON: the server entry plus a top-level "name" key.
 	 *
 	 * Shared by both the `code --add-mcp` command and the vscode: deeplink.
@@ -383,50 +364,9 @@ final class Connection {
 						'hint'  => __( 'Run this in your terminal to add the server to Codex CLI. It writes to ~/.codex/config.toml automatically (Node.js required).', 'agent-connector-for-wp' ),
 						'value' => self::codex_cli( $name, $env ),
 						'steps' => array(
-							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Copy the command above', 'agent-connector-for-wp' ),
 							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
 							__( 'Codex CLI will confirm the server was added', 'agent-connector-for-wp' ),
-						),
-					),
-				),
-			),
-			array(
-				'id'     => 'codex-desktop',
-				'label'  => __( 'Codex Desktop', 'agent-connector-for-wp' ),
-				'blocks' => array(
-					array(
-						'kind'  => 'command',
-						'title' => __( 'Terminal command', 'agent-connector-for-wp' ),
-						'hint'  => __( 'Run this in your terminal to add the server automatically (Node.js required).', 'agent-connector-for-wp' ),
-						'value' => self::codex_cli( $name, $env ),
-						'steps' => array(
-							'<a href="https://developers.openai.com/codex/cli" target="_blank" rel="noreferrer" class="underline">' . __( 'Install Codex CLI', 'agent-connector-for-wp' ) . '</a>',
-							__( 'Copy the command below', 'agent-connector-for-wp' ),
-							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
-						),
-					),
-					array(
-						'kind'       => 'fields',
-						'title'      => __( 'MCP server settings', 'agent-connector-for-wp' ),
-						'hint'       => null,
-						'noVideo'    => true,
-						'stepsTitle' => __( 'Manual install', 'agent-connector-for-wp' ),
-						'value'      => array(
-							array( 'label' => 'Transport',       'value' => 'STDIO' ),
-							array( 'label' => 'Name',            'value' => $name ),
-							array( 'label' => 'Command',         'value' => 'npx' ),
-							array( 'label' => 'Argument 1',      'value' => '-y' ),
-							array( 'label' => 'Argument 2',      'value' => self::PROXY_PACKAGE . '@latest' ),
-							array( 'heading' => __( 'Environment Variables', 'agent-connector-for-wp' ) ),
-							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
-							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
-							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
-						),
-						'steps'      => array(
-							__( 'Open Codex Desktop → <strong>Settings</strong>', 'agent-connector-for-wp' ),
-							__( 'Click <strong>MCP Servers</strong>', 'agent-connector-for-wp' ),
-							__( 'Click <strong>Add Server</strong>', 'agent-connector-for-wp' ),
-							__( 'Manually enter the MCP server settings below', 'agent-connector-for-wp' ),
 						),
 					),
 				),
@@ -441,7 +381,7 @@ final class Connection {
 						'hint'  => __( 'Run this in your terminal to add the server to Claude Code (Node.js required).', 'agent-connector-for-wp' ),
 						'value' => self::claude_code_cli( $name, $env ),
 						'steps' => array(
-							__( 'Copy the command below', 'agent-connector-for-wp' ),
+							__( 'Copy the command above', 'agent-connector-for-wp' ),
 							__( 'Open your terminal and paste it', 'agent-connector-for-wp' ),
 							__( 'Claude Code will confirm the server was added', 'agent-connector-for-wp' ),
 						),
@@ -473,9 +413,9 @@ final class Connection {
 							JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 						),
 						'steps' => array(
-							__( 'Copy the JSON below', 'agent-connector-for-wp' ),
+							__( 'Copy the JSON above', 'agent-connector-for-wp' ),
 							__( 'Open <code>claude_desktop_config.json</code>', 'agent-connector-for-wp' ),
-							__( 'Merge the <code>mcpServers</code> entry into the file — don\'t replace the whole file', 'agent-connector-for-wp' ),
+							__( 'Merge the <code>mcpServers</code> entry into the file. Don\'t replace the whole file', 'agent-connector-for-wp' ),
 							__( 'Save and restart Claude Desktop', 'agent-connector-for-wp' ),
 						),
 					),
@@ -498,10 +438,10 @@ final class Connection {
 							array( 'heading' => __( 'Environment Variables', 'agent-connector-for-wp' ) ),
 							array( 'label' => 'WP_API_URL',      'value' => $env['WP_API_URL'] ),
 							array( 'label' => 'WP_API_USERNAME', 'value' => $env['WP_API_USERNAME'] ),
-							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'] ),
+							array( 'label' => 'WP_API_PASSWORD', 'value' => $env['WP_API_PASSWORD'], 'secret' => true ),
 						),
 						'steps' => array(
-							__( 'Add an MCP server with the settings below', 'agent-connector-for-wp' ),
+							__( 'Add an MCP server with the settings above', 'agent-connector-for-wp' ),
 						),
 					),
 				),
