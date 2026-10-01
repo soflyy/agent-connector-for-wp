@@ -1047,7 +1047,9 @@ function StepScreenshot({ screenshot }) {
         loading="lazy"
         onClick={() => setZoomed(true)}
         onLoad={(e) => {
-          if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.width = `${e.currentTarget.naturalWidth / 2}px`
+          // A cap rather than a width, so a tall capture still shrinks
+          // proportionally to fit the frame's height.
+          if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.maxWidth = `min(100%, ${e.currentTarget.naturalWidth / 2}px)`
         }}
         className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
       />
