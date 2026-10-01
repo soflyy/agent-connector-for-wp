@@ -274,7 +274,7 @@ const STEP_SCREENSHOTS = {
   'claude-desktop/name-url': 'claude-desktop/04-name-and-url.webp',
   'claude-desktop/options': 'claude-desktop/05-add.webp',
   'claude-desktop/connect': 'claude-desktop/06-connect.webp',
-  'claude-desktop/continue': 'claude-desktop/07-continue.webp',
+  'claude-desktop/continue': 'claude-desktop/07-continue@2x.webp',
   'claude-desktop/authorize': 'claude-desktop/08-authorize.webp',
   'claude-desktop/connected': 'claude-desktop/09-connected.webp',
   'claude-code/authorize': 'claude-code/01-authorize.webp',
