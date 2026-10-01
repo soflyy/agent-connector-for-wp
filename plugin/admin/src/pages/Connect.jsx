@@ -547,7 +547,8 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
       ],
     }],
-    'chatgpt': [{
+    // The URL comes first, for anyone who'd rather add the server by hand.
+    'chatgpt': [guide, {
       // The same plugin as the application-password path, but pointing at
       // the site's endpoint: ChatGPT signs in over OAuth when it's installed.
       kind: 'download', title: 'One-click install',
