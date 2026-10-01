@@ -12,7 +12,7 @@
 // client-side, so an existing password never leaves the browser.
 
 import JSZip from 'jszip'
-import { PROXY_PACKAGE, buildIcon, saveFile } from './mcpb'
+import { PROXY_PACKAGE, WEBSITE, buildIcon, saveFile } from './mcpb'
 
 const PLUGIN_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 const MCP_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
@@ -43,7 +43,8 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
     name: pluginName(serverName),
     version: '1.0.0',
     description,
-    author: { name: 'Soflyy' },
+    author: { name: 'Soflyy', url: WEBSITE },
+    homepage: WEBSITE,
     extensions: {
       'com.openai': {
         interface: {
@@ -53,6 +54,7 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
           developerName: 'Soflyy',
           category: 'Productivity',
           capabilities: ['Read', 'Write'],
+          websiteURL: WEBSITE,
           defaultPrompt: prompts,
           composerIcon: ICON,
           logo: ICON,
