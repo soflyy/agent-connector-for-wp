@@ -531,7 +531,26 @@ function buildOAuth(serverName, serverUrl) {
       ],
     }],
     'chatgpt': [{
-      ...guide,
+      // The same plugin as the application-password path, but pointing at
+      // the site's endpoint: ChatGPT signs in over OAuth when it's installed.
+      kind: 'download', title: 'One-click install',
+      hint: 'Download the plugin below and upload it to ChatGPT. It holds no password: you approve access on your site instead.',
+      button: 'Download ChatGPT plugin',
+      download: downloadChatgptPlugin,
+      value: {
+        serverName,
+        serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
+      },
+      steps: [
+        shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
+        'In <strong>Plugins</strong>, click <strong>Add</strong>, choose the file you downloaded, and click <strong>Add plugin</strong>',
+        authorizeStep('chatgpt', 'Open the plugin and sign in when ChatGPT asks.'),
+      ],
+    }, {
+      ...guide, manual: true,
       steps: [
         shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
         shot('chatgpt/create-mcp-app', 'In <strong>Plugins</strong>, click <strong>Add</strong>, then <strong>Create MCP App</strong>', 'Add → Create MCP App'),
