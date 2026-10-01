@@ -17,6 +17,9 @@ import JSZip from 'jszip'
 
 const MANIFEST_VERSION = '0.3'
 
+// Shown as the extension's website in the host.
+export const WEBSITE = 'https://wpagentconnector.com/'
+
 const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote@latest'
 
 // MCPB requires server.entry_point to be a file in the bundle, but hosts start
@@ -40,7 +43,8 @@ export function buildManifest({ serverName, serverUrl, siteName, username, passw
     display_name: `${label} (WordPress)`,
     version: '1.0.0',
     description: `Gives the agent access to the WordPress site ${host} through Agent Connector for WP.`,
-    author: { name: 'Soflyy' },
+    author: { name: 'Soflyy', url: WEBSITE },
+    homepage: WEBSITE,
     server: {
       type: 'node',
       entry_point: 'server/index.js',
