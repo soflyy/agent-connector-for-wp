@@ -60,7 +60,6 @@ export const normalizeStatus = (s = {}) => ({
   active: bool(s.active),
   prodBlocked: bool(s.prod_blocked),
   mcpDebug: bool(s.mcp_debug),
-  oauthEnabled: bool(s.oauth_enabled),
   oauthTransportAllowed: bool(s.oauth_transport_allowed),
   blockProduction: bool(s.block_production),
   domainLockEnabled: bool(s.domain_lock_enabled),
@@ -72,6 +71,8 @@ export const normalizeStatus = (s = {}) => ({
   serverUrl: s.server_url ?? '',
   username: s.username ?? '',
   pwAvailable: bool(s.pw_available),
+  pwUnavailableReason: s.pw_unavailable_reason ?? null,
+  pwUnavailablePlugin: s.pw_unavailable_plugin ?? null,
   uapActive: bool(s.uap_active),
 })
 
@@ -80,7 +81,6 @@ export const initial = {
   active: bool(cfg.active),
   prodBlocked: bool(cfg.prodBlocked),
   mcpDebug: bool(cfg.mcpDebug),
-  oauthEnabled: bool(cfg.oauthEnabled),
   oauthTransportAllowed: bool(cfg.oauthTransportAllowed),
   blockProduction: bool(cfg.blockProduction),
   domainLockEnabled: bool(cfg.domainLockEnabled),
@@ -92,8 +92,12 @@ export const initial = {
   serverUrl: cfg.serverUrl ?? '',
   serverName: cfg.serverName ?? '',
   siteName: cfg.siteName ?? '',
+  siteIcon: cfg.siteIcon ?? '',
+  assetsUrl: cfg.assetsUrl ?? '',
   username: cfg.username ?? '',
   pwAvailable: bool(cfg.pwAvailable),
+  pwUnavailableReason: cfg.pwUnavailableReason ?? null,
+  pwUnavailablePlugin: cfg.pwUnavailablePlugin ?? null,
   uapActive: bool(cfg.uapActive),
   showGsBanner: bool(cfg.showGsBanner),
 }

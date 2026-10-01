@@ -15,9 +15,9 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\Admin;
 
 use AgentConnectorForWp\Services\PluginDirectory;
+use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
-use WP_Application_Passwords;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -46,7 +46,7 @@ final class ConnectionPage {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Agent Connector — Connection', 'agent-connector-for-wp' ),
+			__( 'Agent Connector: Connection', 'agent-connector-for-wp' ),
 			__( 'Connection', 'agent-connector-for-wp' ),
 			Config::CAP,
 			self::MENU_SLUG,
@@ -86,7 +86,8 @@ final class ConnectionPage {
 			);
 		}
 
-		$user = wp_get_current_user();
+		$user      = wp_get_current_user();
+		$pw_reason = ApplicationPasswords::unavailable_reason( $user instanceof \WP_User ? $user : null );
 
 		wp_localize_script(
 			'agent-connector-for-wp-admin',
@@ -99,7 +100,6 @@ final class ConnectionPage {
 				'active'                => Config::can_boot(),
 				'prodBlocked'           => Config::is_blocked_by_production(),
 				'mcpDebug'              => Config::mcp_debug_enabled(),
-				'oauthEnabled'          => Config::is_oauth_enabled(),
 				'oauthTransportAllowed' => Config::oauth_transport_allowed(),
 				'blockProduction'       => Config::block_production_enabled(),
 				'domainLockEnabled'     => Config::domain_lock_enabled(),
@@ -111,8 +111,12 @@ final class ConnectionPage {
 				'serverUrl'             => Connection::endpoint_url(),
 				'serverName'            => Connection::server_name(),
 				'siteName'              => (string) get_bloginfo( 'name' ),
+				'siteIcon'              => (string) get_site_icon_url( 512 ),
+				'assetsUrl'             => plugins_url( 'assets/', AGENT_CONNECTOR_FOR_WP_FILE ),
 				'username'              => $user instanceof \WP_User ? $user->user_login : '',
-				'pwAvailable'           => $this->pw_available( $user instanceof \WP_User ? $user : null ),
+				'pwAvailable'           => null === $pw_reason,
+				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
+				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
 				'uapActive'             => $this->is_uap_active(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 			)
@@ -151,18 +155,5 @@ final class ConnectionPage {
 
 	private function is_uap_active(): bool {
 		return PluginDirectory::is_universal_abilities_active();
-	}
-
-	private function pw_available( ?\WP_User $user ): bool {
-		if ( ! class_exists( WP_Application_Passwords::class ) || ! function_exists( 'wp_is_application_passwords_available' ) ) {
-			return false;
-		}
-		if ( ! wp_is_application_passwords_available() ) {
-			return false;
-		}
-		if ( $user instanceof \WP_User && function_exists( 'wp_is_application_passwords_available_for_user' ) ) {
-			return (bool) wp_is_application_passwords_available_for_user( $user );
-		}
-		return true;
 	}
 }

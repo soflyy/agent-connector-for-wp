@@ -66,7 +66,7 @@ final class Token {
 	 */
 	private static function handle_authorization_code( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$code          = sanitize_text_field( (string) ( $request->get_param( 'code' ) ?? '' ) );
-		$redirect_uri  = esc_url_raw( (string) ( $request->get_param( 'redirect_uri' ) ?? '' ) );
+		$redirect_uri  = Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) );
 		$client_id     = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
 		$code_verifier = sanitize_text_field( (string) ( $request->get_param( 'code_verifier' ) ?? '' ) );
 

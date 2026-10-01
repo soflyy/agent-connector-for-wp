@@ -2,9 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* This stylesheet loads only on the plugin's page: hide core and other
+   plugins' admin notices there so the app gets the full screen. The sandbox
+   safe-mode notice stays, since it explains how to recover. */
+#wpbody-content > :is(.notice, .update-nag, .updated, .error):not(#acfw-safe-mode-notice) {
+  display: none !important;
+}
+
 /* Reset box-sizing inside our app since WP admin uses content-box */
 #agent-connector-for-wp-app *,
 #agent-connector-for-wp-app *::before,
 #agent-connector-for-wp-app *::after {
   box-sizing: border-box;
+}
+
+#agent-connector-for-wp-app {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
