@@ -312,10 +312,11 @@ const STEP_SCREENSHOTS = {
   'chatgpt/form': 'chatgpt/03-form.webp',
   'chatgpt/continue': 'chatgpt/04-continue.webp',
   'chatgpt/authorize': 'chatgpt/05-authorize.webp',
-  'chatgpt/plugin-customize': 'chatgpt/plugin-01-customize.webp',
-  'chatgpt/plugin-upload': 'chatgpt/plugin-02-upload-archive.webp',
-  'chatgpt/plugin-add': 'chatgpt/plugin-03-add-plugin.webp',
-  'chatgpt/plugin-install': 'chatgpt/plugin-04-install.webp',
+  'chatgpt/plugin-sidebar': 'chatgpt/plugin-01-sidebar@2x.webp',
+  'chatgpt/plugin-customize': 'chatgpt/plugin-02-customize@2x.webp',
+  'chatgpt/plugin-upload': 'chatgpt/plugin-03-upload-archive@2x.webp',
+  'chatgpt/plugin-add': 'chatgpt/plugin-04-add-plugin@2x.webp',
+  'chatgpt/plugin-install': 'chatgpt/plugin-05-install@2x.webp',
   'chatgpt/password-settings': 'chatgpt/password-01-settings-mcps.webp',
   'chatgpt/password-add': 'chatgpt/password-02-add-mcp-server.webp',
   'chatgpt/password-command': 'chatgpt/password-03-command.webp',
@@ -432,7 +433,8 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
 // methods (OAuth adds the sign-in after it).
 function chatgptPluginSteps() {
   return [
-    shot('chatgpt/plugin-customize', 'In ChatGPT, open <strong>Customize</strong> and click <strong>Plugins</strong>', 'Customize → Plugins'),
+    shot('chatgpt/plugin-sidebar', 'In ChatGPT, click the <strong>Customize</strong> icon in the sidebar', 'Customize icon in the sidebar'),
+    shot('chatgpt/plugin-customize', 'Click <strong>Plugins</strong>', 'Customize → Plugins'),
     shot('chatgpt/plugin-upload', 'Click <strong>Add</strong>, then <strong>Upload plugin archive</strong>', 'Add → Upload plugin archive'),
     shot('chatgpt/plugin-add', 'Drag in the file you downloaded (or use <strong>click to upload</strong>), then click <strong>Add plugin</strong>', 'New Plugin dialog'),
     shot('chatgpt/plugin-install', 'Click <strong>Install plugin</strong>', 'Install plugin button'),
