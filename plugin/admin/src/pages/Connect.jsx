@@ -524,7 +524,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/name-url', `Name it <code>${serverName}</code>, paste the MCP Server URL, and click <strong>Continue</strong>`, 'Name and MCP server URL fields', withUrl),
         shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
-        shot('claude-desktop/continue', 'Your browser opens Claude. Click <strong>Continue connecting</strong>', 'Finish connecting a connector?'),
+        shot('claude-desktop/continue', 'Your browser will show a confirmation page. Click <strong>Continue connecting</strong>', 'Finish connecting a connector?'),
         authorizeStep('claude-desktop'),
         shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
       ],
