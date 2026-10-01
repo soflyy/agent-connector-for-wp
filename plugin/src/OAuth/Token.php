@@ -44,6 +44,13 @@ final class Token {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function handle( WP_REST_Request $request ): WP_REST_Response|WP_Error {
+		// Public endpoint (RFC 6749): throttle per IP so an anonymous flood
+		// can't tie PHP up in grant validation. Generous for real clients — a
+		// connection refreshes roughly hourly.
+		if ( ! RateLimiter::allow( 'token', 30, MINUTE_IN_SECONDS ) ) {
+			return self::oauth_error( 'temporarily_unavailable', 'Too many token requests from this address. Try again shortly.', 429 );
+		}
+
 		$grant_type = sanitize_text_field( (string) ( $request->get_param( 'grant_type' ) ?? '' ) );
 
 		// Opportunistic cleanup. Rotation leaves a dead token row behind on
@@ -214,6 +221,19 @@ final class Token {
 	 * @param WP_REST_Request $request The incoming REST request.
 	 */
 	public static function handle_revoke( WP_REST_Request $request ): WP_REST_Response {
+		// RFC 7009 §2.2.1 names 503 as the too-many-requests response and has
+		// the client treat the token as still existing, so a throttled caller
+		// retries instead of assuming success.
+		if ( ! RateLimiter::allow( 'revoke', 30, MINUTE_IN_SECONDS ) ) {
+			return new WP_REST_Response(
+				array(
+					'error'             => 'temporarily_unavailable',
+					'error_description' => 'Too many revocation requests from this address. Try again shortly.',
+				),
+				503
+			);
+		}
+
 		$token      = sanitize_text_field( (string) ( $request->get_param( 'token' ) ?? '' ) );
 		$token_hint = sanitize_text_field( (string) ( $request->get_param( 'token_type_hint' ) ?? '' ) );
 

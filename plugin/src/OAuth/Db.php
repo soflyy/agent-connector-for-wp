@@ -721,6 +721,35 @@ final class Db {
 	}
 
 	/**
+	 * Delete token-less client registrations older than $ttl seconds.
+	 *
+	 * The legitimate flow goes register → consent → token within minutes, so a
+	 * registration still without a token a day later is abandoned or spam and
+	 * only occupies a pending-pool slot ({@see Server::handle_register}). Also
+	 * catches clients whose token rows have all been cleaned up (grant expired
+	 * 30+ days ago): compliant DCR clients simply re-register.
+	 *
+	 * @param int $ttl Minimum age in seconds before a token-less registration
+	 *                 is removed.
+	 * @return int Number of registrations removed.
+	 */
+	public static function delete_stale_clients_without_tokens( int $ttl = DAY_IN_SECONDS ): int {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE c FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL AND c.created_at < %s',
+				self::table_clients(),
+				self::table_tokens(),
+				gmdate( 'Y-m-d H:i:s', time() - $ttl )
+			)
+		);
+
+		return (int) $deleted;
+	}
+
+	/**
 	 * Delete token rows that can no longer authenticate anything.
 	 *
 	 * Refresh rotation revokes a row and writes a replacement on every refresh,
