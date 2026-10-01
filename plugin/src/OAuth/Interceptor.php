@@ -77,17 +77,12 @@ final class Interceptor {
 			return $result;
 		}
 
-		$request_uri = isset( $_SERVER['REQUEST_URI'] )
-			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
-			: '';
-
-		// Only intercept the MCP adapter namespace.
-		if ( false === strpos( $request_uri, '/mcp/' ) ) {
-			return $result;
-		}
-
-		// Never intercept our own OAuth endpoints.
-		if ( false !== strpos( $request_uri, '/' . Server::REST_NAMESPACE . '/' ) ) {
+		// Only intercept the MCP adapter namespace. Decided on the route REST
+		// will dispatch, never on REQUEST_URI: that carries the query string,
+		// so `/wp-json/wp/v2/users?x=/mcp/` would otherwise let a token
+		// authenticate as its admin on every REST route, outside Governance.
+		// This also keeps our own OAuth endpoints (acfw-auth/v1) out.
+		if ( ! self::is_mcp_route( self::current_rest_route() ) ) {
 			return $result;
 		}
 
@@ -159,6 +154,34 @@ final class Interceptor {
 		Server::send_cors_headers();
 
 		return true;
+	}
+
+	/**
+	 * The REST route of the current request, exactly as rest_api_loaded()
+	 * passes it to WP_REST_Server::serve_request(), i.e. the route that will
+	 * be dispatched, whether it arrived via pretty permalinks or `?rest_route=`.
+	 * Empty string outside a REST request.
+	 */
+	private static function current_rest_route(): string {
+		global $wp;
+
+		if ( ! ( $wp instanceof \WP ) || ! isset( $wp->query_vars['rest_route'] ) ) {
+			return '';
+		}
+
+		return (string) $wp->query_vars['rest_route'];
+	}
+
+	/**
+	 * Whether a REST route belongs to the MCP adapter's `mcp` namespace.
+	 *
+	 * Case-insensitive to mirror WP_REST_Server, which matches routes with
+	 * the `i` flag, so every spelling that dispatches to MCP is covered.
+	 *
+	 * @param string $route The REST route, e.g. `/mcp/mcp-adapter-default-server`.
+	 */
+	private static function is_mcp_route( string $route ): bool {
+		return 0 === stripos( '/' . ltrim( $route, '/' ), '/mcp/' );
 	}
 
 	/**
