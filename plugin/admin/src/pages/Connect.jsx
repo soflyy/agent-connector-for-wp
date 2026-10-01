@@ -9,6 +9,7 @@ import { VscVscode } from 'react-icons/vsc'
 import { CursorIcon, AntigravityIcon, ClaudeIcon } from '../components/BrandIcons'
 import { api, initial, DEMO_URL } from '../api'
 import { downloadMcpb } from '../mcpb'
+import { downloadChatgptPlugin } from '../chatgptPlugin'
 
 // On local environments the site isn't reachable over the internet, so OAuth
 // only works for agents running on the same machine (CLI tools); hosted
@@ -890,14 +891,15 @@ function FieldsContent({ fields }) {
   )
 }
 
-// Builds the .mcpb in the browser on click (block.value holds its params).
+// Builds a file in the browser on click: the .mcpb, or whatever
+// block.download builds (block.value holds its params).
 function McpbContent({ block }) {
   const [state, setState] = useState('idle') // 'idle' | 'building' | 'done' | 'error'
 
   async function download() {
     setState('building')
     try {
-      await downloadMcpb(block.value)
+      await (block.download || downloadMcpb)(block.value)
       setState('done')
     } catch {
       setState('error')
@@ -1059,7 +1061,7 @@ function StepScreenshot({ screenshot }) {
 }
 
 function Block({ block }) {
-  const titleIcon = block.kind === 'mcpb'
+  const titleIcon = block.kind === 'mcpb' || block.kind === 'download'
     ? <Package className="w-4 h-4" />
     : block.kind === 'command'
     ? <Terminal className="w-4 h-4" />
@@ -1095,7 +1097,7 @@ function Block({ block }) {
           </a>
         ) : block.kind === 'fields' ? (
           <FieldsContent fields={block.value} />
-        ) : block.kind === 'mcpb' ? (
+        ) : block.kind === 'mcpb' || block.kind === 'download' ? (
           <McpbContent block={block} />
         ) : (
           <CodeContent block={block} />
@@ -1484,12 +1486,29 @@ function AppPasswordFlow({ selectedAgent, status }) {
     })]
   }
   if (connection && agentMeta.id === 'chatgpt') {
-    blocks = [chatgptPasswordBlock({
+    // A ChatGPT plugin to download and upload, built client-side like the
+    // .mcpb, with ChatGPT's own Add MCP server form as the manual fallback.
+    const pluginBlock = {
+      kind: 'download', title: 'One-click install',
+      hint: 'Download the plugin below and upload it to ChatGPT. Requires Node.js. This file includes your application password, so keep it private.',
+      button: 'Download ChatGPT plugin',
+      download: downloadChatgptPlugin,
+      value: {
+        serverName: initial.serverName,
+        serverUrl: initial.serverUrl,
+        siteName: initial.siteName,
+        siteIcon: initial.siteIcon,
+        username: connection.username ?? initial.username,
+        password: generatedPassword ?? existingPw,
+        prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
+      },
+    }
+    blocks = [pluginBlock, { ...chatgptPasswordBlock({
       name: initial.serverName,
       serverUrl: initial.serverUrl,
       username: connection.username ?? initial.username,
       password: generatedPassword ?? existingPw,
-    })]
+    }), manual: true }]
   }
   blocks = withVideo(blocks, agentMeta.videoUrl)
   if (connection && agentMeta.mcpb) {

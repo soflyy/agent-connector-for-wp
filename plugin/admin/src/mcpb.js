@@ -20,7 +20,7 @@ const MANIFEST_VERSION = '0.3'
 // Shown as the extension's website in the host.
 export const WEBSITE = 'https://wpagentconnector.com/'
 
-const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote@latest'
+export const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote@latest'
 
 // MCPB requires server.entry_point to be a file in the bundle, but hosts start
 // the server from mcp_config (the npx command), so the file is a placeholder.
@@ -111,7 +111,7 @@ async function toPng(src, crossOrigin) {
 
 // The site's own Site Icon, since the extension is named after the site;
 // the plugin mark when there isn't one or it can't be read.
-async function buildIcon(siteIcon) {
+export async function buildIcon(siteIcon) {
   if (siteIcon) {
     try { return await toPng(siteIcon, true) } catch {}
   }
@@ -135,11 +135,15 @@ export async function buildMcpb(params) {
 }
 
 export async function downloadMcpb(params) {
-  const blob = await buildMcpb(params)
+  saveFile(await buildMcpb(params), mcpbFileName(params.serverName))
+}
+
+// Hands a generated file to the browser as a download.
+export function saveFile(blob, fileName) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = mcpbFileName(params.serverName)
+  a.download = fileName
   document.body.appendChild(a)
   a.click()
   a.remove()
