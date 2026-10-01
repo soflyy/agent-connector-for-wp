@@ -64,7 +64,7 @@ function isLocalEnvironment() {
 // `oauthOnly: true` is the reverse, for hosted apps that only take a URL.
 const AGENTS = [
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', mcpb: true, httpsOnly: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
-  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
+  { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', httpsOnly: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
   { id: 'codex-cli',      label: 'Codex CLI',       Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', cli: true, videoUrl: 'https://www.loom.com/share/cbea0194fcdd44d08f3a2f6c1c655bcc', oauthVideoUrl: '' },
