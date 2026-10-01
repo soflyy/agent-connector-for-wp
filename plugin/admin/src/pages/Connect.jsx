@@ -42,6 +42,7 @@ function isLocalEnvironment() {
 
 // `cli: true` marks an agent that runs on the operator's own machine, so it
 // can reach a local site and needs none of the local-environment caveats.
+// `httpsOnly: true` marks an agent whose OAuth connector refuses http:// URLs.
 //
 // The two video fields are per auth method and are not interchangeable:
 // `videoUrl` walks through the application-password + proxy setup, which looks
@@ -62,7 +63,7 @@ function isLocalEnvironment() {
 // an entry the OAuth flow can't serve, so the method picker is skipped;
 // `oauthOnly: true` is the reverse, for hosted apps that only take a URL.
 const AGENTS = [
-  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', mcpb: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
+  { id: 'claude-desktop', label: 'Claude Desktop',  Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', mcpb: true, httpsOnly: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
   { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', videoUrl: '', oauthVideoUrl: '' },
   { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-code',    label: 'Claude Code CLI', Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', cli: true, videoUrl: 'https://www.loom.com/share/75a123e662f84118bfea5b5c4e2593eb', oauthVideoUrl: '' },
@@ -1634,12 +1635,14 @@ const AUTH_METHODS = [
   },
 ]
 
-function MethodPicker({ method, onSelect, localCaveat }) {
+// `oauthCaveat` is a short reason OAuth may not work here; when set, the
+// application password is recommended instead.
+function MethodPicker({ method, onSelect, oauthCaveat }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       {AUTH_METHODS.map(({ id, label, Icon, description }) => {
         const isSelected = method === id
-        const isRecommended = localCaveat ? id === 'password' : id === 'oauth'
+        const isRecommended = oauthCaveat ? id === 'password' : id === 'oauth'
         return (
           <button
             key={id}
@@ -1660,9 +1663,9 @@ function MethodPicker({ method, onSelect, localCaveat }) {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
                   <Sparkles className="w-3 h-3" /> Recommended
                 </span>
-              ) : localCaveat && id === 'oauth' && (
+              ) : oauthCaveat && id === 'oauth' && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold uppercase tracking-wide">
-                  <AlertTriangle className="w-3 h-3" /> May not work locally
+                  <AlertTriangle className="w-3 h-3" /> {oauthCaveat}
                 </span>
               )}
             </div>
@@ -1683,11 +1686,16 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // machine, so localhost resolves for it and none of that applies.
   const localCaveat = isLocalEnvironment() && ! agentMeta.cli
 
+  // Some agents' OAuth connectors only accept https:// URLs, so on an http://
+  // site OAuth can't work there at all.
+  const needsHttps = !!agentMeta.httpsOnly && /^http:\/\//i.test(initial.serverUrl)
+  const oauthCaveat = needsHttps ? 'Needs HTTPS' : localCaveat ? 'May not work locally' : null
+
   // An agent the OAuth flow can't serve (the .mcpb entry) goes straight to
   // the application password, with no method picker.
   const passwordOnly = !!agentMeta.passwordOnly
   const oauthOnly = !!agentMeta.oauthOnly
-  const [method, setMethod] = useState(oauthOnly ? 'oauth' : passwordOnly || localCaveat ? 'password' : 'oauth')
+  const [method, setMethod] = useState(oauthOnly ? 'oauth' : passwordOnly || oauthCaveat ? 'password' : 'oauth')
 
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
@@ -1703,13 +1711,21 @@ function GenerateStep({ selectedAgent, status, onBack }) {
       {!passwordOnly && !oauthOnly && (
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-          <MethodPicker method={method} onSelect={setMethod} localCaveat={localCaveat} />
+          <MethodPicker method={method} onSelect={setMethod} oauthCaveat={oauthCaveat} />
         </div>
       )}
 
       {method === 'oauth' ? (
         <div className="space-y-4">
-          {localCaveat && (
+          {needsHttps ? (
+            <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>
+                {agentMeta.label} only accepts <code>https://</code> server URLs, and this site uses{' '}
+                <code>http://</code>. Use an application password instead, or serve the site over HTTPS.
+              </span>
+            </div>
+          ) : localCaveat && (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
