@@ -118,6 +118,7 @@ final class ConnectionPage {
 				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
 				'uapActive'             => $this->is_uap_active(),
+				'builderKit'            => $this->is_builder_active(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 			)
 		);
@@ -155,5 +156,14 @@ final class ConnectionPage {
 
 	private function is_uap_active(): bool {
 		return PluginDirectory::is_universal_abilities_active();
+	}
+
+	/**
+	 * Whether Oxygen 6 or Breakdance is active, the builders the soflyy/skills
+	 * builder-kit skills are written for. Oxygen 6 runs on the Breakdance
+	 * codebase, so both define Breakdance's constants.
+	 */
+	private function is_builder_active(): bool {
+		return defined( '__BREAKDANCE_VERSION' ) || defined( 'BREAKDANCE_MODE' );
 	}
 }

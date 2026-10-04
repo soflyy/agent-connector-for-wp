@@ -14,10 +14,15 @@
 //   .mcp.json, pointing ChatGPT at this site's MCP endpoint. ChatGPT signs in
 //   over OAuth, and the file holds no credential at all.
 //
+// On sites running Oxygen 6 or Breakdance, either form also carries the
+// builder-kit skills from the soflyy/skills marketplace (see ./builderKit.js)
+// in skills/, where both layouts pick them up.
+//
 // Built entirely client-side, so an existing password never leaves the
 // browser.
 
 import JSZip from 'jszip'
+import { fetchBuilderKitSkills } from './builderKit'
 import { PROXY_PACKAGE, WEBSITE, buildIcon, saveFile } from './mcpb'
 
 const PLUGIN_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
@@ -104,6 +109,15 @@ export async function buildChatgptPlugin(params) {
   const zip = new JSZip()
   for (const [path, content] of Object.entries(chatgptPluginFiles(params))) zip.file(path, content)
   zip.file('assets/icon.png', await buildIcon(params.siteIcon))
+  if (params.builderKit) {
+    // The plugin still works without the skills, so GitHub being unreachable
+    // doesn't stop the download.
+    try {
+      for (const [path, content] of Object.entries(await fetchBuilderKitSkills())) zip.file(`skills/${path}`, content)
+    } catch (e) {
+      console.warn('Building the ChatGPT plugin without the builder-kit skills:', e)
+    }
+  }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 

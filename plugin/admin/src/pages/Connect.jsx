@@ -560,6 +560,7 @@ function buildOAuth(serverName, serverUrl) {
         serverUrl,
         siteName: initial.siteName,
         siteIcon: initial.siteIcon,
+        builderKit: initial.builderKit,
         prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
       },
       steps: [
@@ -1537,6 +1538,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
         siteIcon: initial.siteIcon,
         username: connection.username ?? initial.username,
         password: generatedPassword ?? existingPw,
+        builderKit: initial.builderKit,
         prompts: FIRST_PROMPT_STEP.prompts.map((p) => p.text),
       },
     }

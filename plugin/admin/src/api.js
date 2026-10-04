@@ -99,5 +99,8 @@ export const initial = {
   pwUnavailableReason: cfg.pwUnavailableReason ?? null,
   pwUnavailablePlugin: cfg.pwUnavailablePlugin ?? null,
   uapActive: bool(cfg.uapActive),
+  // Oxygen 6 or Breakdance is active: the ChatGPT plugin carries the
+  // builder-kit skills (see builderKit.js).
+  builderKit: bool(cfg.builderKit),
   showGsBanner: bool(cfg.showGsBanner),
 }
