@@ -260,9 +260,10 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 //
 // The recommended path: OAuth-capable clients only need the MCP endpoint URL.
 // They fetch it, receive a 401 pointing at this site's .well-known discovery
-// document, self-register (Dynamic Client Registration), and open the consent
-// page for the admin to approve — no application password, no local proxy, no
-// Node.js. See src/OAuth/Server.php.
+// document, identify themselves with a Client ID Metadata Document (or, for
+// clients that don't support one, Dynamic Client Registration), and open the
+// consent page for the admin to approve — no application password, no local
+// proxy, no Node.js. See src/OAuth/Server.php.
 
 // Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
 // assets/images/connect/. A step whose key has no entry is shown as text
