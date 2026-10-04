@@ -162,6 +162,27 @@ add_action(
 		 * what brings the bundled adapter (and its default MCP server) to life.
 		 */
 		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
+			// mcp-adapter 0.7 calls _deprecated_function() whenever it boots
+			// as a bundled library rather than as the MCP Adapter plugin.
+			// REST requests already turn that into a header, but with
+			// WP_DEBUG on every WP-CLI command prints it, including
+			// `wp mcp-adapter serve`, whose stdout is the JSON-RPC stream.
+			// Silence that one notice; the deprecated_function_run action
+			// still fires for debugging tools.
+			add_action(
+				'deprecated_function_run',
+				static function ( $function_name ): void {
+					if ( \WP\MCP\Core\McpAdapter::class !== $function_name ) {
+						return;
+					}
+					$silence = static function () use ( &$silence ): bool {
+						remove_filter( 'deprecated_function_trigger_error', $silence );
+						return false;
+					};
+					add_filter( 'deprecated_function_trigger_error', $silence );
+				}
+			);
+
 			\WP\MCP\Core\McpAdapter::instance();
 
 			// Log MCP traffic to a dedicated table and expose the "MCP
@@ -181,9 +202,10 @@ add_action(
 
 		// OAuth 2.1 authorization server: lets MCP clients (e.g. claude.ai
 		// remote connectors) authenticate directly over Streamable HTTP with
-		// Bearer tokens — discovery (.well-known), dynamic client registration,
-		// admin-only consent, PKCE code exchange, refresh rotation, and a
-		// Bearer interceptor on the /mcp/ routes. Application-password auth
+		// Bearer tokens — discovery (.well-known), Client ID Metadata Documents
+		// (with dynamic client registration as the fallback), admin-only
+		// consent, PKCE code exchange, refresh rotation, and a Bearer
+		// interceptor on the /mcp/ routes. Application-password auth
 		// via the mcp-wordpress-remote proxy keeps working unchanged; the
 		// interceptor only engages when it sees an Authorization header (or
 		// no auth at all, where its 401 advertises the OAuth flow). Consent

@@ -641,7 +641,8 @@ final class SettingsController extends WP_REST_Controller {
 	 * Only clients with a live grant are returned as connections; registrations
 	 * that were never authorized are reported as a count, since dynamic client
 	 * registration is public and those rows are inert until an administrator
-	 * approves one.
+	 * approves one. (Clients identified by a metadata document are only stored
+	 * once approved, so they never count here.)
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 */
@@ -664,6 +665,9 @@ final class SettingsController extends WP_REST_Controller {
 				'client_name'   => $client['client_name'],
 				'redirect_uris' => $client['redirect_uris'],
 				'confidential'  => $client['confidential'],
+				// The client_id is the URL of the client's metadata document,
+				// which identifies it better than its self-chosen name.
+				'metadata_url'  => $client['metadata_url'],
 				'registered_at' => $client['registered_at'],
 				'granted_at'    => $connection['granted_at'],
 				'last_used_at'  => $connection['last_used_at'],
@@ -690,7 +694,8 @@ final class SettingsController extends WP_REST_Controller {
 	 * POST /oauth/clients/revoke — disconnect one client.
 	 *
 	 * Revokes every token the client holds and deletes its registration, so it
-	 * must register and be approved again to regain access.
+	 * must be approved again (and, for a DCR client, register again) to regain
+	 * access.
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 */

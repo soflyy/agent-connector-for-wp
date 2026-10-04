@@ -25,7 +25,8 @@ defined( 'ABSPATH' ) || exit;
  *   - replaying a used code revokes every token for that client (§4.1.2:
  *     reuse means the code leaked — assume compromise);
  *   - a client that registered as confidential must present its
- *     client_secret; public clients are bound by PKCE alone;
+ *     client_secret; public clients (every client identified by a metadata
+ *     document among them) are bound by PKCE alone;
  *   - all secret comparisons go through hash_equals();
  *   - grant errors share one generic message to prevent state enumeration;
  *   - refresh tokens rotate: the old pair is revoked when a new one is issued.
@@ -67,7 +68,7 @@ final class Token {
 	private static function handle_authorization_code( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$code          = sanitize_text_field( (string) ( $request->get_param( 'code' ) ?? '' ) );
 		$redirect_uri  = Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) );
-		$client_id     = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
+		$client_id     = Clients::sanitize_id( $request->get_param( 'client_id' ) );
 		$code_verifier = sanitize_text_field( (string) ( $request->get_param( 'code_verifier' ) ?? '' ) );
 
 		if ( '' === $code || '' === $client_id || '' === $code_verifier ) {
@@ -155,7 +156,7 @@ final class Token {
 	 */
 	private static function handle_refresh_token( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$refresh_token = sanitize_text_field( (string) ( $request->get_param( 'refresh_token' ) ?? '' ) );
-		$client_id     = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
+		$client_id     = Clients::sanitize_id( $request->get_param( 'client_id' ) );
 
 		if ( '' === $refresh_token || '' === $client_id ) {
 			return self::oauth_error( 'invalid_request', 'Missing required parameters: refresh_token, client_id.' );
@@ -241,8 +242,9 @@ final class Token {
 	 *
 	 * Public clients (`token_endpoint_auth_method = none`) are the norm here —
 	 * the MCP clients this server targets are native/browser apps that cannot
-	 * keep a secret, and PKCE is what binds their requests. But a client MAY
-	 * register as `client_secret_post`, and DCR hands it a secret when it does;
+	 * keep a secret, and PKCE is what binds their requests. Clients identified
+	 * by a metadata document are always public. But a client MAY register
+	 * through DCR as `client_secret_post`, and gets a secret when it does;
 	 * this enforces that secret instead of letting the client silently fall
 	 * back to bearer-of-client_id (a public identifier) authentication.
 	 *
