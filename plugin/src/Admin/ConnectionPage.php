@@ -33,6 +33,24 @@ final class ConnectionPage {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
+	/**
+	 * Whether this request is the embeddable Connect wizard
+	 * (admin.php?page=agent-connector-for-wp&embed=1), loaded by another
+	 * plugin's setup wizard in a same-origin iframe. Embedded, the page drops
+	 * the wp-admin chrome (menu, admin bar, notices) and the app renders only
+	 * the Connect flow, reporting progress to the host via postMessage — see
+	 * admin/src/embed.js for the events.
+	 */
+	public static function is_embed(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only display flag.
+		return isset( $_GET['page'], $_GET['embed'] ) && self::MENU_SLUG === $_GET['page'] && '1' === $_GET['embed'];
+	}
+
+	/** URL of the embeddable Connect wizard. */
+	public static function embed_url(): string {
+		return admin_url( 'admin.php?page=' . self::MENU_SLUG . '&embed=1' );
+	}
+
 	public function register_menu(): void {
 		$this->hook_suffix = (string) add_menu_page(
 			__( 'Agent Connector', 'agent-connector-for-wp' ),
@@ -107,7 +125,14 @@ final class ConnectionPage {
 				'isNonProd'             => Config::is_non_production_env(),
 				'lockedHost'            => Config::locked_host(),
 				'declaredHost'          => Config::declared_host(),
-				'envType'               => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown',
+				/**
+				 * Filters the environment type the Connect app sees. 'local'
+				 * makes the application password the default method. Lets a
+				 * host's setup wizard exercise the local-site flow in development.
+				 *
+				 * @param string $env_type wp_get_environment_type(), or 'unknown'.
+				 */
+				'envType'               => (string) apply_filters( 'agent_connector_for_wp_connect_environment_type', function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown' ),
 				'serverUrl'             => Connection::endpoint_url(),
 				'serverName'            => Connection::server_name(),
 				'siteName'              => (string) get_bloginfo( 'name' ),
@@ -119,8 +144,13 @@ final class ConnectionPage {
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
 				'uapActive'             => $this->is_uap_active(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
+				'embed'                 => self::is_embed(),
 			)
 		);
+
+		if ( self::is_embed() ) {
+			$this->strip_admin_chrome();
+		}
 
 		// Let the React app know which WordPress admin body classes to add.
 		add_filter(
@@ -151,6 +181,46 @@ final class ConnectionPage {
 			return;
 		}
 		echo '<div id="agent-connector-for-wp-app"></div>';
+	}
+
+	/**
+	 * Embed mode: hide the admin menu, admin bar and footer, and drop every
+	 * admin notice, so the iframe shows nothing but the Connect app.
+	 */
+	private function strip_admin_chrome(): void {
+		add_filter(
+			'admin_body_class',
+			static function ( string $classes ): string {
+				return "$classes acfw-embed";
+			}
+		);
+
+		add_action(
+			'in_admin_header',
+			static function (): void {
+				remove_all_actions( 'admin_notices' );
+				remove_all_actions( 'all_admin_notices' );
+				remove_all_actions( 'network_admin_notices' );
+				remove_all_actions( 'user_admin_notices' );
+			},
+			PHP_INT_MAX
+		);
+
+		add_action(
+			'admin_head',
+			static function (): void {
+				echo '<style>
+					html.wp-toolbar { padding-top: 0 !important; }
+					.acfw-embed #wpadminbar,
+					.acfw-embed #adminmenumain,
+					.acfw-embed #screen-meta,
+					.acfw-embed #screen-meta-links { display: none !important; }
+					.acfw-embed #wpcontent { margin-left: 0 !important; }
+					.acfw-embed #wpbody-content { padding-bottom: 0 !important; }
+					html, .acfw-embed { background: #f9fafb; }
+				</style>';
+			}
+		);
 	}
 
 	private function is_uap_active(): bool {

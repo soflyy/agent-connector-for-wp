@@ -179,6 +179,11 @@ add_action(
 		// wp_register_ability_args filter; see Support\Governance.
 		Support\Governance::register();
 
+		// Remember the latest authenticated MCP request (any auth method) so a
+		// setup wizard — ours or another plugin's — can confirm an agent has
+		// actually connected. See Support\ConnectionActivity.
+		Support\ConnectionActivity::register();
+
 		// OAuth 2.1 authorization server: lets MCP clients (e.g. claude.ai
 		// remote connectors) authenticate directly over Streamable HTTP with
 		// Bearer tokens — discovery (.well-known), dynamic client registration,
