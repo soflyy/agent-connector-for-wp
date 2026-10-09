@@ -21,8 +21,11 @@ defined( 'ABSPATH' ) || exit;
  * throttled to once a minute and core only touches an application password's
  * last_used once a day. So after every successful, authenticated request to the
  * MCP route we keep a small summary in an option and fire
- * `agent_connector_for_wp_mcp_request`. Unauthenticated requests (e.g. the 401
- * an OAuth client gets while discovering auth) don't count.
+ * `agent_connector_for_wp_mcp_request`. Only requests from users who can use
+ * the MCP server count (the same admin check Governance applies to every
+ * ability): a lower-privileged account with an application password can't
+ * pose as "an agent just connected". Unauthenticated requests (e.g. the 401
+ * an OAuth client gets while discovering auth) don't count either.
  *
  * The summary is exposed on GET /agent-connector-for-wp/v1/status as
  * `last_mcp_request`, so a setup wizard can poll it and compare `time` against
@@ -51,7 +54,7 @@ final class ConnectionActivity {
 	 */
 	public static function record( $result, $server, $request ) {
 		try {
-			if ( ! self::is_mcp_route( (string) $request->get_route() ) || get_current_user_id() <= 0 ) {
+			if ( ! self::is_mcp_route( (string) $request->get_route() ) || ! Config::has_admin_access() ) {
 				return $result;
 			}
 			if ( is_wp_error( $result ) || ( $result instanceof \WP_HTTP_Response && $result->get_status() >= 400 ) ) {
