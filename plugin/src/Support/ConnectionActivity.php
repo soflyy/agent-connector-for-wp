@@ -58,23 +58,37 @@ final class ConnectionActivity {
 				return $result;
 			}
 
-			$auth = self::current_auth();
+			$auth     = self::current_auth();
+			$message  = self::jsonrpc_message( (string) $request->get_body() );
+			$method   = isset( $message['method'] ) ? sanitize_text_field( (string) $message['method'] ) : '';
+			$previous = self::get();
+
+			// Only `initialize` says which agent this is. Later requests in the
+			// same session inherit it from the record they continue.
+			if ( 'initialize' === $method ) {
+				$agent = self::agent_name( $message['params']['clientInfo'] ?? null );
+			} elseif ( null !== $previous && $previous['user_id'] === get_current_user_id() && $previous['client_name'] === $auth['client_name'] ) {
+				$agent = $previous['agent_name'];
+			} else {
+				$agent = '';
+			}
+
 			$info = array(
 				'time'        => time(),
 				'user_id'     => get_current_user_id(),
 				'auth_method' => $auth['method'],
 				'client_name' => $auth['client_name'],
-				'mcp_method'  => self::mcp_method( (string) $request->get_body() ),
+				'agent_name'  => $agent,
+				'mcp_method'  => $method,
 			);
 
 			/**
 			 * Fires after a successful, authenticated request to the MCP server.
 			 *
-			 * @param array{time:int,user_id:int,auth_method:string,client_name:string,mcp_method:string} $info
+			 * @param array{time:int,user_id:int,auth_method:string,client_name:string,agent_name:string,mcp_method:string} $info
 			 */
 			do_action( 'agent_connector_for_wp_mcp_request', $info );
 
-			$previous = self::get();
 			if (
 				null === $previous
 				|| 'initialize' === $info['mcp_method']
@@ -94,7 +108,11 @@ final class ConnectionActivity {
 	/**
 	 * The last recorded request, or null if no agent has connected yet.
 	 *
-	 * @return array{time:int,user_id:int,auth_method:string,client_name:string,mcp_method:string}|null
+	 * `client_name` is the credential's label (OAuth client or application
+	 * password name); `agent_name` is what the agent says it is in its MCP
+	 * `initialize` request (e.g. "Claude Code"), empty if unknown.
+	 *
+	 * @return array{time:int,user_id:int,auth_method:string,client_name:string,agent_name:string,mcp_method:string}|null
 	 */
 	public static function get(): ?array {
 		$info = get_option( self::OPTION, null );
@@ -106,8 +124,42 @@ final class ConnectionActivity {
 			'user_id'     => (int) ( $info['user_id'] ?? 0 ),
 			'auth_method' => (string) ( $info['auth_method'] ?? '' ),
 			'client_name' => (string) ( $info['client_name'] ?? '' ),
+			'agent_name'  => (string) ( $info['agent_name'] ?? '' ),
 			'mcp_method'  => (string) ( $info['mcp_method'] ?? '' ),
 		);
+	}
+
+	/**
+	 * Display name for the agent from MCP `clientInfo`. Well-known clients get
+	 * their product name (their `name` is often a slug); anything else uses
+	 * `title`, then `name`, as given. The application-password path goes
+	 * through the mcp-wordpress-remote proxy, which forwards the agent's own
+	 * `initialize`, so this works for both auth methods.
+	 *
+	 * @param mixed $client_info The `params.clientInfo` object.
+	 */
+	private static function agent_name( $client_info ): string {
+		if ( ! is_array( $client_info ) ) {
+			return '';
+		}
+
+		$known = array(
+			'claude-ai'             => 'Claude',
+			'claude-code'           => 'Claude Code',
+			'cursor-vscode'         => 'Cursor',
+			'visual studio code'    => 'VS Code',
+			'codex-mcp-client'      => 'Codex',
+			'openai-mcp'            => 'ChatGPT',
+			'windsurf-client'       => 'Windsurf',
+			'gemini-cli-mcp-client' => 'Gemini CLI',
+		);
+
+		$name  = trim( (string) ( $client_info['name'] ?? '' ) );
+		$title = trim( (string) ( $client_info['title'] ?? '' ) );
+
+		$agent = $known[ strtolower( $name ) ] ?? ( '' !== $title ? $title : $name );
+
+		return sanitize_text_field( substr( $agent, 0, 100 ) );
 	}
 
 	/**
@@ -139,14 +191,16 @@ final class ConnectionActivity {
 	}
 
 	/**
-	 * The JSON-RPC method of the request (first entry of a batch).
+	 * The request's JSON-RPC message (first entry of a batch).
+	 *
+	 * @return array<string, mixed>
 	 */
-	private static function mcp_method( string $body ): string {
+	private static function jsonrpc_message( string $body ): array {
 		$decoded = json_decode( $body, true );
 		if ( is_array( $decoded ) && array_is_list( $decoded ) ) {
 			$decoded = $decoded[0] ?? null;
 		}
-		return is_array( $decoded ) && isset( $decoded['method'] ) ? sanitize_text_field( (string) $decoded['method'] ) : '';
+		return is_array( $decoded ) ? $decoded : array();
 	}
 
 	/** Same route check (and filter) as Observability\RequestCapture. */

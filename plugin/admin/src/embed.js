@@ -5,7 +5,7 @@
 //   ready                   app mounted
 //   resize { height }       content height changed, so the host can size the iframe
 //   step-changed { step }   'welcome' | 'pick' | 'generate'
-//   agent-selected { agent }
+//   agent-selected { agent, label }
 //   method-changed { method }  'oauth' | 'password'
 //   credentials-generated { method }
 const cfg = window.AgentConnectorForWpAdmin || {}

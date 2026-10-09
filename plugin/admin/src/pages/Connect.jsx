@@ -1837,7 +1837,7 @@ export default function Connect({ status }) {
   const [selectedAgent, setSelectedAgent] = useState('codex-cli')
 
   useEffect(() => { notifyParent('step-changed', { step }) }, [step])
-  useEffect(() => { if (step === 'generate') notifyParent('agent-selected', { agent: selectedAgent }) }, [step, selectedAgent])
+  useEffect(() => { if (step === 'generate') notifyParent('agent-selected', { agent: selectedAgent, label: AGENTS.find((a) => a.id === selectedAgent)?.label || '' }) }, [step, selectedAgent])
 
   if (step === 'welcome') {
     return <WelcomeStep status={status} onStart={() => setStep('pick')} />

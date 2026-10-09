@@ -144,7 +144,7 @@ if ( ! function_exists( 'agent_connector_for_wp_last_mcp_request' ) ) {
 	 * agent has connected yet. `time` is a Unix timestamp; compare it with when
 	 * you started waiting to detect a fresh connection.
 	 *
-	 * @return array{time:int,user_id:int,auth_method:string,client_name:string,mcp_method:string}|null
+	 * @return array{time:int,user_id:int,auth_method:string,client_name:string,agent_name:string,mcp_method:string}|null
 	 */
 	function agent_connector_for_wp_last_mcp_request(): ?array {
 		return \AgentConnectorForWp\Support\ConnectionActivity::get();
