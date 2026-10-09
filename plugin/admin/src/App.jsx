@@ -6,6 +6,7 @@ import Settings from './pages/Settings'
 import Abilities from './pages/Abilities'
 import Log from './pages/Log'
 import { api, initial, DEMO_URL } from './api'
+import { EMBED } from './embed'
 
 function getPage() {
   const hash = window.location.hash.replace('#/', '')
@@ -55,6 +56,16 @@ export default function App() {
   function dismissBanner() {
     setShowBanner(false)
     api.dismissGsBanner().catch(() => {})
+  }
+
+  // Embedded in another plugin's setup wizard: just the Connect flow, no
+  // header, nav or banner — the host page provides its own chrome.
+  if (EMBED) {
+    return (
+      <div className="bg-gray-50 font-sans px-6 py-8">
+        <Connect status={status} onStatusChange={setStatus} />
+      </div>
+    )
   }
 
   return (
