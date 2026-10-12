@@ -2,7 +2,15 @@ name: Auto release on merge
 
 # On every merge to master that touches the plugin, work out the next version
 # from the merged PR's title (Conventional Commits), bump the version in source,
-# tag it, build the vendored zip, and publish a GitHub Release.
+# tag it, build the vendored zips, publish a GitHub Release, and (once the
+# wordpress.org SVN credentials are configured) deploy to wordpress.org.
+#
+# Two builds of the same version (bin/build-plugin-zip.sh):
+#   * github — attached to the GitHub Release (the ONLY release asset, so the
+#              GitHub self-updater on existing installs always picks it).
+#   * org    — the wordpress.org build (no legacy/, no GitHub updater). Kept as
+#              a workflow artifact and committed to wordpress.org SVN when the
+#              WPORG_SVN_USERNAME / WPORG_SVN_PASSWORD secrets exist.
 #
 # Bump rules (highest wins):
 #   * a breaking change  -> major   (PR title like "feat!: …", or "BREAKING CHANGE" in the body)
@@ -106,15 +114,17 @@ jobs:
           php="plugin/agent-connector-for-wp.php"
           sed -i -E "s/^( \* Version:[[:space:]]+).*/\1${V}/" "$php"
           sed -i -E "s/(define\( 'AGENT_CONNECTOR_FOR_WP_VERSION', ')[^']*(' \);)/\1${V}\2/" "$php"
+          sed -i -E "s/^(Stable tag:[[:space:]]+).*/\1${V}/" plugin/readme.txt
           echo "---- changed lines ----"
           grep -nE "Version:|AGENT_CONNECTOR_FOR_WP_VERSION" "$php"
+          grep -nE "Stable tag:" plugin/readme.txt
 
       - name: Commit, tag, and push
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add plugin/agent-connector-for-wp.php
+          git add plugin/agent-connector-for-wp.php plugin/readme.txt
           git commit -m "chore(release): ${{ steps.ver.outputs.tag }} [skip ci]"
 
           # Push the bump commit, rebasing onto any concurrent push and retrying.
@@ -144,17 +154,10 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Install production dependencies
-        working-directory: plugin
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
-
-      - name: Build plugin zip
-        working-directory: plugin
+      - name: Build plugin zips
         run: |
-          mkdir -p "dist/${PLUGIN_SLUG}"
-          rsync -a --delete --exclude='dist' --exclude='vendor' ./ "dist/${PLUGIN_SLUG}/"
-          cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
-          cd dist && zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
+          bin/build-plugin-zip.sh github
+          bin/build-plugin-zip.sh org
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -162,4 +165,32 @@ jobs:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: ${{ steps.ver.outputs.tag }}
           generate_release_notes: true
-          files: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
+          files: dist/github/${{ env.PLUGIN_SLUG }}.zip
+
+      - name: Upload wordpress.org build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_SLUG }}-wordpress-org
+          path: dist/org/${{ env.PLUGIN_SLUG }}.zip
+
+      # Skipped until the wordpress.org listing exists and the
+      # WPORG_SVN_USERNAME / WPORG_SVN_PASSWORD secrets are added.
+      - name: Check for wordpress.org credentials
+        id: wporg
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+        run: echo "enabled=$( [ -n "$SVN_USERNAME" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
+      - name: Install Subversion
+        if: steps.wporg.outputs.enabled == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq subversion
+
+      - name: Deploy to wordpress.org
+        if: steps.wporg.outputs.enabled == 'true'
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+          SLUG: ${{ env.PLUGIN_SLUG }}
+          VERSION: ${{ steps.ver.outputs.version }}
+          BUILD_DIR: dist/org/${{ env.PLUGIN_SLUG }}

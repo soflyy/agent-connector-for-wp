@@ -2,13 +2,14 @@
 
 Agent Connector for WP connects coding agents to a WordPress site over MCP and gives them real operational access to it — shell, WP-CLI, PHP eval, and the filesystem — through the WordPress Abilities API and a bundled [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter).
 
-A connected agent acts with the full capability of a super admin (and, with the [Universal Abilities](universal-abilities-plugin/README.md) pack, can run shell commands, PHP, and WP-CLI). That is the whole point — you install it to give an agent that access. The plugin makes sure operators know what's live: a warning notice shows across wp-admin while it runs on a production environment, and opt-in protections (**Block on production environments**, **Domain lock**) live under Settings → Protection. Ability execution is always restricted to super admins.
+A connected agent acts with the full capability of a super admin (and, with the [Universal Abilities](universal-abilities-plugin/README.md) plugin, can run shell commands, PHP, and WP-CLI). That is the whole point — you install it to give an agent that access. The plugin makes sure operators know what's live: a warning notice shows across wp-admin while it runs on a production environment, and opt-in protections (**Block on production environments**, **Domain lock**) live under Settings → Protection. Ability execution is always restricted to super admins.
 
 This is a **monorepo**:
 
 | Path | What it is |
 | --- | --- |
 | [`plugin/`](plugin/) | The WordPress plugin itself. See [`plugin/README.md`](plugin/README.md) for plugin docs, abilities, enabling, and the Connect page. |
+| [`universal-abilities-plugin/`](universal-abilities-plugin/) | The Universal Abilities companion plugin (shell, PHP eval, filesystem, WP-CLI, admin login), plus the sandbox loader, the ability-pack directory and GitHub updates for itself and packs. Distributed from GitHub only. See [`universal-abilities-plugin/README.md`](universal-abilities-plugin/README.md). |
 | [`abilities-generator/`](abilities-generator/) | The `wp-mcp-generator` Claude Code skill + scripts that turn any WordPress plugin into an MCP-driveable ability pack. See [`abilities-generator/README.md`](abilities-generator/README.md). |
 | [`ability-packs/`](ability-packs/) | The generated ability-pack plugins (one directory each), produced by the abilities generator. |
 | [`bin/`](bin/) | Developer scripts — notably `install.sh`, which symlinks `plugin/` into a WordPress install. |
@@ -41,10 +42,20 @@ ever replaces an existing symlink, never a real directory.
 Merging to `master` automatically publishes a versioned GitHub Release. The
 merged PR title sets the bump (Conventional Commits), and
 [`.github/workflows/auto-release.yml`](.github/workflows/auto-release.yml) syncs
-the version into the plugin, tags it, `composer install --no-dev`s inside
-`plugin/`, bundles `vendor/`, and attaches a ready-to-install
-`agent-connector-for-wp.zip`. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to
-title PRs.
+the version into the plugin (and the `Stable tag` in `plugin/readme.txt`), tags
+it, and builds two zips of that version with
+[`bin/build-plugin-zip.sh`](bin/build-plugin-zip.sh):
+
+- **GitHub build** — attached to the release as `agent-connector-for-wp.zip`.
+  Includes `plugin/legacy/`: the GitHub self-updater, plus compatibility for
+  sites upgrading from versions that bundled what now lives in Universal
+  Abilities. Sites that installed from GitHub keep updating from GitHub.
+- **wordpress.org build** — leaves out what `plugin/.distignore` lists (including
+  `legacy/`) and the update checker dependency. Uploaded as a workflow
+  artifact, and committed to wordpress.org SVN once the `WPORG_SVN_USERNAME` /
+  `WPORG_SVN_PASSWORD` repository secrets are set.
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to title PRs.
 
 You can also push a `v*` tag manually to build a one-off zip via
 [`.github/workflows/release.yml`](.github/workflows/release.yml). Downloaded
@@ -66,7 +77,7 @@ real number. Trigger a manual/forced build (or a minor/major bump) from
 Every run also regenerates a single `index.json` manifest of all available packs
 (slug, version, target plugin, download URL) and publishes it as the asset of a
 stable `pack-index` release:
-`…/releases/download/pack-index/index.json`. The host plugin's pack updater reads
+`…/releases/download/pack-index/index.json`. Universal Abilities' pack updater reads
 this one manifest — nothing enumerates the releases list, so it scales to a very
 large number of packs.
 

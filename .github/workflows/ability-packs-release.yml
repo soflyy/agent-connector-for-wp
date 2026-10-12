@@ -142,7 +142,7 @@ jobs:
             git push origin "$tag"
             gh release create "$tag" "dist/${slug}.zip" \
               --title "$tag" \
-              --notes "Standalone ability pack \`${slug}\` v${version}. Install via Agent Connector for WP → Ability Packs, or download the zip below." \
+              --notes "Standalone ability pack \`${slug}\` v${version}. Install it from Agent Connector → Abilities → Ability Packs (with Universal Abilities active), or download the zip below." \
               --latest=false
           done
 

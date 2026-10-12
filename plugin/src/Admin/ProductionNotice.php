@@ -30,22 +30,48 @@ final class ProductionNotice {
 	public function register(): void {
 		add_action( 'admin_notices', array( $this, 'render' ) );
 		add_action( 'network_admin_notices', array( $this, 'render' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 
-	public function render(): void {
+	private function should_render(): bool {
 		if ( ! current_user_can( Config::CAP ) || ! Config::should_show_production_warning() ) {
-			return;
+			return false;
 		}
 
 		// The plugin's own app page already communicates all of this — a second
 		// banner there is noise.
 		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-		if ( $screen && false !== strpos( (string) $screen->id, ConnectionPage::MENU_SLUG ) ) {
+		return ! ( $screen && false !== strpos( (string) $screen->id, ConnectionPage::MENU_SLUG ) );
+	}
+
+	public function enqueue(): void {
+		if ( ! $this->should_render() ) {
+			return;
+		}
+
+		wp_enqueue_script(
+			'agent-connector-for-wp-production-notice',
+			plugins_url( 'assets/js/production-notice.js', AGENT_CONNECTOR_FOR_WP_FILE ),
+			array(),
+			AGENT_CONNECTOR_FOR_WP_VERSION,
+			true
+		);
+		wp_localize_script(
+			'agent-connector-for-wp-production-notice',
+			'acfwProductionNotice',
+			array(
+				'dismissUrl' => esc_url_raw( rest_url( 'agent-connector-for-wp/v1/dismiss-production-warning' ) ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+			)
+		);
+	}
+
+	public function render(): void {
+		if ( ! $this->should_render() ) {
 			return;
 		}
 
 		$settings_url = admin_url( 'admin.php?page=' . ConnectionPage::MENU_SLUG . '#/settings' );
-		$dismiss_url  = rest_url( 'agent-connector-for-wp/v1/dismiss-production-warning' );
 		?>
 		<div class="notice notice-error" id="acfw-production-warning">
 			<p>
@@ -61,26 +87,6 @@ final class ProductionNotice {
 				</a>
 			</p>
 		</div>
-		<script>
-			( function () {
-				var btn = document.getElementById( 'acfw-production-warning-dismiss' );
-				if ( ! btn ) {
-					return;
-				}
-				btn.addEventListener( 'click', function () {
-					btn.disabled = true;
-					fetch( <?php echo wp_json_encode( esc_url_raw( $dismiss_url ) ); ?>, {
-						method: 'POST',
-						headers: { 'X-WP-Nonce': <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?> },
-					} ).finally( function () {
-						var notice = document.getElementById( 'acfw-production-warning' );
-						if ( notice ) {
-							notice.remove();
-						}
-					} );
-				} );
-			} )();
-		</script>
 		<?php
 	}
 }

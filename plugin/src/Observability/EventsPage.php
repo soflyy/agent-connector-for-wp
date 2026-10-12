@@ -74,7 +74,7 @@ final class EventsPage {
 
 		global $wpdb;
 		$table = EventsTable::name();
-		$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		wp_safe_redirect(
 			add_query_arg(
@@ -170,22 +170,20 @@ final class EventsPage {
 		$where_sql = empty( $where ) ? '' : 'WHERE ' . implode( ' AND ', $where );
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$total = empty( $where_values )
-			? (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` {$where_sql}" )
-			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` {$where_sql}", $where_values ) );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i {$where_sql}", array_merge( array( $table ), $where_values ) ) );
 
-		$list_sql_values = array_merge( $where_values, array( self::PER_PAGE, $offset ) );
+		$list_sql_values = array_merge( array( $table ), $where_values, array( self::PER_PAGE, $offset ) );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM `{$table}` {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
+				"SELECT * FROM %i {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
 				$list_sql_values
 			),
 			ARRAY_A
 		);
 
-		$distinct_events   = $wpdb->get_col( "SELECT DISTINCT `event` FROM `{$table}` ORDER BY `event` ASC" );
-		$distinct_statuses = $wpdb->get_col( "SELECT DISTINCT `status` FROM `{$table}` WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC" );
+		$distinct_events   = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT `event` FROM %i ORDER BY `event` ASC', $table ) );
+		$distinct_statuses = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT `status` FROM %i WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC", $table ) );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		$this->render_filter_form( $event_filter, $status_filter, $distinct_events ?: array(), $distinct_statuses ?: array() );
@@ -399,7 +397,7 @@ final class EventsPage {
 		$table = EventsTable::name();
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->prepare( "SELECT * FROM `{$table}` WHERE `id` = %d", $event_id ),
+			$wpdb->prepare( 'SELECT * FROM %i WHERE `id` = %d', $table, $event_id ),
 			ARRAY_A
 		);
 

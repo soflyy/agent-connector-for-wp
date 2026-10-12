@@ -18,9 +18,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: plugin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,34 +29,29 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Install production dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
-
-      - name: Stage plugin files
-        # Mirror the plugin/ subtree into a clean, correctly-named plugin
-        # directory, excluding development-only files, then add the built
-        # vendor/ tree (gitignored, so excluded by the rsync and copied in).
+      # Same two builds as auto-release.yml: the GitHub release asset and the
+      # wordpress.org build (see bin/build-plugin-zip.sh).
+      - name: Build plugin zips
         run: |
-          mkdir -p "dist/${PLUGIN_SLUG}"
-          rsync -a --delete \
-            --exclude='dist' \
-            --exclude='vendor' \
-            ./ "dist/${PLUGIN_SLUG}/"
-          cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
+          bin/build-plugin-zip.sh github
+          bin/build-plugin-zip.sh org
 
-      - name: Create zip
-        run: |
-          cd dist
-          zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
-
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PLUGIN_SLUG }}
-          path: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
+          path: dist/github/${{ env.PLUGIN_SLUG }}.zip
 
+      - name: Upload wordpress.org build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_SLUG }}-wordpress-org
+          path: dist/org/${{ env.PLUGIN_SLUG }}.zip
+
+      # Only the GitHub build is attached, so the GitHub self-updater on
+      # existing installs always picks it.
       - name: Attach zip to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
+          files: dist/github/${{ env.PLUGIN_SLUG }}.zip

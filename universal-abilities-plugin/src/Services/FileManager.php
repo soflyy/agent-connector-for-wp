@@ -10,8 +10,8 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 use AgentConnectorForWp\Support\Config;
-use AgentConnectorForWp\Support\Helpers;
-use AgentConnectorForWp\Support\Sandbox;
+use AgentConnectorForWp\DefaultAbilities\Support\Helpers;
+use AgentConnectorForWp\DefaultAbilities\Support\Sandbox;
 
 defined( 'ABSPATH' ) || exit;
 

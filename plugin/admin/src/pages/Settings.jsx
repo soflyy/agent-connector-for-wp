@@ -64,7 +64,8 @@ function Row({ label, description, control, danger }) {
   )
 }
 
-function UapInstallDialog({ onConfirm, onCancel, installing }) {
+// Confirmation dialog for a settings row's action (see Admin\Extensions).
+function ConfirmDialog({ confirm, onConfirm, onCancel, busy }) {
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
@@ -79,47 +80,41 @@ function UapInstallDialog({ onConfirm, onCancel, installing }) {
             <Package className="w-6 h-6 text-indigo-500" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Install Universal Abilities Plugin?</h2>
-            <p className="mt-1 text-sm text-gray-500">Universal Abilities for Agent Connector</p>
+            <h2 className="text-xl font-bold text-gray-900">{confirm.title}</h2>
+            {confirm.subtitle && <p className="mt-1 text-sm text-gray-500">{confirm.subtitle}</p>}
           </div>
         </div>
 
-        <p className="text-base text-gray-700">
-          This companion plugin gives your AI agent complete access to this WordPress install. Once installed and enabled, the agent can:
-        </p>
+        {confirm.intro && <p className="text-base text-gray-700">{confirm.intro}</p>}
 
-        <ul className="space-y-2 text-base text-gray-700">
-          {[
-            ['Run arbitrary shell commands', 'Full command-line access to the server'],
-            ['Evaluate PHP code', 'Execute any PHP in the WordPress context'],
-            ['Read, write, and delete files', 'Full filesystem access'],
-            ['Run WP-CLI commands', 'Any wp-cli command on your install'],
-            ['Create one-time admin login links', 'Let your agent log into your wp-admin'],
-          ].map(([title, desc]) => (
-            <li key={title} className="flex items-start gap-3">
-              <span className="mt-1 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
-              <span><span className="font-semibold">{title}</span> — {desc}</span>
-            </li>
-          ))}
-        </ul>
+        {confirm.items?.length > 0 && (
+          <ul className="space-y-2 text-base text-gray-700">
+            {confirm.items.map(({ title, description }) => (
+              <li key={title} className="flex items-start gap-3">
+                <span className="mt-1 w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                <span><span className="font-semibold">{title}</span>{description && ` — ${description}`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            disabled={installing}
+            disabled={busy}
             className="px-5 py-2.5 rounded-lg text-base font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            disabled={installing}
+            disabled={busy}
             className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-base font-medium text-white bg-indigo-600 hover:bg-indigo-500 transition-colors disabled:opacity-50"
           >
-            {installing ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" /> Installing…</>
+            {busy ? (
+              <><RefreshCw className="w-4 h-4 animate-spin" /> {confirm.busyLabel || 'Working…'}</>
             ) : (
-              <><Download className="w-4 h-4" /> Install & Activate</>
+              <><Download className="w-4 h-4" /> {confirm.confirmLabel || 'Continue'}</>
             )}
           </button>
         </div>
@@ -150,19 +145,23 @@ export default function Settings({ status, onStatusChange }) {
   const [saveError, setSaveError] = useState(null)
   const [reconnecting, setReconnecting] = useState(false)
   const [reconnectNotice, setReconnectNotice] = useState(null)
-  const [uapActive, setUapActive] = useState(status.uapActive ?? false)
-  const [showUapDialog, setShowUapDialog] = useState(false)
-  const [installingUap, setInstallingUap] = useState(false)
+  // Rows other plugins add through the agent_connector_for_wp_settings_rows
+  // filter, and the one whose action is running or awaiting confirmation.
+  const rows = status.settingsRows || []
+  const [confirmRow, setConfirmRow] = useState(null)
+  const [busyRow, setBusyRow] = useState(null)
 
-  // The site-wide "install Universal Abilities" admin notice deep-links here
-  // with ?acfw_uap=install so the operator sees the same confirmation dialog
-  // as the in-app Install button. Open it once on arrival, then strip the
-  // param so a refresh doesn't reopen it.
+  // A plugin's admin notice can deep-link here with ?acfw_action=<row id> to
+  // open that row's confirmation dialog, the same as clicking its button.
+  // Open it once on arrival, then strip the param so a refresh doesn't
+  // reopen it.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    if (params.get('acfw_uap') === 'install' && !uapActive) {
-      setShowUapDialog(true)
-      params.delete('acfw_uap')
+    const id = params.get('acfw_action')
+    if (id) {
+      const row = rows.find((r) => r.id === id)
+      if (row?.status === 'available' && row.action?.confirm) setConfirmRow(row)
+      params.delete('acfw_action')
       const qs = params.toString()
       window.history.replaceState(
         null,
@@ -208,18 +207,18 @@ export default function Settings({ status, onStatusChange }) {
     }
   }
 
-  async function installUap() {
-    setInstallingUap(true)
+  async function runRowAction(row) {
+    setBusyRow(row.id)
     try {
-      await api.installUap()
-      setUapActive(true)
-      setShowUapDialog(false)
+      await api.runRowAction(row.action.url)
+      const fresh = await api.getStatus()
+      onStatusChange((s) => ({ ...s, ...normalizeStatus(fresh) }))
     } catch (e) {
-      setShowUapDialog(false)
       setSaveStatus('error')
       setSaveError(e.message)
     } finally {
-      setInstallingUap(false)
+      setBusyRow(null)
+      setConfirmRow(null)
     }
   }
 
@@ -228,11 +227,12 @@ export default function Settings({ status, onStatusChange }) {
 
   return (
     <>
-      {showUapDialog && (
-        <UapInstallDialog
-          onConfirm={installUap}
-          onCancel={() => setShowUapDialog(false)}
-          installing={installingUap}
+      {confirmRow && (
+        <ConfirmDialog
+          confirm={confirmRow.action.confirm}
+          onConfirm={() => runRowAction(confirmRow)}
+          onCancel={() => setConfirmRow(null)}
+          busy={busyRow === confirmRow.id}
         />
       )}
       {/* The connections table needs more room than the settings form. */}
@@ -317,24 +317,30 @@ export default function Settings({ status, onStatusChange }) {
             />
           )}
 
-          <Row
-            label="Universal Abilities Plugin"
-            description="Shell, PHP eval, filesystem, WP-CLI, and admin login link — exposed over MCP."
-            control={
-              uapActive ? (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-500/15 text-green-700">
-                  <CheckCircle2 className="w-4 h-4" /> Active
-                </span>
-              ) : (
-                <button
-                  onClick={() => setShowUapDialog(true)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors"
-                >
-                  <Package className="w-4 h-4" /> Install
-                </button>
-              )
-            }
-          />
+          {rows.map((row) => (
+            <Row
+              key={row.id}
+              label={row.label}
+              description={row.description}
+              control={
+                row.status === 'active' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-green-500/15 text-green-700">
+                    <CheckCircle2 className="w-4 h-4" /> {row.statusLabel || 'Active'}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => (row.action.confirm ? setConfirmRow(row) : runRowAction(row))}
+                    disabled={busyRow === row.id}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {busyRow === row.id
+                      ? <RefreshCw className="w-4 h-4 animate-spin" />
+                      : <Package className="w-4 h-4" />} {row.action.label}
+                  </button>
+                )
+              }
+            />
+          ))}
 
         </Section>
 

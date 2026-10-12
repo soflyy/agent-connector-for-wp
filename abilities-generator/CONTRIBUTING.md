@@ -49,7 +49,7 @@ plugin's code and exercising it. Keep it that way:
 ## Pack conventions (enforced by Agent Connector)
 
 - Folder + main file: `unofficial-abilities-for-<slug>`.
-- Headers: `Requires Plugins: agent-connector-for-wp`, `Agent Connector: Ability Pack`,
+- Headers: `Agent Connector: Ability Pack`,
   `Agent Connector Target: <target-plugin-file>`.
 - Namespace abilities under your own vendor prefix (`<slug>/...`) — never
   `agent-connector-for-wp/...`.
