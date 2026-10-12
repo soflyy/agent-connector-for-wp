@@ -163,7 +163,7 @@ jobs:
       - name: Publish the versioned release
         run: |
           set -euo pipefail
-          notes="Universal Abilities for Agent Connector — version ${{ steps.ver.outputs.version }}. Install in one click from wp-admin → Agent Connector → Settings, or download the zip below."
+          notes="Universal Abilities for Agent Connector — version ${{ steps.ver.outputs.version }}. Download the zip below and upload it under Plugins → Add New (Breakdance and Oxygen sites can also install it in one click from Agent Connector → Settings)."
           gh release create "${{ steps.ver.outputs.tag }}" "dist/${PLUGIN_SLUG}.zip" \
             --title "${{ steps.ver.outputs.tag }}" \
             --notes "$notes" \

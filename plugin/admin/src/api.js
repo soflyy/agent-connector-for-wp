@@ -7,17 +7,19 @@ const headers = () => ({
 
 const base = (cfg.restUrl || '/wp-json/agent-connector-for-wp/v1/').replace(/\/$/, '')
 
-async function request(path, options = {}) {
-  const res = await fetch(`${base}${path}`, {
+async function fetchJson(url, options = {}) {
+  const res = await fetch(url, {
     headers: headers(),
     ...options,
   })
-  const data = await res.json()
+  const data = await res.json().catch(() => null)
   if (!res.ok) {
     throw new Error(data?.message || `Request failed (${res.status})`)
   }
   return data
 }
+
+const request = (path, options = {}) => fetchJson(`${base}${path}`, options)
 
 // Replace with the actual getting started / demo video URL when ready.
 export const DEMO_URL = ''
@@ -27,11 +29,6 @@ export const api = {
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
   reconnect: () => request('/reconnect', { method: 'POST' }),
   generate: (params = {}) => request('/generate', { method: 'POST', body: JSON.stringify(params) }),
-  getDirectory: () => request('/directory'),
-  refreshDirectory: () => request('/directory/refresh', { method: 'POST' }),
-  installPack: (pack_slug) => request('/directory/install', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  activatePack: (pack_slug) => request('/directory/activate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  deactivatePack: (pack_slug) => request('/directory/deactivate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
   getRegisteredAbilities: () => request('/registered-abilities'),
   getLogs: (params = {}) => {
     const qs = new URLSearchParams(
@@ -45,7 +42,8 @@ export const api = {
   revokeOauthClient: (client_id) =>
     request('/oauth/clients/revoke', { method: 'POST', body: JSON.stringify({ client_id }) }),
   cleanupOauthClients: () => request('/oauth/clients/cleanup', { method: 'POST' }),
-  installUap: () => request('/uap/install', { method: 'POST' }),
+  // A settings row's action: POST to the absolute REST URL the row supplies.
+  runRowAction: (url) => fetchJson(url, { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 
@@ -73,7 +71,7 @@ export const normalizeStatus = (s = {}) => ({
   pwAvailable: bool(s.pw_available),
   pwUnavailableReason: s.pw_unavailable_reason ?? null,
   pwUnavailablePlugin: s.pw_unavailable_plugin ?? null,
-  uapActive: bool(s.uap_active),
+  settingsRows: Array.isArray(s.settings_rows) ? s.settings_rows : [],
 })
 
 export const initial = {
@@ -98,6 +96,6 @@ export const initial = {
   pwAvailable: bool(cfg.pwAvailable),
   pwUnavailableReason: cfg.pwUnavailableReason ?? null,
   pwUnavailablePlugin: cfg.pwUnavailablePlugin ?? null,
-  uapActive: bool(cfg.uapActive),
+  settingsRows: Array.isArray(cfg.settingsRows) ? cfg.settingsRows : [],
   showGsBanner: bool(cfg.showGsBanner),
 }

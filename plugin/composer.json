@@ -1,6 +1,6 @@
 {
 	"name": "soflyy/agent-connector-for-wp",
-	"description": "Give agents unrestricted execution capability on WordPress: shell, PHP eval, filesystem, and process execution exposed through the WordPress MCP stack. Dev only.",
+	"description": "Connect AI agents to WordPress over MCP: exposes the abilities other plugins register, restricted to admins.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"keywords": ["wordpress", "mcp", "ai", "agents", "abilities"],

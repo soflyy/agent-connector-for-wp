@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\DefaultAbilities\Services;
 
 use AgentConnectorForWp\Support\Config;
-use AgentConnectorForWp\Support\Helpers;
+use AgentConnectorForWp\DefaultAbilities\Support\Helpers;
 
 defined( 'ABSPATH' ) || exit;
 

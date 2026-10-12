@@ -1,0 +1,13 @@
+# Left out of the wordpress.org build (bin/build-plugin-zip.sh org).
+# The GitHub release build ships everything.
+
+# GitHub-only: self-updater + compatibility for sites upgrading from older
+# versions (see legacy/bootstrap.php).
+/legacy
+
+# Developer docs and examples — they live in the GitHub repository.
+/docs
+/examples
+/README.md
+
+/.distignore

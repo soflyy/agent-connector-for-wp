@@ -13,8 +13,8 @@
  * Text Domain:       agent-connector-for-wp
  *
  * Agents connected through this plugin can act with the full capability of a
- * super admin (and, with the Universal Abilities pack, run shell/PHP/WP-CLI).
- * That is the product, not an accident — the operator installed it to give an
+ * super admin, through whatever abilities other plugins register. That is the
+ * product, not an accident — the operator installed it to give an
  * agent that access. The UI is responsible for making sure they understand:
  * a site-wide warning notice renders on production environments until
  * explicitly dismissed, and opt-in protections (production blocking, domain
@@ -34,6 +34,14 @@ defined( 'ABSPATH' ) || exit;
 define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.33.1' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
+
+/**
+ * Version of the admin extension points (Admin\Extensions): the
+ * agent_connector_for_wp_settings_rows filter, the
+ * agent_connector_for_wp_enqueue_admin_assets action, and the app's wp.hooks
+ * filters. Other plugins check for this constant before using them.
+ */
+define( 'AGENT_CONNECTOR_FOR_WP_EXTENSIONS_API', 1 );
 
 /**
  * Load bundled Composer dependencies via the Jetpack Autoloader.
@@ -115,14 +123,9 @@ add_action(
 		// protection — because it's where the operator manages those settings.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
-			// Browser of available companion "ability pack" plugins (with install).
-			( new Admin\DirectoryPage() )->register();
 			// Site-wide warning on every wp-admin page while running on a
 			// production environment, until explicitly dismissed.
 			( new Admin\ProductionNotice() )->register();
-			// Site-wide nudge while the Universal Abilities pack is missing —
-			// without it a connected agent has almost nothing to do.
-			( new Admin\UapNotice() )->register();
 		}
 
 		// REST API: settings, reconnect, connection generation.
@@ -133,21 +136,12 @@ add_action(
 			}
 		);
 
-		// Keep installed ability packs updatable from GitHub in every context
-		// (admin + cron), independent of whether the plugin is switched "on".
-		( new Services\PackUpdater() )->register();
-
 		if ( ! Support\Config::can_boot() ) {
 			// Disabled, or held back by the opt-in production protection. The
 			// operator chose this state, so no global nag — the plugin's own
 			// screens (Header badge, Connect page) explain why it's inactive.
 			return;
 		}
-
-		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
-		// crash recovery (safe mode) so a fatal in generated code can't take the
-		// site down. See Services\SandboxLoader.
-		( new Services\SandboxLoader() )->run();
 
 		/**
 		 * Ensure the MCP Adapter is running.
@@ -205,61 +199,18 @@ add_action(
 			OAuth\Server::init();
 		}
 
-		// This plugin ships NO abilities of its own. The powerful built-in
-		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in
-		// the separate "Universal Abilities for Agent Connector" plugin, which can be
-		// installed in one click from the Connection screen. Third-party ability
-		// packs register through src/api.php and are governed above.
+		// This plugin ships NO abilities of its own. Other plugins register them
+		// (through the Abilities API or src/api.php) and are governed above.
 	}
 );
 
 /**
- * Self-update from GitHub Releases via yahnis-elsts/plugin-update-checker.
- *
- * We pull updates straight from this plugin's GitHub repo instead of the
- * wordpress.org directory (the plugin is intentionally dev-only and is not, and
- * will not be, hosted there). The library is bundled through the same Jetpack
- * Autoloader as the rest of vendor/: its loader (load-v5p7.php) is registered in
- * the autoloader's filemap, so YahnisElsts\PluginUpdateChecker\v5\PucFactory is
- * available once vendor/ is present — no separate require needed here.
- *
- * IMPORTANT — release assets, not the source tarball:
- * enableReleaseAssets() makes the checker install the built ZIP attached to each
- * GitHub Release (which bundles vendor/) rather than GitHub's auto-generated
- * source tarball. The source tarball would be BROKEN as an update because
- * vendor/ is gitignored, so it ships without the Jetpack autoloader or the MCP
- * adapter and the plugin would fatal on load. The release ZIP is produced by
- * .github/workflows/auto-release.yml / release.yml.
- *
- * Maintainer action required for updates to flow: cut a GitHub Release on a
- * vX.Y.Z tag with the built `agent-connector-for-wp.zip` attached as a release
- * asset. The auto-release workflow does this automatically on merge to master.
- *
- * The repo is PUBLIC — the checker needs no authentication.
- *
- * Guarded to admin context: update checks only need to run in wp-admin, never on
- * every front-end request.
+ * GitHub-distributed builds only: self-updates from GitHub Releases, plus
+ * compatibility for sites upgrading from versions that bundled features which
+ * now live in other plugins. See legacy/bootstrap.php. The wordpress.org build
+ * doesn't include the legacy/ directory (see .distignore), so it updates from
+ * wordpress.org like any other plugin.
  */
-add_action(
-	'admin_init',
-	static function (): void {
-		$factory = '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
-		if ( ! class_exists( $factory ) ) {
-			// vendor/ missing (e.g. a source checkout without `composer install`).
-			return;
-		}
-
-		$update_checker = $factory::buildUpdateChecker(
-			'https://github.com/soflyy/agent-connector-for-wp/',
-			AGENT_CONNECTOR_FOR_WP_FILE,
-			'agent-connector-for-wp'
-		);
-
-		// Default branch holding the stable tags/releases.
-		$update_checker->setBranch( 'master' );
-
-		// Install the built release ZIP (with bundled vendor/) attached to each
-		// GitHub Release — NOT the source tarball, which lacks vendor/.
-		$update_checker->getVcsApi()->enableReleaseAssets();
-	}
-);
+if ( is_readable( AGENT_CONNECTOR_FOR_WP_DIR . 'legacy/bootstrap.php' ) ) {
+	require_once AGENT_CONNECTOR_FOR_WP_DIR . 'legacy/bootstrap.php';
+}

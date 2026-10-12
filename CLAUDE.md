@@ -7,7 +7,7 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 | Path | What it is | Docs |
 | --- | --- | --- |
 | `plugin/` | The main WordPress plugin (PHP, Composer). Runs the MCP server; ships no abilities of its own. | [`plugin/README.md`](plugin/README.md) |
-| `universal-abilities-plugin/` | The Default Abilities companion plugin: the powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, admin login). Installed in one click from the main plugin's Connection screen. | [`universal-abilities-plugin/README.md`](universal-abilities-plugin/README.md) |
+| `universal-abilities-plugin/` | The Default Abilities companion plugin: the powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, admin login), plus the sandbox loader, the ability-pack directory (a tab on the main plugin's Abilities page) and GitHub updates for itself and packs. GitHub-only. | [`universal-abilities-plugin/README.md`](universal-abilities-plugin/README.md) |
 | `abilities-generator/` | The `wp-mcp-generator` skill + scripts. | [`abilities-generator/README.md`](abilities-generator/README.md) |
 | `ability-packs/` | Generated ability-pack plugins (the generator's output). | — |
 | `bin/` | Dev scripts (`install.sh` symlinks `plugin/` + `universal-abilities-plugin/` into a WP install). | — |
@@ -17,10 +17,21 @@ below applies to both `plugin/` and `universal-abilities-plugin/` — the latter
 its own workflow (`.github/workflows/default-abilities-release.yml`), which uses
 the same commit-back versioning (PR title → bump → tag `universal-abilities-plugin-vX.Y.Z`
 → versioned release, never clobbered) and refreshes a stable
-`universal-abilities-index` manifest that the main plugin reads for one-click
-install and updates. Ability packs (`ability-packs/`) use stamp-only versioning
-instead (see `ability-packs-release.yml`). All three are consumed at runtime by
-the main plugin's updater — nothing self-updates.
+`universal-abilities-index` manifest that Universal Abilities' updater (and
+Breakdance's one-click installer) reads. Ability packs (`ability-packs/`) use
+stamp-only versioning instead (see `ability-packs-release.yml`); Universal
+Abilities updates them.
+
+## The main plugin is on wordpress.org
+
+`plugin/` must stay within the wordpress.org plugin guidelines: no installing or
+updating plugins from anywhere but wordpress.org, no bundled copies of
+libraries WordPress ships (React comes from core), no raw inline
+`<script>`/`<style>`, no outgoing requests without disclosure in `readme.txt`.
+Anything that needs to break those rules belongs in Universal Abilities, in
+another plugin through the extension points (`src/Admin/Extensions.php`), or —
+only for compatibility with older installs — in `plugin/legacy/`, which the
+wordpress.org build leaves out (`plugin/.distignore`, `bin/build-plugin-zip.sh`).
 
 ## PR / commit titles drive releases
 

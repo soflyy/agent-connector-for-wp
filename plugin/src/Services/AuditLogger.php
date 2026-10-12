@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\Services;
 
 use AgentConnectorForWp\Support\Config;
-use AgentConnectorForWp\Support\Helpers;
+use AgentConnectorForWp\Support\Request;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -50,7 +50,7 @@ final class AuditLogger {
 			'duration_ms' => $duration,
 			'user_id'     => $user ? (int) $user->ID : 0,
 			'user_login'  => $user && $user->exists() ? (string) $user->user_login : '',
-			'ip'          => Helpers::client_ip(),
+			'ip'          => Request::client_ip(),
 			'summary'     => $summary,
 		);
 

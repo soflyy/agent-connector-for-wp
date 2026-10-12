@@ -14,7 +14,6 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
@@ -87,10 +86,21 @@ final class ConnectionPage {
 
 		$version = AGENT_CONNECTOR_FOR_WP_VERSION . '.' . filemtime( $js_file );
 
+		/**
+		 * Fires on the Agent Connector screen before the app's script is
+		 * enqueued. Enqueue scripts here that register wp.hooks filters for the
+		 * app (e.g. `agentConnector.abilities.tabs`); scripts enqueued now print
+		 * before the app's. See Admin\Extensions.
+		 */
+		do_action( 'agent_connector_for_wp_enqueue_admin_assets' );
+
+		// React comes from WordPress core (the bundle maps react, react-dom and
+		// react/jsx-runtime to these handles' globals), so the app and any
+		// extension share one React instance.
 		wp_enqueue_script(
 			'agent-connector-for-wp-admin',
 			plugins_url( 'admin/build/assets/index.js', AGENT_CONNECTOR_FOR_WP_FILE ),
-			array(),
+			array( 'react', 'react-dom', 'react-jsx-runtime', 'wp-hooks' ),
 			$version,
 			true
 		);
@@ -142,7 +152,7 @@ final class ConnectionPage {
 				'pwAvailable'           => null === $pw_reason,
 				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
-				'uapActive'             => $this->is_uap_active(),
+				'settingsRows'          => Extensions::settings_rows(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 				'embed'                 => self::is_embed(),
 			)
@@ -161,18 +171,13 @@ final class ConnectionPage {
 		);
 
 		// Hide the WP admin footer and remove default content-area padding on our page.
-		add_action(
-			'admin_head',
-			static function (): void {
-				echo '<style>
-					.acfw-app-page #wpfooter { display: none !important; }
-					/* #f9fafb is Tailwind gray-50 — the app root uses bg-gray-50,
-					   so matching it here keeps the seam invisible wherever the
-					   app does not fill the content area. */
-					.acfw-app-page #wpcontent { padding-left: 0 !important; background: #f9fafb; }
-					.acfw-app-page #wpbody-content { padding-bottom: 0 !important; }
-				</style>';
-			}
+		// #f9fafb is Tailwind gray-50 — the app root uses bg-gray-50, so matching
+		// it here keeps the seam invisible wherever the app does not fill the
+		// content area.
+		self::add_inline_css(
+			'.acfw-app-page #wpfooter { display: none !important; }
+			.acfw-app-page #wpcontent { padding-left: 0 !important; background: #f9fafb; }
+			.acfw-app-page #wpbody-content { padding-bottom: 0 !important; }'
 		);
 	}
 
@@ -206,24 +211,27 @@ final class ConnectionPage {
 			PHP_INT_MAX
 		);
 
-		add_action(
-			'admin_head',
-			static function (): void {
-				echo '<style>
-					html.wp-toolbar { padding-top: 0 !important; }
-					.acfw-embed #wpadminbar,
-					.acfw-embed #adminmenumain,
-					.acfw-embed #screen-meta,
-					.acfw-embed #screen-meta-links { display: none !important; }
-					.acfw-embed #wpcontent { margin-left: 0 !important; }
-					.acfw-embed #wpbody-content { padding-bottom: 0 !important; }
-					html, .acfw-embed { background: #f9fafb; }
-				</style>';
-			}
+		self::add_inline_css(
+			'html.wp-toolbar { padding-top: 0 !important; }
+			.acfw-embed #wpadminbar,
+			.acfw-embed #adminmenumain,
+			.acfw-embed #screen-meta,
+			.acfw-embed #screen-meta-links { display: none !important; }
+			.acfw-embed #wpcontent { margin-left: 0 !important; }
+			.acfw-embed #wpbody-content { padding-bottom: 0 !important; }
+			html, .acfw-embed { background: #f9fafb; }'
 		);
 	}
 
-	private function is_uap_active(): bool {
-		return PluginDirectory::is_universal_abilities_active();
+	/**
+	 * Page-chrome CSS for this screen, attached to a style handle rather than
+	 * printed as a raw <style> tag.
+	 */
+	private static function add_inline_css( string $css ): void {
+		if ( ! wp_style_is( 'agent-connector-for-wp-chrome', 'registered' ) ) {
+			wp_register_style( 'agent-connector-for-wp-chrome', false, array(), AGENT_CONNECTOR_FOR_WP_VERSION );
+			wp_enqueue_style( 'agent-connector-for-wp-chrome' );
+		}
+		wp_add_inline_style( 'agent-connector-for-wp-chrome', $css );
 	}
 }

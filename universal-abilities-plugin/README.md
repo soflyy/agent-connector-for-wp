@@ -29,12 +29,37 @@ the abilities other plugins register. These powerful built-ins live here so
 they're opt-in *at the plugin level*: a site only has them if this plugin is
 installed.
 
+## What else it owns
+
+Everything around these abilities that isn't part of Agent Connector itself
+lives here too, so the main plugin stays a plain MCP gateway (and can be listed
+on wordpress.org):
+
+- **Sandbox loader** (`Services\SandboxLoader`, `Support\Sandbox`): loads the
+  AI-written PHP files the file abilities write to
+  `wp-content/agent-connector-for-wp-sandbox/`, with crash recovery (safe mode).
+- **Ability-pack directory** (`Services\PackDirectory`, `Rest\DirectoryController`,
+  `admin/`): the *Ability Packs* tab on Agent Connector's Abilities page,
+  added through Agent Connector's `agentConnector.abilities.tabs` JS filter.
+  Manifest schema: [`docs/directory-schema.md`](docs/directory-schema.md).
+- **Updates** (`Services\PackUpdater`): keeps this plugin and installed
+  ability packs updating from GitHub releases. The `Update URI` header keeps
+  WordPress from matching this plugin against wordpress.org.
+
+Against an older Agent Connector (one without `AGENT_CONNECTOR_FOR_WP_EXTENSIONS_API`)
+those older versions still do all of this themselves, so this plugin only
+registers its abilities. Agent Connector's GitHub build keeps a compatibility
+copy of the loader and updater (its `legacy/` directory) for sites still on an
+older build of this plugin; it stands down when it sees
+`AGENT_CONNECTOR_DEFAULT_ABILITIES_STANDALONE`.
+
 ## Install & enable
 
-1. Install + activate Agent Connector for WP (this plugin **requires** it).
-2. In **wp-admin → Agent Connector → Settings**, under *Universal Abilities
-   Plugin*, click **Install** (one-click install of this plugin) — or install it
-   manually.
+1. Install + activate Agent Connector for WP (this plugin needs it).
+2. Install this plugin: download `universal-abilities-plugin.zip` from the
+   latest `universal-abilities-plugin-v*` GitHub release and upload it under
+   **Plugins → Add New**. Breakdance and Oxygen sites also get a one-click
+   **Install** button in **Agent Connector → Settings**.
 
 That's it — installing and activating this plugin **is** the opt-in. The
 abilities are registered whenever the host plugin's MCP server is active;
@@ -51,6 +76,9 @@ MCP-exposed ability.
 ## Development
 
 The plugin is plain PSR-4 PHP under `src/` (namespace
-`AgentConnectorForWp\DefaultAbilities`) with no Composer dependencies. For local
-work, symlink it into your WordPress install alongside the main plugin (see
-[`../bin/install.sh`](../bin/install.sh)) and activate both.
+`AgentConnectorForWp\DefaultAbilities`) with no Composer dependencies. The
+Ability Packs tab is a small React bundle in `admin/` (React comes from
+WordPress core); rebuild it with `npm ci && npm run build` in `admin/` and
+commit `admin/build/`. For local work, symlink this plugin into your WordPress
+install alongside the main plugin (see [`../bin/install.sh`](../bin/install.sh))
+and activate both.

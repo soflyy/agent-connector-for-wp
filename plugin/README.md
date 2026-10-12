@@ -10,9 +10,9 @@ Nothing, on its own — and that is the point. The plugin is the secured MCP
 gateway; abilities come from companion plugins:
 
 - **[Universal Abilities](../universal-abilities-plugin/README.md)** — a separate,
-  optional companion plugin (installable in one click from the Settings screen)
-  that contributes the powerful built-in abilities below. Not installed by
-  default; installing it is the opt-in.
+  optional companion plugin, distributed from GitHub, that contributes the
+  powerful built-in abilities below (and the ability-pack directory). Not
+  installed by default; installing it is the opt-in.
 - **Ability packs** — generated plugins that expose a specific plugin's
   functionality (WooCommerce, Contact Form 7, …) to agents.
 - **Your own** abilities, via the [public registration API](#register-your-own-abilities).
@@ -44,7 +44,9 @@ The goal: give agents effectively **SSH-equivalent** operational access through 
 
 ## Install
 
-Clone into your plugins directory, install dependencies, and activate:
+Install **Agent Connector for WP** from wordpress.org (Plugins → Add New), or
+download `agent-connector-for-wp.zip` from the latest GitHub release. For
+development, clone into your plugins directory, install dependencies, and activate:
 
 ```bash
 cd wp-content/plugins
@@ -60,15 +62,35 @@ fetches them. If you download a packaged release `.zip` (built by CI, with
 
 ## Updates
 
-The plugin updates itself from **GitHub Releases** (it is intentionally not on
-wordpress.org), through a bundled update checker — new versions appear on the
-normal Plugins screen and via auto-updates. The optional
-[Universal Abilities](../universal-abilities-plugin/README.md) pack and any
-installed ability packs are updated by **this** plugin too, from a published
-manifest, through the same Plugins-screen flow — so every update is managed in
-one place, and companion plugins ship no update code of their own. Update checks
-are best-effort and never block WordPress: a slow or unreachable GitHub simply
-means "no update offered" that cycle.
+Installed from **wordpress.org**, the plugin updates like any other plugin.
+
+The **GitHub release zip** additionally contains `legacy/`, which updates the
+plugin from GitHub Releases through a bundled update checker, so sites that
+installed from GitHub keep getting the same versions from GitHub. That build
+also keeps a compatibility copy of the sandbox loader and the Universal
+Abilities / ability-pack updater for sites still running an older Universal
+Abilities build; it stands down once a current Universal Abilities is active.
+
+The optional [Universal Abilities](../universal-abilities-plugin/README.md)
+plugin updates itself and any installed ability packs from GitHub.
+
+## Extending the admin screens
+
+Other plugins can add to Agent Connector's screens (`AGENT_CONNECTOR_FOR_WP_EXTENSIONS_API`
+is defined when these exist):
+
+- **Settings rows** — the `agent_connector_for_wp_settings_rows` filter adds rows to
+  Settings → General, each with an optional action button that POSTs to a REST
+  route you register (and an optional confirmation dialog). See
+  [`src/Admin/Extensions.php`](src/Admin/Extensions.php) for the row shape.
+  `admin.php?page=agent-connector-for-wp&acfw_action=<row id>#/settings` opens a
+  row's confirmation dialog.
+- **Abilities tabs** — enqueue a script on the
+  `agent_connector_for_wp_enqueue_admin_assets` action and add tabs with the
+  `agentConnector.abilities.tabs` [wp.hooks](https://developer.wordpress.org/block-editor/reference-guides/packages/packages-hooks/)
+  filter: `{ id, label, order, render }`, where `render()` returns a React
+  element. The app uses WordPress core's React, so yours renders in the same tree.
+  See [`admin/src/extensions.js`](admin/src/extensions.js).
 
 ## Connect an agent
 
@@ -105,10 +127,9 @@ wp-admin. There is no enabling constant.
   pins the domain lock to the current host automatically.
 - **Universal Abilities** — the powerful abilities (shell, PHP eval, filesystem,
   WP-CLI, env-inspect, admin-login) live in the separate
-  **[Universal Abilities](../universal-abilities-plugin/README.md)** plugin, **off
-  by default**. If it isn't installed, the Settings screen offers a one-click
-  **Install** button. Leave it off — or uninstalled — to expose only abilities
-  from other plugins.
+  **[Universal Abilities](../universal-abilities-plugin/README.md)** plugin, **not
+  installed by default**. Leave it uninstalled to expose only abilities from
+  other plugins.
 
 ## Protection
 

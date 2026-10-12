@@ -168,7 +168,6 @@ file ships as a reference under
  * Plugin Name:       My Ability Pack
  * Description:        Adds the my-plugin/do-thing ability to Agent Connector for WP.
  * Version:           1.0.0
- * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
  * License:           GPL-2.0-or-later
  *
@@ -244,12 +243,8 @@ plugin header, so follow this convention exactly:
    `unofficial-abilities-for-woocommerce`. The folder, main file, and `Plugin Name`
    (`Unofficial Abilities for WooCommerce`) should agree.
 
-2. **Declare dependency, identity, and target.** Three header lines:
+2. **Declare identity and target.** Two header lines:
 
-   - `Requires Plugins: agent-connector-for-wp` — core WordPress dependency
-     header, so WordPress won't activate your pack without Agent Connector. (This
-     is also how a pack declares it plugs into Agent Connector — there is no
-     separate "host" header.)
    - `Agent Connector: Ability Pack` — the marker that identifies the file as an
      ability pack at all.
    - `Agent Connector Target: woocommerce/woocommerce.php` — **the WP plugin this
@@ -263,12 +258,19 @@ plugin header, so follow this convention exactly:
    ```php
    /**
     * Plugin Name:       Unofficial Abilities for WooCommerce
-    * Requires Plugins:  agent-connector-for-wp
+    * Requires Plugins:  woocommerce
     *
     * Agent Connector: Ability Pack
     * Agent Connector Target: woocommerce/woocommerce.php
     */
    ```
+
+   Don't list `agent-connector-for-wp` under `Requires Plugins`: that header
+   matches by folder name, which isn't guaranteed (a site may have Agent
+   Connector installed under another folder). Instead, guard your registration
+   with `function_exists( 'agent_connector_for_wp_register_ability' )`, so the
+   pack does nothing while Agent Connector is inactive. Listing the plugin your
+   pack extends (`woocommerce` above) is fine.
 
 3. **Namespace your abilities** under your pack's own vendor prefix
    (`woo/...`, `my-plugin/...`) — never `agent-connector-for-wp/...`.

@@ -267,27 +267,27 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
 
 // Screenshots for the setup steps, keyed by `<agent>/<step>`, as paths under
 // assets/images/connect/. A step whose key has no entry is shown as text
-// only. A file named `…@2x.webp` is a retina capture of a small
+// only. A file named `…-2x.webp` is a retina capture of a small
 // area and is shown at half its pixel size so it stays sharp.
 const STEP_SCREENSHOTS = {
-  'claude-desktop/customize': 'claude-desktop/01-customize@2x.webp',
-  'claude-desktop/connectors': 'claude-desktop/02-connectors@2x.webp',
-  'claude-desktop/add': 'claude-desktop/03-add-custom-connector@2x.webp',
+  'claude-desktop/customize': 'claude-desktop/01-customize-2x.webp',
+  'claude-desktop/connectors': 'claude-desktop/02-connectors-2x.webp',
+  'claude-desktop/add': 'claude-desktop/03-add-custom-connector-2x.webp',
   'claude-desktop/name-url': 'claude-desktop/04-name-and-url.webp',
   'claude-desktop/options': 'claude-desktop/05-add.webp',
   'claude-desktop/connect': 'claude-desktop/06-connect.webp',
-  'claude-desktop/continue': 'claude-desktop/07-continue@2x.webp',
+  'claude-desktop/continue': 'claude-desktop/07-continue-2x.webp',
   'claude-desktop/authorize': 'claude-desktop/08-authorize.webp',
   'claude-desktop/connected': 'claude-desktop/09-connected.webp',
   'claude-code/authorize': 'claude-code/01-authorize.webp',
   'codex-cli/authorize': 'codex-cli/01-authorize.webp',
-  'gemini/spark': 'gemini/01-spark@2x.webp',
-  'gemini/connected-apps': 'gemini/02-connected-apps@2x.webp',
-  'gemini/url': 'gemini/03-custom-app-url@2x.webp',
-  'gemini/confirm': 'gemini/04-confirm-url@2x.webp',
-  'gemini/consent': 'gemini/05-consent@2x.webp',
+  'gemini/spark': 'gemini/01-spark-2x.webp',
+  'gemini/connected-apps': 'gemini/02-connected-apps-2x.webp',
+  'gemini/url': 'gemini/03-custom-app-url-2x.webp',
+  'gemini/confirm': 'gemini/04-confirm-url-2x.webp',
+  'gemini/consent': 'gemini/05-consent-2x.webp',
   'gemini/authorize': 'gemini/06-authorize.webp',
-  'gemini/save': 'gemini/07-save@2x.webp',
+  'gemini/save': 'gemini/07-save-2x.webp',
   'cursor/password-customize': 'cursor/password-01-customize.webp',
   'cursor/password-new': 'cursor/password-02-new-mcp-server.webp',
   'cursor/password-file': 'cursor/password-03-mcp-json.webp',
@@ -300,12 +300,12 @@ const STEP_SCREENSHOTS = {
   'zed/authorize': 'zed/01-authorize.webp',
   'opencode/authorize': 'opencode/01-authorize.webp',
   'goose/authorize': 'goose/01-authorize.webp',
-  'antigravity/settings': 'antigravity/01-customizations@2x.webp',
-  'antigravity/open-config': 'antigravity/02-open-mcp-config@2x.webp',
-  'antigravity/authenticate': 'antigravity/03-authenticate@2x.webp',
+  'antigravity/settings': 'antigravity/01-customizations-2x.webp',
+  'antigravity/open-config': 'antigravity/02-open-mcp-config-2x.webp',
+  'antigravity/authenticate': 'antigravity/03-authenticate-2x.webp',
   'antigravity/authorize': 'antigravity/04-authorize.webp',
-  'antigravity/code': 'antigravity/05-code@2x.webp',
-  'antigravity/submit': 'antigravity/06-submit@2x.webp',
+  'antigravity/code': 'antigravity/05-code-2x.webp',
+  'antigravity/submit': 'antigravity/06-submit-2x.webp',
   'pi/authorize': 'pi/01-authorize.webp',
   'other/authorize': 'other/01-authorize.webp',
   'chatgpt/customize': 'chatgpt/01-customize.webp',
@@ -313,11 +313,11 @@ const STEP_SCREENSHOTS = {
   'chatgpt/form': 'chatgpt/03-form.webp',
   'chatgpt/continue': 'chatgpt/04-continue.webp',
   'chatgpt/authorize': 'chatgpt/05-authorize.webp',
-  'chatgpt/plugin-sidebar': 'chatgpt/plugin-01-sidebar@2x.webp',
-  'chatgpt/plugin-customize': 'chatgpt/plugin-02-customize@2x.webp',
-  'chatgpt/plugin-upload': 'chatgpt/plugin-03-upload-archive@2x.webp',
-  'chatgpt/plugin-add': 'chatgpt/plugin-04-add-plugin@2x.webp',
-  'chatgpt/plugin-install': 'chatgpt/plugin-05-install@2x.webp',
+  'chatgpt/plugin-sidebar': 'chatgpt/plugin-01-sidebar-2x.webp',
+  'chatgpt/plugin-customize': 'chatgpt/plugin-02-customize-2x.webp',
+  'chatgpt/plugin-upload': 'chatgpt/plugin-03-upload-archive-2x.webp',
+  'chatgpt/plugin-add': 'chatgpt/plugin-04-add-plugin-2x.webp',
+  'chatgpt/plugin-install': 'chatgpt/plugin-05-install-2x.webp',
   'chatgpt/password-settings': 'chatgpt/password-01-settings-mcps.webp',
   'chatgpt/password-add': 'chatgpt/password-02-add-mcp-server.webp',
   'chatgpt/password-command': 'chatgpt/password-03-command.webp',
@@ -1034,7 +1034,7 @@ function StepPrompts({ prompts }) {
 }
 
 // A step's screenshot. Every frame has the same fixed height; a capture is
-// shown at its pixel size (half that for an @2x file) and scaled down only
+// shown at its pixel size (half that for a -2x file) and scaled down only
 // when it doesn't fit, so tall dialogs shrink instead of stretching the frame.
 // Clicking opens it full size.
 function StepScreenshot({ screenshot }) {
@@ -1088,7 +1088,7 @@ function StepScreenshot({ screenshot }) {
         onLoad={(e) => {
           // A cap rather than a width, so a tall capture still shrinks
           // proportionally to fit the frame's height.
-          if (/@2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.maxWidth = `min(100%, ${e.currentTarget.naturalWidth / 2}px)`
+          if (/-2x\.\w+$/.test(screenshot.src)) e.currentTarget.style.maxWidth = `min(100%, ${e.currentTarget.naturalWidth / 2}px)`
         }}
         className="h-auto w-auto max-h-full max-w-full rounded-lg shadow-md cursor-zoom-in"
       />

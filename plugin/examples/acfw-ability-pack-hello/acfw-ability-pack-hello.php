@@ -3,7 +3,6 @@
  * Plugin Name:       ACFW Ability Pack: Hello
  * Description:        Example companion "ability pack" for Agent Connector for WP. Registers one ability (hello/greet) over the public registration API. Reference only — not wired into production.
  * Version:           1.0.0
- * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
  * Author:            Soflyy
  * License:           GPL-2.0-or-later
