@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
-  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, LayoutTemplate, UserRound, LayoutGrid,
+  Bot, SquareTerminal, Bird, Pi, Search, ChevronDown, ChevronRight, Package, Download, LayoutTemplate, UserRound, LayoutGrid, Network,
 } from 'lucide-react'
 import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-icons/si'
 import { VscVscode } from 'react-icons/vsc'
@@ -64,7 +64,13 @@ function isLocalEnvironment() {
 // of the manual application-password instructions. `passwordOnly: true` marks
 // an entry the OAuth flow can't serve, so the method picker is skipped;
 // `oauthOnly: true` is the reverse, for hosted apps that only take a URL.
+//
+// `gateway` is the hosted Agent Connector Gateway: one MCP URL that reaches
+// every site its account connects. Linking happens on the gateway, which then
+// sends the admin back to this site's own consent page, so it's OAuth only and
+// needs the site on public HTTPS.
 const AGENTS = [
+  { id: 'gateway',        label: 'Agent Connector Gateway', Icon: Network, bg: '#eef2ff', fg: '#4f46e5', oauthOnly: true, httpsOnly: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'claude-desktop', label: 'Claude Desktop',  Icon: ClaudeIcon,  bg: '#fef3e8', fg: '#c2410c', mcpb: true, httpsOnly: true, videoUrl: 'https://www.loom.com/share/b4d96754bae04d2e9ab6288ad3bb970b', oauthVideoUrl: '' },
   { id: 'chatgpt',        label: 'ChatGPT',         Icon: SiOpenai,    bg: '#e8f5f0', fg: '#0d8c6b', httpsOnly: true, videoUrl: '', oauthVideoUrl: '' },
   { id: 'cursor',         label: 'Cursor',          Icon: CursorIcon,      bg: '#f4f4f5', fg: '#18181b', cli: true, videoUrl: '', oauthVideoUrl: '' },
@@ -477,13 +483,34 @@ function chatgptPasswordBlock({ name, serverUrl, username, password }) {
 const onServer = (text) => initial.serverName
   ? `Using the ${initial.serverName} MCP server, ${text[0].toLowerCase()}${text.slice(1)}`
   : text
-const FIRST_PROMPT_STEP = {
+const FIRST_PROMPTS = [
+  { title: 'Landing page', Icon: LayoutTemplate, text: 'Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.' },
+  { title: 'About page', Icon: UserRound, text: 'Create an About page that matches the style of my existing pages. Save it as a draft.' },
+  { title: 'Services page', Icon: LayoutGrid, text: 'Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.' },
+]
+const firstPromptStep = (phrase) => ({
   html: 'Write your first prompt. Try one of these:',
-  prompts: [
-    { title: 'Landing page', Icon: LayoutTemplate, text: onServer('Build a landing page for my business with a hero, three feature sections, testimonials, and a contact call to action. Save it as a draft.') },
-    { title: 'About page', Icon: UserRound, text: onServer('Create an About page that matches the style of my existing pages. Save it as a draft.') },
-    { title: 'Services page', Icon: LayoutGrid, text: onServer('Add a Services page with a grid of my services, each with a short description and an icon. Save it as a draft.') },
-  ],
+  prompts: FIRST_PROMPTS.map((p) => ({ ...p, text: phrase(p.text) })),
+})
+const FIRST_PROMPT_STEP = firstPromptStep(onServer)
+
+// Through the gateway, Claude picks the site by name rather than by MCP server.
+const onSite = (text) => {
+  let site = initial.siteName || 'my site'
+  try { site = new URL(initial.homeUrl || initial.serverUrl).host } catch {}
+  return `On my WordPress site ${site}, ${text[0].toLowerCase()}${text.slice(1)}`
+}
+const GATEWAY_FIRST_PROMPT_STEP = firstPromptStep(onSite)
+
+// The gateway's linking page for this site. It re-checks everything it's
+// given against the site itself; these only prefill and label the request.
+const GATEWAY_URL = (initial.gatewayUrl || 'https://mcp.wpagentconnector.com').replace(/\/+$/, '')
+function gatewayConnectUrl(serverUrl) {
+  const url = new URL(`${GATEWAY_URL}/connect`)
+  url.searchParams.set('site_url', initial.homeUrl || serverUrl)
+  url.searchParams.set('mcp_url', serverUrl)
+  if (initial.siteName) url.searchParams.set('name', initial.siteName)
+  return url.toString()
 }
 
 // A step with a screenshot under it; `extra` adds step fields such as `copy`.
@@ -533,7 +560,22 @@ function buildOAuth(serverName, serverUrl) {
 
   const json = (value) => JSON.stringify(value, null, 2)
 
+  const gatewayMcpUrl = `${GATEWAY_URL}/mcp`
+
   const perAgent = {
+    'gateway': [{
+      kind: 'deeplink', title: 'Link this site to your gateway', button: 'Connect to Agent Connector Gateway',
+      newTab: true,
+      hint: 'The gateway gives Claude one MCP URL for every WordPress site you own. Link each site once; Claude picks the site to work on by name.',
+      value: gatewayConnectUrl(serverUrl),
+      firstPrompt: GATEWAY_FIRST_PROMPT_STEP,
+      steps: [
+        'Click <strong>Connect to Agent Connector Gateway</strong> above. A new tab opens: sign in, or create your gateway account',
+        'Check that the site address is this site and click <strong>Continue</strong>',
+        authorizeStep('gateway'),
+        { html: 'In Claude, install the <strong>Agent Connector for WordPress</strong> plugin, or add the gateway as a custom connector with this URL. You only do this once for all your sites', copy: gatewayMcpUrl },
+      ],
+    }],
     'claude-desktop': [{
       ...guide,
       steps: [
@@ -1127,6 +1169,7 @@ function Block({ block }) {
         ) : block.kind === 'deeplink' ? (
           <a
             href={block.value}
+            {...(block.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
           >
             <ExternalLink className="w-5 h-5" />
@@ -1194,7 +1237,7 @@ function withFirstPrompt(path) {
     const hasSteps = block.steps?.length > 0
     return {
       ...block,
-      steps: [...(block.steps || []), FIRST_PROMPT_STEP],
+      steps: [...(block.steps || []), block.firstPrompt || FIRST_PROMPT_STEP],
       stepsTitle: hasSteps ? block.stepsTitle : 'Once connected',
     }
   })
@@ -1795,12 +1838,22 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 
       {method === 'oauth' ? (
         <div className="space-y-4">
-          {needsHttps ? (
+          {oauthOnly && !initial.oauthTransportAllowed ? (
+            <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>
+                This site's OAuth server is off because WordPress doesn't detect HTTPS here, so{' '}
+                {agentMeta.label} can't connect yet. Serve the site over HTTPS (or, behind a proxy, make sure
+                WordPress sees the request as HTTPS) and reload this page.
+              </span>
+            </div>
+          ) : needsHttps ? (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
                 {agentMeta.label} only accepts <code>https://</code> server URLs, and this site uses{' '}
-                <code>http://</code>. Use an application password instead, or serve the site over HTTPS.
+                <code>http://</code>.{' '}
+                {oauthOnly ? 'Serve the site over HTTPS to connect it.' : 'Use an application password instead, or serve the site over HTTPS.'}
               </span>
             </div>
           ) : localCaveat && (

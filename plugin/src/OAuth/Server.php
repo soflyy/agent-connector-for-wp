@@ -153,13 +153,23 @@ final class Server {
 	}
 
 	/**
+	 * This authorization server's issuer identifier (RFC 8414), as advertised
+	 * in its metadata and returned as `iss` on authorization responses.
+	 */
+	public static function issuer(): string {
+		return home_url();
+	}
+
+	/**
 	 * Send the OAuth authorization server metadata JSON (RFC 8414).
 	 */
 	private static function send_authorization_server_metadata(): void {
 		self::send_cors_headers();
 		wp_send_json(
 			array(
-				'issuer'                                => home_url(),
+				'issuer'                                => self::issuer(),
+				// RFC 9207: every authorization response names its issuer.
+				'authorization_response_iss_parameter_supported' => true,
 				'authorization_endpoint'                => rest_url( self::REST_NAMESPACE . '/authorize' ),
 				'token_endpoint'                        => rest_url( self::REST_NAMESPACE . '/token' ),
 				'registration_endpoint'                 => rest_url( self::REST_NAMESPACE . '/register' ),

@@ -142,6 +142,9 @@ final class Authorize {
 		if ( '' !== $state ) {
 			$args['state'] = rawurlencode( $state );
 		}
+		// RFC 9207: name the issuer, so a client talking to many sites can
+		// tell which one answered (mix-up defense).
+		$args['iss'] = rawurlencode( Server::issuer() );
 
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri, validated against the registered list by the caller.
 		wp_redirect( add_query_arg( $args, $redirect_uri ) );
@@ -234,6 +237,8 @@ final class Authorize {
 		if ( '' !== $state ) {
 			$success_args['state'] = rawurlencode( $state );
 		}
+		// RFC 9207 (see redirect_with_error()).
+		$success_args['iss'] = rawurlencode( Server::issuer() );
 		$success_url = add_query_arg( $success_args, $redirect_uri );
 		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External client redirect_uri validated against the registered list above.
 		wp_redirect( $success_url );

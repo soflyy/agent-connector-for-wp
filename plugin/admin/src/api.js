@@ -90,6 +90,8 @@ export const initial = {
   declaredHost: cfg.declaredHost ?? '',
   envType: cfg.envType ?? 'unknown',
   serverUrl: cfg.serverUrl ?? '',
+  homeUrl: cfg.homeUrl ?? '',
+  gatewayUrl: cfg.gatewayUrl ?? '',
   serverName: cfg.serverName ?? '',
   siteName: cfg.siteName ?? '',
   siteIcon: cfg.siteIcon ?? '',
