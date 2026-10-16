@@ -57,13 +57,17 @@ final class Authorize {
 		// client and a registered redirect_uri there is nowhere safe to send
 		// the user, so anything checked before them would be reported to the
 		// browser alone and leave the agent waiting.
-		$client = Db::get_client_by_id( $params['client_id'] );
-		if ( null === $client ) {
-			return new WP_Error( 'invalid_client', 'Unknown client_id.', array( 'status' => 400 ) );
+		//
+		// For a client_id that is a metadata document URL, this fetches the
+		// document (see Clients); otherwise it looks up a registered client.
+		$client = Clients::get( $params['client_id'] );
+		if ( is_wp_error( $client ) ) {
+			return $client;
 		}
 
-		// Exact-match redirect_uri against the registered list.
-		if ( ! in_array( $params['redirect_uri'], $client['redirect_uris'], true ) ) {
+		// Match redirect_uri against the client's list (exactly, but for the
+		// port of a loopback redirect).
+		if ( ! Server::redirect_uri_allowed( $params['redirect_uri'], $client['redirect_uris'] ) ) {
 			return new WP_Error(
 				'invalid_redirect_uri',
 				'redirect_uri does not match registered URIs.',
@@ -164,7 +168,7 @@ final class Authorize {
 		}
 
 		$action                = sanitize_text_field( (string) ( $request->get_param( 'action' ) ?? '' ) );
-		$client_id             = sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) );
+		$client_id             = Clients::sanitize_id( $request->get_param( 'client_id' ) );
 		$redirect_uri          = Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) );
 		$scope                 = sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? '' ) );
 		$state                 = self::state_param( $request );
@@ -174,8 +178,8 @@ final class Authorize {
 		// Re-validate client and redirect_uri (defense in depth). This runs
 		// before the access checks below so that when one of them fails there
 		// is already a trusted redirect_uri to report the failure to.
-		$client = Db::get_client_by_id( $client_id );
-		if ( null === $client || ! in_array( $redirect_uri, $client['redirect_uris'], true ) ) {
+		$client = Clients::get( $client_id );
+		if ( is_wp_error( $client ) || ! Server::redirect_uri_allowed( $redirect_uri, $client['redirect_uris'] ) ) {
 			return new WP_Error( 'invalid_client', 'Invalid client or redirect URI.', array( 'status' => 400 ) );
 		}
 
@@ -204,6 +208,17 @@ final class Authorize {
 				$redirect_uri,
 				'access_denied',
 				'User denied the authorization request.',
+				$state
+			);
+		}
+
+		// A metadata-document client is stored on its first approval, so the
+		// token endpoint and the Connections screen can find it.
+		if ( ! Clients::remember( $client ) ) {
+			self::redirect_with_error(
+				$redirect_uri,
+				'server_error',
+				'Could not record the authorized client.',
 				$state
 			);
 		}
@@ -265,11 +280,11 @@ final class Authorize {
 	 * The origin (scheme + host + explicit port) of the client's redirect URI,
 	 * for display on the consent page.
 	 *
-	 * The client name is attacker-chosen (registration is public), so the
-	 * redirect origin is the one signal on the page the client cannot dress
-	 * up: it is where the browser will actually be sent with the
-	 * authorization code. Reduced to the origin because the full URI is
-	 * noise for that judgement (and can be very long).
+	 * The client name is chosen by the client (and, for a registered client,
+	 * by anyone: registration is public), so the redirect origin is a signal
+	 * on the page the client cannot dress up: it is where the browser will
+	 * actually be sent with the authorization code. Reduced to the origin
+	 * because the full URI is noise for that judgement (and can be very long).
 	 *
 	 * @param string $redirect_uri The validated redirect URI.
 	 */
@@ -294,7 +309,7 @@ final class Authorize {
 	private static function extract_params( WP_REST_Request $request ): array {
 		return array(
 			'response_type'         => sanitize_text_field( (string) ( $request->get_param( 'response_type' ) ?? '' ) ),
-			'client_id'             => sanitize_text_field( (string) ( $request->get_param( 'client_id' ) ?? '' ) ),
+			'client_id'             => Clients::sanitize_id( $request->get_param( 'client_id' ) ),
 			'redirect_uri'          => Server::sanitize_redirect_uri( $request->get_param( 'redirect_uri' ) ),
 			'scope'                 => sanitize_text_field( (string) ( $request->get_param( 'scope' ) ?? 'mcp:tools' ) ),
 			'state'                 => self::state_param( $request ),
@@ -340,16 +355,20 @@ final class Authorize {
 
 		$requested_scopes = array_map( 'trim', explode( ' ', $params['scope'] ) );
 
+		// The domain serving a metadata document vouches for the client; a
+		// registered client has nothing comparable to show.
+		$client_host = Clients::metadata_host( (string) $client['client_id'] );
+
 		Server::send_cors_headers();
 		status_header( 200 );
 		header( 'Content-Type: text/html; charset=utf-8' );
 
 		// Anti-clickjacking. This page is rendered by the REST API, so it gets
 		// none of the framing protection core puts on wp-admin/wp-login. A
-		// framed consent screen would let an attacker who registered their own
-		// client (DCR is public) overlay the Authorize button and trick a
-		// logged-in admin into granting a token that fronts shell/PHP-eval
-		// abilities. The nonce below is no defense: it is rendered inside the
+		// framed consent screen would let an attacker with their own client
+		// (DCR is public, and anyone can publish a metadata document) overlay
+		// the Authorize button and trick a logged-in admin into granting a
+		// token that fronts shell/PHP-eval abilities. The nonce below is no defense: it is rendered inside the
 		// framed page and submits with it.
 		header( 'X-Frame-Options: DENY' );
 		header( "Content-Security-Policy: frame-ancestors 'none'" );
@@ -409,6 +428,18 @@ final class Authorize {
 				<?php endforeach; ?>
 			</ul>
 		</div>
+
+		<?php if ( '' !== $client_host ) : ?>
+			<p class="acfw-oauth-redirect">
+				<?php
+				printf(
+					/* translators: %s: domain hosting the client's metadata document */
+					esc_html__( 'This application is identified by %s.', 'agent-connector-for-wp' ),
+					'<strong>' . esc_html( $client_host ) . '</strong>'
+				);
+				?>
+			</p>
+		<?php endif; ?>
 
 		<p class="acfw-oauth-redirect">
 			<?php
