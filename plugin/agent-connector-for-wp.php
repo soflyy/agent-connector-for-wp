@@ -3,7 +3,7 @@
  * Plugin Name:       Agent Connector for WP
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       Connect AI agents to your WordPress site over MCP. Runs the WordPress MCP server, exposes abilities registered by your plugins to connected agents, and optionally audit-logs every call — with optional protections (production blocking, domain lock) under Settings → Protection.
- * Version:           1.32.0
+ * Version:           1.33.1
  * Requires at least: 7.0
  * Requires PHP:      8.1
  * Author:            Soflyy
@@ -31,7 +31,7 @@ namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.32.0' );
+define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.33.1' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -199,6 +199,11 @@ add_action(
 		// their own (or no) permission callback. Hooks the core
 		// wp_register_ability_args filter; see Support\Governance.
 		Support\Governance::register();
+
+		// Remember the latest authenticated MCP request (any auth method) so a
+		// setup wizard — ours or another plugin's — can confirm an agent has
+		// actually connected. See Support\ConnectionActivity.
+		Support\ConnectionActivity::register();
 
 		// OAuth 2.1 authorization server: lets MCP clients (e.g. claude.ai
 		// remote connectors) authenticate directly over Streamable HTTP with

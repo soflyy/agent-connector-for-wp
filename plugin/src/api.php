@@ -123,3 +123,30 @@ if ( ! function_exists( 'acfw_register_ability' ) ) {
 		agent_connector_for_wp_register_ability( $name, $args );
 	}
 }
+
+if ( ! function_exists( 'agent_connector_for_wp_connect_embed_url' ) ) {
+	/**
+	 * URL of the embeddable Connect wizard, for another plugin's setup wizard
+	 * to load in a same-origin iframe. The embedded page shows only the
+	 * Connect flow and reports progress to the parent window via postMessage
+	 * (see plugin/admin/src/embed.js for the events).
+	 *
+	 * @return string
+	 */
+	function agent_connector_for_wp_connect_embed_url(): string {
+		return \AgentConnectorForWp\Admin\ConnectionPage::embed_url();
+	}
+}
+
+if ( ! function_exists( 'agent_connector_for_wp_last_mcp_request' ) ) {
+	/**
+	 * The most recent successful, authenticated MCP request, or null if no
+	 * agent has connected yet. `time` is a Unix timestamp; compare it with when
+	 * you started waiting to detect a fresh connection.
+	 *
+	 * @return array{time:int,user_id:int,auth_method:string,client_name:string,agent_name:string,mcp_method:string}|null
+	 */
+	function agent_connector_for_wp_last_mcp_request(): ?array {
+		return \AgentConnectorForWp\Support\ConnectionActivity::get();
+	}
+}

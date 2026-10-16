@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Plug, ArrowLeft, ArrowRight, ExternalLink, RefreshCw,
   AlertTriangle, Terminal, FileCode, Link, MessageSquare, Copy, Check, KeyRound, Lock, Sparkles, Eye, EyeOff, Play, Settings, ShieldCheck,
@@ -10,6 +10,7 @@ import { CursorIcon, AntigravityIcon, ClaudeIcon } from '../components/BrandIcon
 import { api, initial, DEMO_URL } from '../api'
 import { downloadMcpb } from '../mcpb'
 import { downloadChatgptPlugin } from '../chatgptPlugin'
+import { EMBED, notifyParent } from '../embed'
 
 // On local environments the site isn't reachable over the internet, so OAuth
 // only works for agents running on the same machine (CLI tools); hosted
@@ -1347,7 +1348,7 @@ function PickStep({ onPick, onBack }) {
   return (
     <div className="space-y-10">
       <div className={SHELL}>
-        <BackLink onClick={onBack} />
+        {onBack && <BackLink onClick={onBack} />}
       </div>
 
       <div className="text-center space-y-2">
@@ -1489,6 +1490,7 @@ function AppPasswordFlow({ selectedAgent, status }) {
       const data = await api.generate({ name })
       setGeneratedPassword(data.password)
       setConnection(data)
+      notifyParent('credentials-generated', { method: 'password' })
     } catch (e) {
       setError(e.message)
     } finally {
@@ -1772,6 +1774,8 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   const oauthOnly = !!agentMeta.oauthOnly
   const [method, setMethod] = useState(oauthOnly ? 'oauth' : passwordOnly || oauthCaveat ? 'password' : 'oauth')
 
+  useEffect(() => { notifyParent('method-changed', { method }) }, [method])
+
   const oauth = buildOAuth(initial.serverName, initial.serverUrl)
   const agentData = oauth.agents.find((a) => a.id === selectedAgent)
 
@@ -1828,8 +1832,13 @@ function GenerateStep({ selectedAgent, status, onBack }) {
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function Connect({ status }) {
-  const [step, setStep] = useState('welcome')
+  // Embedded, the host wizard has already done the welcoming — start at the
+  // agent picker (unless the plugin is inactive, which the welcome step explains).
+  const [step, setStep] = useState(EMBED && status.active ? 'pick' : 'welcome')
   const [selectedAgent, setSelectedAgent] = useState('codex-cli')
+
+  useEffect(() => { notifyParent('step-changed', { step }) }, [step])
+  useEffect(() => { if (step === 'generate') notifyParent('agent-selected', { agent: selectedAgent, label: AGENTS.find((a) => a.id === selectedAgent)?.label || '' }) }, [step, selectedAgent])
 
   if (step === 'welcome') {
     return <WelcomeStep status={status} onStart={() => setStep('pick')} />
@@ -1839,7 +1848,7 @@ export default function Connect({ status }) {
     return (
       <PickStep
         onPick={(id) => { setSelectedAgent(id); setStep('generate') }}
-        onBack={() => setStep('welcome')}
+        onBack={EMBED ? null : () => setStep('welcome')}
       />
     )
   }
