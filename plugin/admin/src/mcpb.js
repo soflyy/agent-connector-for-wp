@@ -22,6 +22,12 @@ export const WEBSITE = 'https://wpagentconnector.com/'
 
 export const PROXY_PACKAGE = '@automattic/mcp-wordpress-remote@latest'
 
+// Makes the proxy's Node trust the OS certificate store as well as its own
+// bundled CAs, so a local HTTPS site whose root the user already trusted (Local's
+// "Trust" button, `caddy trust`, mkcert) connects as it does in the browser.
+// It adds no trust of its own, and Node versions without it ignore it.
+export const PROXY_TLS_ENV = { NODE_USE_SYSTEM_CA: '1' }
+
 // MCPB requires server.entry_point to be a file in the bundle, but hosts start
 // the server from mcp_config (the npx command), so the file is a placeholder.
 const ENTRY_POINT_SOURCE = '// Placeholder: this bundle runs its server from mcp_config (npx).\n'
@@ -61,6 +67,7 @@ export function buildManifest({ serverName, serverUrl, siteName, username, passw
           WP_API_USERNAME: username,
           WP_API_PASSWORD: password,
           OAUTH_ENABLED: 'false',
+          ...PROXY_TLS_ENV,
         },
       },
     },

@@ -100,15 +100,19 @@ final class Connection {
 	 * install). OAUTH_ENABLED is disabled here because this path authenticates with
 	 * an application password via the proxy rather than the interactive OAuth 2.1
 	 * flow — the recommended OAuth path needs none of these variables.
+	 * NODE_USE_SYSTEM_CA makes the proxy's Node trust the OS certificate store
+	 * too, so a local HTTPS site whose root the user already trusted (Local,
+	 * `caddy trust`, mkcert) connects; Node versions without it ignore it.
 	 *
 	 * @return array<string,string>
 	 */
 	public static function proxy_env( string $username, string $password ): array {
 		return array(
-			'WP_API_URL'      => self::endpoint_url(),
-			'WP_API_USERNAME' => $username,
-			'WP_API_PASSWORD' => $password,
-			'OAUTH_ENABLED'   => 'false',
+			'WP_API_URL'         => self::endpoint_url(),
+			'WP_API_USERNAME'    => $username,
+			'WP_API_PASSWORD'    => $password,
+			'OAUTH_ENABLED'      => 'false',
+			'NODE_USE_SYSTEM_CA' => '1',
 		);
 	}
 
@@ -174,6 +178,8 @@ final class Connection {
 				'WP_API_PASSWORD=' . $env['WP_API_PASSWORD'],
 				'',
 				'OAUTH_ENABLED=false',
+				'',
+				'NODE_USE_SYSTEM_CA=1',
 				'',
 				'Requirements:',
 				'',
@@ -403,9 +409,10 @@ final class Connection {
 										'command' => 'npx',
 										'args'    => array( '-y', self::PROXY_PACKAGE . '@latest' ),
 										'env'     => array(
-											'WP_API_URL'      => $env['WP_API_URL'],
-											'WP_API_USERNAME' => $env['WP_API_USERNAME'],
-											'WP_API_PASSWORD' => $env['WP_API_PASSWORD'],
+											'WP_API_URL'         => $env['WP_API_URL'],
+											'WP_API_USERNAME'    => $env['WP_API_USERNAME'],
+											'WP_API_PASSWORD'    => $env['WP_API_PASSWORD'],
+											'NODE_USE_SYSTEM_CA' => $env['NODE_USE_SYSTEM_CA'],
 										),
 									),
 								),

@@ -18,7 +18,7 @@
 // browser.
 
 import JSZip from 'jszip'
-import { PROXY_PACKAGE, WEBSITE, buildIcon, saveFile } from './mcpb'
+import { PROXY_PACKAGE, PROXY_TLS_ENV, WEBSITE, buildIcon, saveFile } from './mcpb'
 
 const PLUGIN_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
 const MCP_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
@@ -93,6 +93,7 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
             WP_API_USERNAME: username,
             WP_API_PASSWORD: password,
             OAUTH_ENABLED: 'false',
+            ...PROXY_TLS_ENV,
           },
         },
       },

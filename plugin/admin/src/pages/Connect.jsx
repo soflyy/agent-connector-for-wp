@@ -8,7 +8,7 @@ import { SiOpenai, SiGooglegemini, SiWindsurf, SiZedindustries } from 'react-ico
 import { VscVscode } from 'react-icons/vsc'
 import { CursorIcon, AntigravityIcon, ClaudeIcon } from '../components/BrandIcons'
 import { api, initial, DEMO_URL } from '../api'
-import { downloadMcpb } from '../mcpb'
+import { downloadMcpb, PROXY_TLS_ENV } from '../mcpb'
 import { downloadChatgptPlugin } from '../chatgptPlugin'
 import { EMBED, notifyParent } from '../embed'
 
@@ -103,6 +103,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     WP_API_USERNAME: username,
     WP_API_PASSWORD: password,
     OAUTH_ENABLED: 'false',
+    ...PROXY_TLS_ENV,
   }
   const serverEntry = { command: 'npx', args: ['-y', PROXY_PACKAGE], env }
 
@@ -146,6 +147,8 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
     `WP_API_PASSWORD=${env.WP_API_PASSWORD}`,
     '',
     'OAUTH_ENABLED=false',
+    '',
+    'NODE_USE_SYSTEM_CA=1',
     '',
     'Requirements:',
     '',
@@ -225,7 +228,7 @@ function buildArtifacts(serverName, serverUrl, username, password, siteName) {
         blocks: [{
           kind: 'json', title: 'mcpServers config',
           hint: 'Add this to your <code>claude_desktop_config.json</code>. Find it at:<br>· <strong>macOS:</strong> <code>~/Library/Application Support/Claude/claude_desktop_config.json</code><br>· <strong>Windows:</strong> <code>%APPDATA%\\Claude\\claude_desktop_config.json</code>',
-          value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD } } } }, null, 2),
+          value: JSON.stringify({ mcpServers: { [serverName]: { command: 'npx', args: ['-y', PROXY_PACKAGE + '@latest'], env: { WP_API_URL: env.WP_API_URL, WP_API_USERNAME: env.WP_API_USERNAME, WP_API_PASSWORD: env.WP_API_PASSWORD, ...PROXY_TLS_ENV } } } }, null, 2),
           steps: [
             'Copy the JSON above',
             'Open <code>claude_desktop_config.json</code>',
@@ -420,7 +423,7 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
   const entry = {
     command: 'npx',
     args: ['-y', `${PROXY_PACKAGE}@latest`],
-    env: { WP_API_URL: serverUrl, WP_API_USERNAME: username, WP_API_PASSWORD: password },
+    env: { WP_API_URL: serverUrl, WP_API_USERNAME: username, WP_API_PASSWORD: password, ...PROXY_TLS_ENV },
   }
   return {
     kind: 'json', title: config.file,
