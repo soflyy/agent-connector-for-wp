@@ -98,9 +98,10 @@ Application Passwords** when you're done.
 
 Pick **Agent Connector Gateway** on the Connect page to link this site to the
 hosted gateway at [mcp.wpagentconnector.com](https://mcp.wpagentconnector.com).
-The gateway gives Claude a single MCP URL for every site you link, so one
-connector (or the Agent Connector Claude plugin) reaches all of them; Claude
-picks the site per request.
+The gateway gives your AI apps (Claude, ChatGPT, Cursor, VS Code or any other
+MCP client) a single MCP URL for every site you link, so one connector reaches
+all of them; the app picks the site per request. In Claude, the Agent Connector
+plugin bundles that connector with our skills.
 
 Linking takes one click from wp-admin: the gateway opens in a new tab (sign in or
 create an account), then sends you back to this site's own OAuth consent page,

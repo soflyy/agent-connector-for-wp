@@ -494,7 +494,7 @@ const firstPromptStep = (phrase) => ({
 })
 const FIRST_PROMPT_STEP = firstPromptStep(onServer)
 
-// Through the gateway, Claude picks the site by name rather than by MCP server.
+// Through the gateway, the AI app picks the site by name rather than by MCP server.
 const onSite = (text) => {
   let site = initial.siteName || 'my site'
   try { site = new URL(initial.homeUrl || initial.serverUrl).host } catch {}
@@ -566,14 +566,14 @@ function buildOAuth(serverName, serverUrl) {
     'gateway': [{
       kind: 'deeplink', title: 'Link this site to your gateway', button: 'Connect to Agent Connector Gateway',
       newTab: true,
-      hint: 'The gateway gives Claude one MCP URL for every WordPress site you own. Link each site once; Claude picks the site to work on by name.',
+      hint: 'The gateway gives your AI apps one MCP URL for every WordPress site you own. Link each site once; the app picks the site to work on by name.',
       value: gatewayConnectUrl(serverUrl),
       firstPrompt: GATEWAY_FIRST_PROMPT_STEP,
       steps: [
         'Click <strong>Connect to Agent Connector Gateway</strong> above. A new tab opens: sign in, or create your gateway account',
         'Check that the site address is this site and click <strong>Continue</strong>',
         authorizeStep('gateway'),
-        { html: 'In Claude, install the <strong>Agent Connector for WordPress</strong> plugin, or add the gateway as a custom connector with this URL. You only do this once for all your sites', copy: gatewayMcpUrl },
+        { html: 'In your AI app (Claude, ChatGPT, Cursor, VS Code…), add the gateway as an MCP server or custom connector with this URL. In Claude you can install the <strong>Agent Connector for WordPress</strong> plugin instead. You only do this once for all your sites', copy: gatewayMcpUrl },
       ],
     }],
     'claude-desktop': [{
