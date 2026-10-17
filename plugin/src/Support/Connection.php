@@ -92,6 +92,30 @@ final class Connection {
 	}
 
 	/**
+	 * The hosted Agent Connector Gateway: one MCP URL that reaches every site an
+	 * account connects. The Connect page's "Agent Connector Gateway" option
+	 * sends the admin there to link this site (the gateway then asks for
+	 * approval through this site's own OAuth consent page).
+	 */
+	public const GATEWAY_URL = 'https://mcp.wpagentconnector.com';
+
+	/**
+	 * Base URL of the Agent Connector Gateway, without a trailing slash.
+	 */
+	public static function gateway_url(): string {
+		/**
+		 * Filters the Agent Connector Gateway URL used by the Connect page.
+		 *
+		 * Point it at a staging or self-hosted gateway.
+		 *
+		 * @param string $url The gateway's base URL.
+		 */
+		$url = (string) apply_filters( 'agent_connector_for_wp_gateway_url', self::GATEWAY_URL );
+
+		return untrailingslashit( esc_url_raw( $url, array( 'https', 'http' ) ) );
+	}
+
+	/**
 	 * Environment variables the mcp-wordpress-remote proxy needs.
 	 *
 	 * Used only by the application-password (proxy) connection path (see class

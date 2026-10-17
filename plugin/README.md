@@ -94,6 +94,30 @@ The application password is shown only once, embedded in those artifacts — cop
 it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
+### Agent Connector Gateway (all your sites, one URL)
+
+Pick **Agent Connector Gateway** on the Connect page to link this site to the
+hosted gateway at [mcp.wpagentconnector.com](https://mcp.wpagentconnector.com).
+The gateway gives your AI apps (Claude, ChatGPT, Cursor, VS Code or any other
+MCP client) a single MCP URL for every site you link, so one connector reaches
+all of them; the app picks the site per request. In Claude, the Agent Connector
+plugin bundles that connector with our skills.
+
+Linking takes one click from wp-admin: the gateway opens in a new tab (sign in or
+create an account), then sends you back to this site's own OAuth consent page,
+where an administrator clicks **Authorize**. The gateway stores only the OAuth
+tokens this site issues, encrypted, and you can revoke it any time from
+**Settings → Connections**. The site must be on public HTTPS.
+
+To use a staging or self-hosted gateway, filter its URL:
+
+```php
+add_filter( 'agent_connector_for_wp_gateway_url', fn () => 'https://gateway.example.com' );
+```
+
+Authorization responses carry the issuer (`iss`, RFC 9207) so clients connected
+to many sites, the gateway among them, can tell which site answered.
+
 ## Settings
 
 Everything is configured on one screen — **Agent Connector → Settings** in

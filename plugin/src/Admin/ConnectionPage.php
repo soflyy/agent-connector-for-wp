@@ -134,6 +134,8 @@ final class ConnectionPage {
 				 */
 				'envType'               => (string) apply_filters( 'agent_connector_for_wp_connect_environment_type', function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'unknown' ),
 				'serverUrl'             => Connection::endpoint_url(),
+				'homeUrl'               => home_url( '/' ),
+				'gatewayUrl'            => Connection::gateway_url(),
 				'serverName'            => Connection::server_name(),
 				'siteName'              => (string) get_bloginfo( 'name' ),
 				'siteIcon'              => (string) get_site_icon_url( 512 ),
