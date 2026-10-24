@@ -42,13 +42,14 @@ final class Connection {
 	 */
 	public const CLIENT_NAME = 'wordpress-agent-connector-for-wp';
 
-	/**
-	 * Max server name length; agents prefix tool names with it.
-	 */
 	private const SERVER_NAME_MAX = 32;
 
 	/**
-	 * The MCP server name agents use to label this server, e.g. "am-clinic-wp".
+	 * The MCP server name agents use to label this server.
+	 *
+	 * Derived from the site name (slugified) so each connected site gets a
+	 * recognizable, distinct entry. Falls back to CLIENT_NAME when the site
+	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
 		$title = (string) get_bloginfo( 'name' );
@@ -60,13 +61,9 @@ final class Connection {
 
 		$name = '' !== $base ? self::truncate_slug( $base, self::SERVER_NAME_MAX - 3 ) . '-wp' : self::CLIENT_NAME;
 
-		/** Filters the suggested MCP server name. */
 		return (string) apply_filters( 'agent_connector_for_wp_server_name', $name );
 	}
 
-	/**
-	 * Cut a slug to at most $max characters, preferring a hyphen boundary.
-	 */
 	private static function truncate_slug( string $slug, int $max ): string {
 		if ( strlen( $slug ) <= $max ) {
 			return $slug;
