@@ -43,40 +43,24 @@ final class Connection {
 	public const CLIENT_NAME = 'wordpress-agent-connector-for-wp';
 
 	/**
-	 * Longest server name we suggest, suffix included.
-	 *
-	 * Agents prefix every tool with the server name (Claude Code's
-	 * `mcp__<server>__<tool>`, Cursor's combined server + tool name), and those
-	 * names are capped around 60-64 characters, so a long server name pushes
-	 * the adapter's own tool names over the limit.
+	 * Max server name length; agents prefix tool names with it.
 	 */
 	private const SERVER_NAME_MAX = 32;
 
 	/**
-	 * The MCP server name agents use to label this server.
-	 *
-	 * Derived from the site name, slugified, so each connected site gets a
-	 * short, recognizable entry like "am-clinic-wp". A tagline after a
-	 * separator ("AM Clinic - Aesthetic Clinic", "Shop | Home") is dropped.
-	 * Falls back to CLIENT_NAME when the site name is empty or slugifies to
-	 * nothing (e.g. non-Latin titles).
+	 * The MCP server name agents use to label this server, e.g. "am-clinic-wp".
 	 */
 	public static function server_name(): string {
 		$title = (string) get_bloginfo( 'name' );
 		$parts = preg_split( '/\s+[-|:\x{2013}\x{2014}\x{00B7}]\s+/u', $title, 2 );
 		$title = ( is_array( $parts ) && '' !== trim( $parts[0] ) ) ? $parts[0] : $title;
 
-		// sanitize_title() percent-encodes non-Latin characters; drop those.
 		$base = (string) preg_replace( '/%[0-9a-f]{2}/', '', sanitize_title( $title ) );
 		$base = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $base ), '-' );
 
 		$name = '' !== $base ? self::truncate_slug( $base, self::SERVER_NAME_MAX - 3 ) . '-wp' : self::CLIENT_NAME;
 
-		/**
-		 * Filters the MCP server name suggested on the Connect page.
-		 *
-		 * @param string $name The suggested server name, e.g. "am-clinic-wp".
-		 */
+		/** Filters the suggested MCP server name. */
 		return (string) apply_filters( 'agent_connector_for_wp_server_name', $name );
 	}
 
@@ -91,7 +75,6 @@ final class Connection {
 		$cut  = substr( $slug, 0, $max );
 		$last = strrpos( $cut, '-' );
 
-		// Only back up to a hyphen if that keeps most of the slug.
 		if ( false !== $last && $last >= (int) ( $max / 2 ) ) {
 			$cut = substr( $cut, 0, $last );
 		}
