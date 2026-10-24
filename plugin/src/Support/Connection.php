@@ -43,20 +43,59 @@ final class Connection {
 	public const CLIENT_NAME = 'wordpress-agent-connector-for-wp';
 
 	/**
+	 * Longest server name we suggest, suffix included.
+	 *
+	 * Agents prefix every tool with the server name (Claude Code's
+	 * `mcp__<server>__<tool>`, Cursor's combined server + tool name), and those
+	 * names are capped around 60-64 characters, so a long server name pushes
+	 * the adapter's own tool names over the limit.
+	 */
+	private const SERVER_NAME_MAX = 32;
+
+	/**
 	 * The MCP server name agents use to label this server.
 	 *
-	 * Derived from the site name (slugified) so each connected site gets a
-	 * recognizable, distinct entry. Falls back to CLIENT_NAME when the site
-	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
+	 * Derived from the site's host (minus a leading "www.") so each connected
+	 * site, staging and local copies included, gets a short, distinct entry
+	 * like "example-com-wp". Falls back to the slugified site name when the
+	 * host is empty, and to CLIENT_NAME when that slugifies to nothing too.
 	 */
 	public static function server_name(): string {
-		$host      = (string) parse_url( get_site_url(), PHP_URL_HOST );
-		$host_slug = trim( (string) preg_replace( '/[^a-zA-Z0-9]+/', '-', strtolower( $host ) ), '-' );
-		$name_slug = sanitize_title( (string) get_bloginfo( 'name' ) );
+		$host = strtolower( (string) parse_url( get_site_url(), PHP_URL_HOST ) );
+		$host = (string) preg_replace( '/^www\./', '', $host );
+		$base = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $host ), '-' );
 
-		$parts = array_filter( array( $host_slug, $name_slug ) );
+		if ( '' === $base ) {
+			$base = sanitize_title( (string) get_bloginfo( 'name' ) );
+		}
 
-		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wordpress' : self::CLIENT_NAME;
+		$name = '' !== $base ? self::truncate_slug( $base, self::SERVER_NAME_MAX - 3 ) . '-wp' : self::CLIENT_NAME;
+
+		/**
+		 * Filters the MCP server name suggested on the Connect page.
+		 *
+		 * @param string $name The suggested server name, e.g. "example-com-wp".
+		 */
+		return (string) apply_filters( 'agent_connector_for_wp_server_name', $name );
+	}
+
+	/**
+	 * Cut a slug to at most $max characters, preferring a hyphen boundary.
+	 */
+	private static function truncate_slug( string $slug, int $max ): string {
+		if ( strlen( $slug ) <= $max ) {
+			return $slug;
+		}
+
+		$cut  = substr( $slug, 0, $max );
+		$last = strrpos( $cut, '-' );
+
+		// Only back up to a hyphen if that keeps most of the slug.
+		if ( false !== $last && $last >= (int) ( $max / 2 ) ) {
+			$cut = substr( $cut, 0, $last );
+		}
+
+		return rtrim( $cut, '-' );
 	}
 
 	/**
