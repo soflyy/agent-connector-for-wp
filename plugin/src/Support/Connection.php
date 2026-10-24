@@ -55,26 +55,27 @@ final class Connection {
 	/**
 	 * The MCP server name agents use to label this server.
 	 *
-	 * Derived from the site's host (minus a leading "www.") so each connected
-	 * site, staging and local copies included, gets a short, distinct entry
-	 * like "example-com-wp". Falls back to the slugified site name when the
-	 * host is empty, and to CLIENT_NAME when that slugifies to nothing too.
+	 * Derived from the site name, slugified, so each connected site gets a
+	 * short, recognizable entry like "am-clinic-wp". A tagline after a
+	 * separator ("AM Clinic - Aesthetic Clinic", "Shop | Home") is dropped.
+	 * Falls back to CLIENT_NAME when the site name is empty or slugifies to
+	 * nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
-		$host = strtolower( (string) parse_url( get_site_url(), PHP_URL_HOST ) );
-		$host = (string) preg_replace( '/^www\./', '', $host );
-		$base = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $host ), '-' );
+		$title = (string) get_bloginfo( 'name' );
+		$parts = preg_split( '/\s+[-|:\x{2013}\x{2014}\x{00B7}]\s+/u', $title, 2 );
+		$title = ( is_array( $parts ) && '' !== trim( $parts[0] ) ) ? $parts[0] : $title;
 
-		if ( '' === $base ) {
-			$base = sanitize_title( (string) get_bloginfo( 'name' ) );
-		}
+		// sanitize_title() percent-encodes non-Latin characters; drop those.
+		$base = (string) preg_replace( '/%[0-9a-f]{2}/', '', sanitize_title( $title ) );
+		$base = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $base ), '-' );
 
 		$name = '' !== $base ? self::truncate_slug( $base, self::SERVER_NAME_MAX - 3 ) . '-wp' : self::CLIENT_NAME;
 
 		/**
 		 * Filters the MCP server name suggested on the Connect page.
 		 *
-		 * @param string $name The suggested server name, e.g. "example-com-wp".
+		 * @param string $name The suggested server name, e.g. "am-clinic-wp".
 		 */
 		return (string) apply_filters( 'agent_connector_for_wp_server_name', $name );
 	}
