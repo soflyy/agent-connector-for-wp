@@ -237,11 +237,36 @@ add_action(
  *
  * The repo is PUBLIC — the checker needs no authentication.
  *
- * Guarded to admin context: update checks only need to run in wp-admin, never on
- * every front-end request.
+ * Registered on EVERY request, not just in wp-admin. The library injects its
+ * update into the `update_plugins` site transient through a read filter
+ * (`site_transient_update_plugins`) and never persists it, so in a request where
+ * the checker was never built WordPress simply sees no update for this plugin.
+ * Building it on `admin_init` therefore broke every unattended path:
+ *
+ *   - Core auto-updates never installed anything. `wp_maybe_auto_update()` runs
+ *     from wp-cron, where `admin_init` does not fire, so the transient held no
+ *     entry for this plugin and it was skipped, while wp-admin (where the
+ *     filter *was* attached) kept promising "Automatic update scheduled".
+ *   - The library's own `puc_cron_check_updates-agent-connector-for-wp` event
+ *     fired into nothing: it gets scheduled when the checker is constructed, but
+ *     its handler is only hooked in that same constructor, so sites nobody logs
+ *     into never heard about a new release at all.
+ *   - WP-CLI saw nothing either: no `update_version` in `wp plugin list`, and
+ *     `wp plugin update` had nothing to do (the library's own WP-CLI check
+ *     trigger is likewise installed by the constructor).
+ *
+ * Running everywhere is how the library is meant to be used: it owns its check
+ * timing (twice daily by default, throttled by its stored state and hooked to
+ * check more eagerly on the update screens), so registering it here costs a few
+ * add_filter() calls per request, not an HTTP request to GitHub.
+ *
+ * On `plugins_loaded` rather than at the top of this file because vendor/ comes
+ * in through the Jetpack Autoloader: when another plugin bundles a newer copy of
+ * a shared package, *that* plugin's autoloader is the one that loads our filemap,
+ * and it may not have run yet while this file is being included.
  */
 add_action(
-	'admin_init',
+	'plugins_loaded',
 	static function (): void {
 		$factory = '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
 		if ( ! class_exists( $factory ) ) {
