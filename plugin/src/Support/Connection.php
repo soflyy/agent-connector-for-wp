@@ -42,6 +42,8 @@ final class Connection {
 	 */
 	public const CLIENT_NAME = 'wordpress-agent-connector-for-wp';
 
+	private const SERVER_NAME_MAX = 32;
+
 	/**
 	 * The MCP server name agents use to label this server.
 	 *
@@ -50,13 +52,31 @@ final class Connection {
 	 * name is empty or slugifies to nothing (e.g. non-Latin titles).
 	 */
 	public static function server_name(): string {
-		$host      = (string) parse_url( get_site_url(), PHP_URL_HOST );
-		$host_slug = trim( (string) preg_replace( '/[^a-zA-Z0-9]+/', '-', strtolower( $host ) ), '-' );
-		$name_slug = sanitize_title( (string) get_bloginfo( 'name' ) );
+		$title = (string) get_bloginfo( 'name' );
+		$parts = preg_split( '/\s+[-|:\x{2013}\x{2014}\x{00B7}]\s+/u', $title, 2 );
+		$title = ( is_array( $parts ) && '' !== trim( $parts[0] ) ) ? $parts[0] : $title;
 
-		$parts = array_filter( array( $host_slug, $name_slug ) );
+		$base = (string) preg_replace( '/%[0-9a-f]{2}/', '', sanitize_title( $title ) );
+		$base = trim( (string) preg_replace( '/[^a-z0-9]+/', '-', $base ), '-' );
 
-		return '' !== implode( '', $parts ) ? implode( '-', $parts ) . '-wordpress' : self::CLIENT_NAME;
+		$name = '' !== $base ? self::truncate_slug( $base, self::SERVER_NAME_MAX - 3 ) . '-wp' : self::CLIENT_NAME;
+
+		return (string) apply_filters( 'agent_connector_for_wp_server_name', $name );
+	}
+
+	private static function truncate_slug( string $slug, int $max ): string {
+		if ( strlen( $slug ) <= $max ) {
+			return $slug;
+		}
+
+		$cut  = substr( $slug, 0, $max );
+		$last = strrpos( $cut, '-' );
+
+		if ( false !== $last && $last >= (int) ( $max / 2 ) ) {
+			$cut = substr( $cut, 0, $last );
+		}
+
+		return rtrim( $cut, '-' );
 	}
 
 	/**
