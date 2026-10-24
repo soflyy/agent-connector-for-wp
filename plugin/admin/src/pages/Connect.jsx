@@ -434,7 +434,7 @@ function passwordConfigBlock(agentId, { name, serverUrl, username, password }) {
 // methods (OAuth adds the sign-in after it).
 function chatgptPluginSteps() {
   return [
-    shot('chatgpt/plugin-sidebar', 'In ChatGPT, click the <strong>Customize</strong> icon in the sidebar', 'Customize icon in the sidebar'),
+    shot('chatgpt/plugin-sidebar', 'In ChatGPT, click the <strong>Plugins</strong> icon in the sidebar', 'Customize icon in the sidebar'),
     shot('chatgpt/plugin-customize', 'Click <strong>Plugins</strong>', 'Customize → Plugins'),
     shot('chatgpt/plugin-upload', 'Click <strong>Add</strong>, then <strong>Upload plugin archive</strong>', 'Add → Upload plugin archive'),
     shot('chatgpt/plugin-add', 'Drag in the file you downloaded (or use <strong>click to upload</strong>), then click <strong>Add plugin</strong>', 'New Plugin dialog'),
