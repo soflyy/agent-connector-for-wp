@@ -1,27 +1,11 @@
 // ─── ChatGPT plugin (.zip) builder ───────────────────────────────────────────
 //
-// A ChatGPT plugin (https://developers.openai.com/plugins/build/plugins) to
-// upload in ChatGPT's Plugins. It comes in two forms, each in the layout that
-// ChatGPT's upload accepted in testing:
-//
-// - Application password: the Agent Plugins layout, plugin.json and mcp.json
-//   at the root, with one stdio server running the same
-//   @automattic/mcp-wordpress-remote proxy as the manual setup, through npx
-//   (so it needs Node.js and ChatGPT's desktop app). Like the .mcpb, the
-//   connection details, password included, are written into the file, which
-//   is therefore a credential; the Connect page says so.
-// - OAuth (no password): Codex's native layout, .codex-plugin/plugin.json and
-//   .mcp.json, pointing ChatGPT at this site's MCP endpoint. ChatGPT signs in
-//   over OAuth, and the file holds no credential at all.
-//
-// Built entirely client-side, so an existing password never leaves the
-// browser.
+// Uses Codex's native layout (.codex-plugin/plugin.json + .mcp.json) for both
+// sign-in methods; a root plugin.json would hide large tools. Password ZIPs
+// embed the credential; OAuth ZIPs hold none. Built client-side.
 
 import JSZip from 'jszip'
-import { PROXY_PACKAGE, WEBSITE, buildIcon, saveFile } from './mcpb'
-
-const PLUGIN_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json'
-const MCP_SCHEMA = 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'
+import { PROXY_PACKAGE, WEBSITE, buildIcon, saveFile } from './mcpb.js'
 
 const ICON = './assets/icon.png'
 
@@ -46,7 +30,7 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
 
   const identity = {
     name: pluginName(serverName),
-    version: '1.0.0',
+    version: '1.0.1',
     description,
     author: { name: 'Soflyy', url: WEBSITE },
     homepage: WEBSITE,
@@ -62,40 +46,28 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
   }
   const icons = { composerIcon: ICON, logo: ICON }
 
-  if (!password) {
-    return {
-      '.codex-plugin/plugin.json': JSON.stringify({
-        ...identity,
-        mcpServers: './.mcp.json',
-        interface: { ...ui, ...(prompts.length ? { defaultPrompt: prompts[0] } : {}), ...icons },
-      }, null, 2),
-      '.mcp.json': JSON.stringify({
-        mcpServers: { [serverName]: { type: 'http', url: serverUrl } },
-      }, null, 2),
-    }
-  }
+  const server = password ? {
+    type: 'stdio',
+    command: 'npx',
+    args: ['-y', PROXY_PACKAGE],
+    env: {
+      WP_API_URL: serverUrl,
+      WP_API_USERNAME: username,
+      WP_API_PASSWORD: password,
+      OAUTH_ENABLED: 'false',
+    },
+  } : { type: 'http', url: serverUrl }
 
+  // At most 128 characters.
+  const defaultPrompt = prompts[0] ? Array.from(prompts[0]).slice(0, 128).join('') : ''
   return {
-    'plugin.json': JSON.stringify({
-      $schema: PLUGIN_SCHEMA,
+    '.codex-plugin/plugin.json': JSON.stringify({
       ...identity,
-      extensions: { 'com.openai': { interface: { ...ui, defaultPrompt: prompts, ...icons } } },
+      mcpServers: './.mcp.json',
+      interface: { ...ui, ...(defaultPrompt ? { defaultPrompt } : {}), ...icons },
     }, null, 2),
-    'mcp.json': JSON.stringify({
-      $schema: MCP_SCHEMA,
-      mcpServers: {
-        [serverName]: {
-          type: 'stdio',
-          command: 'npx',
-          args: ['-y', PROXY_PACKAGE],
-          env: {
-            WP_API_URL: serverUrl,
-            WP_API_USERNAME: username,
-            WP_API_PASSWORD: password,
-            OAUTH_ENABLED: 'false',
-          },
-        },
-      },
+    '.mcp.json': JSON.stringify({
+      mcpServers: { [serverName]: server },
     }, null, 2),
   }
 }
