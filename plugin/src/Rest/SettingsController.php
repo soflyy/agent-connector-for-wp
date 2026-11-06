@@ -354,7 +354,7 @@ final class SettingsController extends WP_REST_Controller {
 		if ( '' === $name ) {
 			$name = sprintf(
 				/* translators: %s: date/time the password was created. */
-				__( 'Agent Connector for WP (MCP) — %s', 'agent-connector-for-wp' ),
+				__( 'Agent Connector (MCP) — %s', 'agent-connector-for-wp' ),
 				gmdate( 'Y-m-d H:i:s' )
 			) . ' [' . wp_generate_password( 4, false ) . ']';
 		}

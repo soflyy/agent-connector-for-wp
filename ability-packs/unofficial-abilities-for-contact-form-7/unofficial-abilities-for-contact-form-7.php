@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Unofficial Abilities for Contact Form 7
- * Description:        MCP ability pack giving an agent full control of Contact Form 7, via the WP Abilities API + Agent Connector for WP.
+ * Description:        MCP ability pack giving an agent full control of Contact Form 7, via the WP Abilities API + Agent Connector.
  * Version:           0.0.0-dev
  * Requires Plugins:  agent-connector-for-wp, contact-form-7
  * Requires PHP:      8.1

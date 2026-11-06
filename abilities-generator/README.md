@@ -3,7 +3,7 @@
 Turn **any WordPress plugin** into a full-coverage MCP surface an agent can drive.
 
 This is the `abilities-generator/` subproject of the
-[Agent Connector for WP](https://github.com/soflyy/agent-connector-for-wp) monorepo. It
+[Agent Connector](https://github.com/soflyy/agent-connector-for-wp) monorepo. It
 holds the generator itself; the packs it produces are committed to the monorepo's top-level
 [`ability-packs/`](../ability-packs/) directory (a sibling of this folder), **not** inside
 here.
@@ -17,7 +17,7 @@ here.
   per target, e.g. `unofficial-abilities-for-contact-form-7/`.
 
 The generated packs register their abilities via the **WP Abilities API**, which
-[Agent Connector for WP](../plugin/) (via `mcp-adapter`) automatically exposes as MCP
+[Agent Connector](../plugin/) (via `mcp-adapter`) automatically exposes as MCP
 endpoints — with auth, domain-lock, and audit injected for you.
 
 ## How it's meant to be used

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ACFW Ability Pack: Hello
- * Description:        Example companion "ability pack" for Agent Connector for WP. Registers one ability (hello/greet) over the public registration API. Reference only — not wired into production.
+ * Description:        Example companion "ability pack" for Agent Connector. Registers one ability (hello/greet) over the public registration API. Reference only — not wired into production.
  * Version:           1.0.0
  * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
@@ -18,7 +18,7 @@
  * @package AcfwAbilityPackHello
  *
  * This file is a copy-pasteable template for a companion plugin. It writes NO
- * permission / auth / domain-lock / audit code: Agent Connector for WP injects
+ * permission / auth / domain-lock / audit code: Agent Connector injects
  * all of that (admin/super-admin gate, domain lock, audit log) for every ability
  * registered through agent_connector_for_wp_register_ability().
  *
@@ -55,7 +55,7 @@ add_action(
  * Register the ability itself.
  *
  * Guarded by function_exists() so the pack degrades gracefully (registers
- * nothing) when Agent Connector for WP is inactive or the public API is absent.
+ * nothing) when Agent Connector is inactive or the public API is absent.
  */
 add_action(
 	'wp_abilities_api_init',

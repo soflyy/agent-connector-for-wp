@@ -1,7 +1,7 @@
 # Universal Abilities for Agent Connector
 
 The **Default Abilities** pack for
-[Agent Connector for WP](../plugin/README.md). It contributes Agent Connector's
+[Agent Connector](../plugin/README.md). It contributes Agent Connector's
 powerful built-in abilities — the ones that give a connected agent the same
 low-level operational reach a super admin has over the server, over MCP:
 
@@ -23,7 +23,7 @@ every call is audit-logged.
 
 ## Why it's a separate plugin
 
-The main Agent Connector for WP plugin ships **no abilities of its own**. It runs
+The main Agent Connector plugin ships **no abilities of its own**. It runs
 the MCP server, governs every ability (auth + domain lock + audit), and exposes
 the abilities other plugins register. These powerful built-ins live here so
 they're opt-in *at the plugin level*: a site only has them if this plugin is
@@ -31,7 +31,7 @@ installed.
 
 ## Install & enable
 
-1. Install + activate Agent Connector for WP (this plugin **requires** it).
+1. Install + activate Agent Connector (this plugin **requires** it).
 2. In **wp-admin → Agent Connector → Settings**, under *Universal Abilities
    Plugin*, click **Install** (one-click install of this plugin) — or install it
    manually.

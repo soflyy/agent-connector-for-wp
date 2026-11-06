@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Unofficial Abilities for Maintenance
- * Description:        MCP ability pack giving an agent full control of the Maintenance plugin (WP Maintenance by WebFactory), via the WP Abilities API + Agent Connector for WP.
+ * Description:        MCP ability pack giving an agent full control of the Maintenance plugin (WP Maintenance by WebFactory), via the WP Abilities API + Agent Connector.
  * Version:           0.0.0-dev
  * Requires Plugins:  agent-connector-for-wp, maintenance
  * Requires PHP:      8.1

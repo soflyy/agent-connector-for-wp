@@ -294,7 +294,7 @@ final class Config {
 		}
 
 		return sprintf(
-			'Agent Connector for WP is domain-locked. It was locked to "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector → Settings → Protection and click "Reconnect to this domain" to re-enable abilities here.',
+			'Agent Connector is domain-locked. It was locked to "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector → Settings → Protection and click "Reconnect to this domain" to re-enable abilities here.',
 			$locked,
 			'' === $declared ? '(unknown)' : $declared
 		);

@@ -1,6 +1,6 @@
 # Unofficial Abilities for Maintenance
 
-A companion **ability pack** for [Agent Connector for WP](../agent-connector-for-wp) that gives an
+A companion **ability pack** for [Agent Connector](../agent-connector-for-wp) that gives an
 agent full control of the **[Maintenance](https://wordpress.org/plugins/maintenance/)** plugin
 (WP Maintenance by WebFactory Ltd) over MCP, via the WordPress Abilities API.
 

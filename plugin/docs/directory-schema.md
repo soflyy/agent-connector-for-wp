@@ -1,6 +1,6 @@
 # Ability-Pack Manifest Schema
 
-Agent Connector for WP reads a published **ability-pack manifest** to learn which
+Agent Connector reads a published **ability-pack manifest** to learn which
 of the plugins installed on a site have a companion "ability pack" available, then
 lets the admin install/activate them and keeps them updated. By default the
 manifest is the GitHub `pack-index` release asset the release CI generates.

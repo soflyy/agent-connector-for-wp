@@ -1,6 +1,6 @@
 # Ability-pack scaffold
 
-A ready-to-fill companion **ability pack** for Agent Connector for WP. Copy this whole
+A ready-to-fill companion **ability pack** for Agent Connector. Copy this whole
 folder to `wp/wp-content/plugins/unofficial-abilities-for-<target>/`, then fill
 it in following the `wp-mcp-generator` skill.
 

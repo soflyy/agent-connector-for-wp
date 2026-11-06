@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Knows where the MCP server lives and how to phrase a connection for an agent.
  *
- * Agent Connector for WP reuses the MCP Adapter's *default* server rather than
+ * Agent Connector reuses the MCP Adapter's *default* server rather than
  * registering its own. Its abilities (all flagged mcp.public=true) are surfaced
  * there automatically, reachable through the adapter's discover/execute tools.
  *

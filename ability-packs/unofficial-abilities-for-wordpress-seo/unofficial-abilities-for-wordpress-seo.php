@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Unofficial Abilities for Yoast SEO
- * Description:        MCP ability pack giving an agent full control of Yoast SEO (content SEO meta, search appearance, social, and general settings), via the WP Abilities API + Agent Connector for WP.
+ * Description:        MCP ability pack giving an agent full control of Yoast SEO (content SEO meta, search appearance, social, and general settings), via the WP Abilities API + Agent Connector.
  * Version:           0.0.0-dev
  * Requires Plugins:  agent-connector-for-wp, wordpress-seo
  * Requires PHP:      8.1

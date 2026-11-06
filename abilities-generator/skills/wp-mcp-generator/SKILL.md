@@ -5,7 +5,7 @@ description: >-
   slug, install it, understand it deeply (its code is the source of truth; exercising
   it confirms and surfaces gaps), design an agent-ergonomic ability surface, and ship
   a companion "ability pack" plugin that registers those abilities via the WP Abilities
-  API — which Agent Connector for WP (mcp-adapter) auto-exposes as MCP. Done is measured
+  API — which Agent Connector (mcp-adapter) auto-exposes as MCP. Done is measured
   by you actually being able to drive the plugin through the abilities to get the results
   you intend, verified. Use when asked to build/generate MCP tools or abilities for a WP plugin.
 ---

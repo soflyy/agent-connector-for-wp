@@ -39,7 +39,7 @@ define( 'AGENT_CONNECTOR_DEFAULT_ABILITIES_DIR', plugin_dir_path( __FILE__ ) );
  *
  * The shared infrastructure these classes lean on (Support\Config,
  * Services\AuditLogger, Support\Helpers, Support\Sandbox) belongs to the main
- * Agent Connector for WP plugin and is loaded by ITS autoloader — this pack
+ * Agent Connector plugin and is loaded by ITS autoloader — this pack
  * declares "Requires Plugins: agent-connector-for-wp" so that always runs first.
  */
 spl_autoload_register(

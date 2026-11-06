@@ -1,7 +1,7 @@
-# Registering abilities with Agent Connector for WP
+# Registering abilities with Agent Connector
 
 This guide is for **third-party plugin authors** (and code generators) who want to
-add a WordPress *ability* that is exposed over the Agent Connector for WP MCP
+add a WordPress *ability* that is exposed over the Agent Connector MCP
 server and automatically protected by Agent Connector's security.
 
 > **You write no auth.** When you register through the API below, Agent Connector
@@ -35,12 +35,12 @@ are a thin, stable wrapper over core `wp_register_ability()`.
 
 Call them on the **`wp_abilities_api_init`** action (the same place you would
 call `wp_register_ability()`). Always guard with `function_exists()` so your
-plugin degrades gracefully when Agent Connector for WP is inactive:
+plugin degrades gracefully when Agent Connector is inactive:
 
 ```php
 add_action( 'wp_abilities_api_init', function () {
     if ( ! function_exists( 'agent_connector_for_wp_register_ability' ) ) {
-        return; // Agent Connector for WP not active — register nothing.
+        return; // Agent Connector not active — register nothing.
     }
     agent_connector_for_wp_register_ability( 'my-plugin/do-thing', array( /* ... */ ) );
 } );
@@ -67,7 +67,7 @@ built-in abilities.
 | `summarize`          | callable   | optional | `fn(array $input): array` — a **redacted** summary written to the audit log. See [Audit redaction](#audit-redaction). |
 | `annotations`        | array      | optional | Behavior hints: `readonly`, `destructive`, `idempotent` (booleans). Shorthand for `meta.annotations`. |
 | `meta`               | array      | optional | Extra ability meta. Any `mcp.public` / `show_in_rest` you set is overridden — see below. |
-| `permission_callback`| callable   | — | **Ignored.** Auth is owned by Agent Connector for WP. |
+| `permission_callback`| callable   | — | **Ignored.** Auth is owned by Agent Connector. |
 
 Agent Connector forces `meta.mcp.public = true` and `meta.show_in_rest = true`
 so the MCP adapter surfaces the ability. You never set those yourself.
@@ -166,7 +166,7 @@ file ships as a reference under
 <?php
 /**
  * Plugin Name:       My Ability Pack
- * Description:        Adds the my-plugin/do-thing ability to Agent Connector for WP.
+ * Description:        Adds the my-plugin/do-thing ability to Agent Connector.
  * Version:           1.0.0
  * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
@@ -230,7 +230,7 @@ add_action( 'wp_abilities_api_init', function () {
 ```
 
 That's the whole plugin. **No** permission callback, **no** domain-lock check,
-**no** logging — Agent Connector for WP provides all three.
+**no** logging — Agent Connector provides all three.
 
 ---
 

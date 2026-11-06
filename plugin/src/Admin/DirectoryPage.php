@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Ability-pack directory browser + installer.
  *
- * Submenu under the top-level "Agent Connector for WP" menu. It asks the remote
+ * Submenu under the top-level "Agent Connector" menu. It asks the remote
  * match endpoint which installed plugins have a companion "ability pack" available
  * (cached for 12h), lists the hits, and offers one-click Install/Activate buttons
  * for packs that aren't active yet. A manual "Refresh now" button (admin-post +
@@ -69,7 +69,7 @@ final class DirectoryPage {
 		}
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Agent Connector for WP — Abilities', 'agent-connector-for-wp' ); ?></h1>
+			<h1><?php esc_html_e( 'Agent Connector — Abilities', 'agent-connector-for-wp' ); ?></h1>
 
 			<?php $this->render_notice( $notice ); ?>
 

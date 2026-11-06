@@ -2,7 +2,7 @@
 
 Turns [Contact Form 7](https://wordpress.org/plugins/contact-form-7/) into a full-coverage
 MCP surface. It registers abilities via the WP Abilities API, which
-[Agent Connector for WP](https://github.com/soflyy/agent-connector-for-wp) auto-exposes as
+[Agent Connector](https://github.com/soflyy/agent-connector-for-wp) auto-exposes as
 MCP endpoints — with permission checks, domain-lock, and audit logging injected for you
 (this pack contains **no** auth code).
 

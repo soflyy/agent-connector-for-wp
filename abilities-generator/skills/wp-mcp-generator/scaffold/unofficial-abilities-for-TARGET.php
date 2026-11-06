@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Unofficial Abilities for {{TARGET_LABEL}}
- * Description:        MCP ability pack giving an agent full control of {{TARGET_LABEL}}, via the WP Abilities API + Agent Connector for WP.
+ * Description:        MCP ability pack giving an agent full control of {{TARGET_LABEL}}, via the WP Abilities API + Agent Connector.
  * Version:           0.0.0-dev
  * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1

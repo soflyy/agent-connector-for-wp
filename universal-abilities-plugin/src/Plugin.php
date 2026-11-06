@@ -52,7 +52,7 @@ final class Plugin {
 	);
 
 	/**
-	 * Register the default abilities. Called only when Agent Connector for WP is
+	 * Register the default abilities. Called only when Agent Connector is
 	 * active (its MCP server has booted) — see this pack's main plugin file.
 	 * There is no separate opt-in toggle: installing and activating this plugin
 	 * is the opt-in.
@@ -76,7 +76,7 @@ final class Plugin {
 		wp_register_ability_category(
 			'agent-connector-for-wp',
 			array(
-				'label'       => 'Agent Connector for WP',
+				'label'       => 'Agent Connector',
 				'description' => 'Unrestricted operational capabilities (shell, PHP eval, filesystem, process, environment) for trusted agents in development environments.',
 			)
 		);

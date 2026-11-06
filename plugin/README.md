@@ -1,6 +1,6 @@
-# Agent Connector for WP
+# Agent Connector
 
-Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
+Agent Connector fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
 This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. It is declared with the `Requires Plugins: mcp-adapter` header, so WordPress will not activate this plugin without it and offers to install it for you from wordpress.org. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 

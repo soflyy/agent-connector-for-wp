@@ -39,7 +39,7 @@ land as patch releases.
 
 See [`README.md`](README.md) for the full setup. In short: `composer install`
 in `plugin/`, symlink `plugin/` into a WordPress install with `bin/install.sh`,
-then enable it from **Agent Connector for WP → Settings** in wp-admin.
+then enable it from **Agent Connector → Settings** in wp-admin.
 
 > ⚠️ The plugin is usually symlinked into `wp-content/plugins`. Never run
 > `wp plugin install <zip> --force` over that symlink — WP deletes the link
