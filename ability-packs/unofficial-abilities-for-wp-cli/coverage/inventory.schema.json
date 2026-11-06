@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plugin coverage inventory",
+  "description": "Structured understanding of a target plugin that backs the full-coverage claim. Fill it while reading the code, then enrich it while exercising the plugin. Every surface and task here must resolve to an ability (or an explicit exclusion) in coverage-report.md.",
+  "type": "object",
+  "required": ["plugin", "surfaces", "data_stores", "tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "plugin": {
+      "type": "object",
+      "required": ["slug", "version", "main_file"],
+      "properties": {
+        "slug": { "type": "string" },
+        "version": { "type": "string" },
+        "main_file": { "type": "string", "description": "e.g. woocommerce/woocommerce.php" },
+        "notes": { "type": "string", "description": "External services it needs, sandbox limitations, licensing state, etc." }
+      }
+    },
+    "surfaces": {
+      "type": "array",
+      "description": "Every way the admin interacts with the plugin, and every registered extension point.",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "ref"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": ["admin_page", "setting", "rest_route", "ajax_action", "cpt", "taxonomy", "post_meta", "user_meta", "term_meta", "option", "table", "cron", "capability", "shortcode", "block", "cli", "hook", "other"]
+          },
+          "ref": { "type": "string", "description": "Where in the code it's defined (file:line) or its registered name." },
+          "detail": { "type": "object", "description": "kind-specific facts (route methods, menu slug, handler, etc.)." },
+          "discovered_by": { "type": "array", "items": { "type": "string", "enum": ["static", "dynamic"] } }
+        }
+      }
+    },
+    "data_stores": {
+      "type": "array",
+      "description": "Every place the plugin persists data, WITH its load and save paths — the basis for ergonomic implementation.",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "key_or_name"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "enum": ["option", "table", "post_meta", "user_meta", "term_meta", "cpt", "transient", "other"] },
+          "key_or_name": { "type": "string" },
+          "schema": { "type": "object", "description": "Shape/types/defaults of what's stored." },
+          "load_path": { "type": "string", "description": "Plugin function/endpoint that reads it." },
+          "save_path": { "type": "string", "description": "Plugin function/endpoint that writes it (what your ability should persist through)." }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "description": "The verbs an admin performs. These drive ability design.",
+      "items": {
+        "type": "object",
+        "required": ["id", "verb", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "verb": { "type": "string", "description": "e.g. add-field-to-group, publish-form, run-import." },
+          "description": { "type": "string" },
+          "surfaces": { "type": "array", "items": { "type": "string" } },
+          "stores": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}
