@@ -34,6 +34,13 @@ function formatRelative(s) {
   return d.toLocaleDateString()
 }
 
+// The line shown under a client's name. A client identified by a metadata
+// document is named by that document's URL; a registered one only by where it
+// sends the authorization code.
+function clientIdentity(client) {
+  return client.metadata_url ? client.client_id : client.redirect_uris?.[0]
+}
+
 function ScopeBadges({ scope }) {
   const scopes = (scope || '').split(' ').map(s => s.trim()).filter(Boolean)
   if (scopes.length === 0) return <span className="text-gray-400">None</span>
@@ -154,12 +161,12 @@ export default function Connections() {
               <tr key={c.client_id} className="hover:bg-gray-50 transition-colors align-top">
                 <td className="px-4 py-3">
                   <div className="font-medium text-gray-900 text-base">{c.client_name || 'Unnamed app'}</div>
-                  {c.redirect_uris?.[0] && (
+                  {clientIdentity(c) && (
                     <div
                       className="text-sm text-gray-400 truncate max-w-xs mt-0.5"
-                      title={c.redirect_uris[0]}
+                      title={clientIdentity(c)}
                     >
-                      {c.redirect_uris[0]}
+                      {clientIdentity(c)}
                     </div>
                   )}
                 </td>
