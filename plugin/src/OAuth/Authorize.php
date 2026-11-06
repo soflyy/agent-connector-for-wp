@@ -58,8 +58,33 @@ final class Authorize {
 		// the user, so anything checked before them would be reported to the
 		// browser alone and leave the agent waiting.
 		//
-		// For a client_id that is a metadata document URL, this fetches the
-		// document (see Clients); otherwise it looks up a registered client.
+		// For a client_id that is a metadata document URL, resolving the
+		// client fetches the document from the client's server (see Clients).
+		// Only do that for an administrator: otherwise any anonymous visitor
+		// could make this site send outbound requests (each holding a worker
+		// for up to the fetch timeout) and fill the cache with documents
+		// nobody will approve. The login redirect needs nothing from the
+		// client, so it can safely come first; the cost is that a broken
+		// document is reported after login rather than before.
+		if ( Clients::is_metadata_url( $params['client_id'] ) ) {
+			self::restore_user_from_cookie();
+
+			if ( ! is_user_logged_in() ) {
+				self::redirect_to_login( $params );
+			}
+
+			// There is no trusted redirect_uri yet, so a non-admin can only be
+			// told in the browser.
+			if ( ! Config::has_admin_access() ) {
+				return new WP_Error(
+					'access_denied',
+					'Only administrators may authorize agent access to this site.',
+					array( 'status' => 403 )
+				);
+			}
+		}
+
+		// Otherwise this looks up a registered client.
 		$client = Clients::get( $params['client_id'] );
 		if ( is_wp_error( $client ) ) {
 			return $client;
@@ -100,9 +125,7 @@ final class Authorize {
 		self::restore_user_from_cookie();
 
 		if ( ! is_user_logged_in() ) {
-			$current_url = rest_url( Server::REST_NAMESPACE . '/authorize' ) . '?' . http_build_query( $params );
-			wp_safe_redirect( wp_login_url( $current_url ) );
-			exit;
+			self::redirect_to_login( $params );
 		}
 
 		// Admin-only consent (see class docblock). The client and redirect_uri
@@ -119,6 +142,18 @@ final class Authorize {
 		}
 
 		self::render_authorize_page( $client, $params );
+		exit;
+	}
+
+	/**
+	 * Send the browser to the login screen, returning to this request after.
+	 *
+	 * @param array<string,string> $params The authorize request parameters.
+	 * @return never
+	 */
+	private static function redirect_to_login( array $params ): void {
+		$current_url = rest_url( Server::REST_NAMESPACE . '/authorize' ) . '?' . http_build_query( $params );
+		wp_safe_redirect( wp_login_url( $current_url ) );
 		exit;
 	}
 
@@ -178,6 +213,11 @@ final class Authorize {
 		// Re-validate client and redirect_uri (defense in depth). This runs
 		// before the access checks below so that when one of them fails there
 		// is already a trusted redirect_uri to report the failure to.
+		// As on GET, never fetch a metadata document for a non-admin.
+		if ( Clients::is_metadata_url( $client_id ) && ( ! is_user_logged_in() || ! Config::has_admin_access() ) ) {
+			return new WP_Error( 'access_denied', 'Only administrators may authorize agent access to this site.', array( 'status' => 403 ) );
+		}
+
 		$client = Clients::get( $client_id );
 		if ( is_wp_error( $client ) || ! Server::redirect_uri_allowed( $redirect_uri, $client['redirect_uris'] ) ) {
 			return new WP_Error( 'invalid_client', 'Invalid client or redirect URI.', array( 'status' => 400 ) );

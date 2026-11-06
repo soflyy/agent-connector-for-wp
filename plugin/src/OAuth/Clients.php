@@ -204,7 +204,9 @@ final class Clients {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return self::invalid( 'The client metadata document could not be fetched: ' . $response->get_error_message() );
+			// The transport error can describe this server's network (DNS,
+			// proxies, blocked addresses); keep it out of the response.
+			return self::invalid( 'The client metadata document could not be fetched.' );
 		}
 
 		$status = (int) wp_remote_retrieve_response_code( $response );
