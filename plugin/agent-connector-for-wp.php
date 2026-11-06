@@ -170,6 +170,15 @@ add_action(
 		 * Admin\McpAdapterNotice tells the operator how to fix it.
 		 */
 		if ( Support\McpAdapterPlugin::is_ready() ) {
+			// The MCP Adapter plugin boots itself, so this is a no-op there
+			// (instance() is an idempotent singleton). It matters when the
+			// classes came from another plugin that bundles the adapter as a
+			// library without booting it: without this call nothing would
+			// start the server, and /mcp would 404 with no notice. When that
+			// library copy is 0.7+ it logs its own "loaded as a bundled
+			// dependency" deprecation, which is accurate and left alone.
+			\WP\MCP\Core\McpAdapter::instance();
+
 			// Log MCP traffic to a dedicated table and expose the "MCP
 			// Events" admin page. Attaches its handler to the adapter's
 			// default server via the mcp_adapter_default_server_config
