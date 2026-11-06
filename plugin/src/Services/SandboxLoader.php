@@ -220,7 +220,9 @@ final class SandboxLoader {
 		check_admin_referer( self::CLEAR_ACTION );
 
 		$marker = $this->crashed_marker_path();
-		$ok     = ! file_exists( $marker ) || @unlink( $marker ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		wp_delete_file( $marker );
+		clearstatcache( true, $marker );
+		$ok = ! file_exists( $marker );
 
 		wp_safe_redirect(
 			add_query_arg(

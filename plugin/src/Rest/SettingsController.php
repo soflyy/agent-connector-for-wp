@@ -581,22 +581,22 @@ final class SettingsController extends WP_REST_Controller {
 
 		$where_sql = empty( $where ) ? '' : 'WHERE ' . implode( ' AND ', $where );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$total = empty( $where_values )
-			? (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$table}` {$where_sql}" )
-			: (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM `{$table}` {$where_sql}", $where_values ) );
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $where_sql holds only fixed column clauses; every value is a placeholder.
+		// The table name goes through %i; $where_sql is built above from
+		// fixed column clauses whose values are placeholders too.
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i {$where_sql}", array_merge( array( $table ), $where_values ) ) );
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT id, created_at, event, method, tool_name, prompt_name, status, duration_ms, user_id FROM `{$table}` {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
-				array_merge( $where_values, array( $per_page, $offset ) )
+				"SELECT id, created_at, event, method, tool_name, prompt_name, status, duration_ms, user_id FROM %i {$where_sql} ORDER BY `id` DESC LIMIT %d OFFSET %d",
+				array_merge( array( $table ), $where_values, array( $per_page, $offset ) )
 			),
 			ARRAY_A
 		);
 
-		$distinct_events   = $wpdb->get_col( "SELECT DISTINCT `event` FROM `{$table}` ORDER BY `event` ASC" ) ?: array();
-		$distinct_statuses = $wpdb->get_col( "SELECT DISTINCT `status` FROM `{$table}` WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC" ) ?: array();
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$distinct_events   = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT `event` FROM %i ORDER BY `event` ASC', $table ) ) ?: array();
+		$distinct_statuses = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT `status` FROM %i WHERE `status` IS NOT NULL AND `status` != '' ORDER BY `status` ASC", $table ) ) ?: array();
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		return new WP_REST_Response( array(
 			'rows'              => array_map( array( $this, 'format_log_row' ), $rows ?: array() ),
@@ -615,7 +615,7 @@ final class SettingsController extends WP_REST_Controller {
 		$table = EventsTable::name();
 
 		$row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$wpdb->prepare( "SELECT * FROM `{$table}` WHERE `id` = %d", $id ),
+			$wpdb->prepare( 'SELECT * FROM %i WHERE `id` = %d', $table, $id ),
 			ARRAY_A
 		);
 
@@ -741,7 +741,7 @@ final class SettingsController extends WP_REST_Controller {
 
 		EventsTable::maybe_create();
 		$table = EventsTable::name();
-		$wpdb->query( "TRUNCATE TABLE `{$table}`" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', $table ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 
 		return new WP_REST_Response( array( 'success' => true ) );
 	}

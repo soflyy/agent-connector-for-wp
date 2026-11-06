@@ -266,7 +266,7 @@ final class DirectoryPage {
 			$this->redirect( 'install_failed' );
 		}
 
-		$slug  = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : '';
+		$slug  = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() runs in verify().
 		$entry = $this->find_entry( $slug );
 		// Re-resolve the download URL server-side from the trusted directory — never
 		// trust a URL posted by the browser.
@@ -316,7 +316,7 @@ final class DirectoryPage {
 			$this->redirect( 'install_failed' );
 		}
 
-		$slug = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : '';
+		$slug = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() runs in verify().
 		$file = PluginDirectory::installed_file_for_slug( $slug );
 		if ( null === $file ) {
 			$this->redirect( 'install_failed' );
@@ -339,7 +339,7 @@ final class DirectoryPage {
 			$this->redirect( 'install_failed' );
 		}
 
-		$slug = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : '';
+		$slug = isset( $_POST['pack_slug'] ) ? sanitize_text_field( wp_unslash( $_POST['pack_slug'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- check_admin_referer() runs in verify().
 		$file = PluginDirectory::installed_file_for_slug( $slug );
 		if ( null === $file ) {
 			$this->redirect( 'install_failed' );
