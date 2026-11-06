@@ -17,6 +17,7 @@ use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use AgentConnectorForWp\Support\ConnectionActivity;
 use AgentConnectorForWp\Support\Governance;
+use AgentConnectorForWp\Support\McpAdapterPlugin;
 use WP_Application_Passwords;
 use WP_Error;
 use WP_REST_Controller;
@@ -291,6 +292,8 @@ final class SettingsController extends WP_REST_Controller {
 				'pw_unavailable_plugin'   => $pw_reason['plugin'] ?? null,
 				'uap_active'              => $this->is_uap_active(),
 				'last_mcp_request'        => ConnectionActivity::get(),
+				'mcp_adapter_status'      => McpAdapterPlugin::status(),
+				'mcp_adapter_version'     => McpAdapterPlugin::version(),
 			)
 		);
 	}

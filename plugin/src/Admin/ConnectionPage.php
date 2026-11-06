@@ -18,6 +18,7 @@ use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\McpAdapterPlugin;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -143,6 +144,7 @@ final class ConnectionPage {
 				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
 				'uapActive'             => $this->is_uap_active(),
+				'mcpAdapterStatus'      => McpAdapterPlugin::status(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 				'embed'                 => self::is_embed(),
 			)

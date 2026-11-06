@@ -612,6 +612,20 @@ final class PluginDirectory {
 	}
 
 	/**
+	 * The canonical MCP Adapter plugin's folder slug, as declared in this
+	 * plugin's `Requires Plugins` header and as wordpress.org installs it.
+	 */
+	public const MCP_ADAPTER_SLUG = 'mcp-adapter';
+
+	/**
+	 * Resolve the MCP Adapter plugin's installed file via the tolerant slug
+	 * matcher, or null when it isn't installed.
+	 */
+	public static function mcp_adapter_file(): ?string {
+		return self::installed_file_for_slug( self::MCP_ADAPTER_SLUG );
+	}
+
+	/**
 	 * Resolve a manifest slug to an installed plugin file, tolerating slug format
 	 * differences (full "folder/file.php" path vs bare folder slug).
 	 *

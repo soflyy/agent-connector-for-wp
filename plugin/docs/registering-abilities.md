@@ -277,8 +277,9 @@ plugin header, so follow this convention exactly:
    `wp_abilities_api_init`) and **guard with `function_exists()`** so the pack is
    inert when the host is absent.
 
-5. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the host plugin
-   provides them.
+5. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the Abilities
+   API is in core, and the MCP server comes from the canonical MCP Adapter
+   plugin, which the host plugin requires (and offers to install) for you.
 
 Following this convention means: your pack activates only alongside Agent
 Connector, the directory can list it under the right target plugin, and every

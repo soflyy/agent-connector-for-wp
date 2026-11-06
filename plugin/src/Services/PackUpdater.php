@@ -21,6 +21,10 @@ defined( 'ABSPATH' ) || exit;
  * and injects the results into WordPress's `update_plugins` site transient so the
  * normal Plugins-screen update flow (and auto-updates) handle the rest.
  *
+ * The MCP Adapter plugin is deliberately NOT handled here: it is a wordpress.org
+ * plugin (declared through this plugin's `Requires Plugins` header), so WordPress
+ * installs and updates it through its own directory flow.
+ *
  * Nothing here touches the plugin-update-checker library — that stays dedicated to
  * the main agent-connector-for-wp plugin.
  */
