@@ -1,7 +1,9 @@
 name: Build release zip
 
-# Builds a distributable plugin zip with production Composer dependencies
-# vendored in (plugin/vendor is gitignored, so the repo stays lean). Runs on
+# Builds the distributable plugin zips with production Composer dependencies
+# vendored in (plugin/vendor is gitignored, so the repo stays lean): the GitHub
+# build (with the self-updater, attached to the release) and the wordpress.org
+# build (without it, uploaded as a workflow artifact). Runs on
 # version tags, and can be triggered manually for testing.
 on:
   push:
@@ -18,9 +20,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: plugin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,34 +31,25 @@ jobs:
           tools: composer:v2
           coverage: none
 
-      - name: Install production dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress
-
-      - name: Stage plugin files
-        # Mirror the plugin/ subtree into a clean, correctly-named plugin
-        # directory, excluding development-only files, then add the built
-        # vendor/ tree (gitignored, so excluded by the rsync and copied in).
+      - name: Build plugin zips (GitHub + wordpress.org)
         run: |
-          mkdir -p "dist/${PLUGIN_SLUG}"
-          rsync -a --delete \
-            --exclude='dist' \
-            --exclude='vendor' \
-            ./ "dist/${PLUGIN_SLUG}/"
-          cp -R vendor "dist/${PLUGIN_SLUG}/vendor"
+          bin/build-plugin-zip.sh github dist
+          bin/build-plugin-zip.sh org dist
 
-      - name: Create zip
-        run: |
-          cd dist
-          zip -rq "${PLUGIN_SLUG}.zip" "${PLUGIN_SLUG}"
-
-      - name: Upload build artifact
+      - name: Upload GitHub build
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PLUGIN_SLUG }}
-          path: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
+          path: dist/github/${{ env.PLUGIN_SLUG }}.zip
+
+      - name: Upload wordpress.org build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_SLUG }}-wordpress-org
+          path: dist/org/${{ env.PLUGIN_SLUG }}.zip
 
       - name: Attach zip to release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: plugin/dist/${{ env.PLUGIN_SLUG }}.zip
+          files: dist/github/${{ env.PLUGIN_SLUG }}.zip
