@@ -1711,14 +1711,15 @@ const AUTH_METHODS = [
   },
 ]
 
-// `oauthCaveat` is a short reason OAuth may not work here; when set, the
-// application password is recommended instead.
-function MethodPicker({ method, onSelect, oauthCaveat }) {
+// `recommendPassword` is set when OAuth may not work here, so the application
+// password carries the Recommended badge instead. Why OAuth may not work is
+// explained by the warning shown inside the OAuth tab, not on the picker.
+function MethodPicker({ method, onSelect, recommendPassword }) {
   return (
     <div className="grid sm:grid-cols-2 gap-4">
       {AUTH_METHODS.map(({ id, label, Icon, description }) => {
         const isSelected = method === id
-        const isRecommended = oauthCaveat ? id === 'password' : id === 'oauth'
+        const isRecommended = recommendPassword ? id === 'password' : id === 'oauth'
         return (
           <button
             key={id}
@@ -1735,13 +1736,9 @@ function MethodPicker({ method, onSelect, oauthCaveat }) {
               <span className={`text-base font-semibold ${isSelected ? 'text-indigo-700' : 'text-gray-800'}`}>
                 {label}
               </span>
-              {isRecommended ? (
+              {isRecommended && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold uppercase tracking-wide">
                   <Sparkles className="w-3 h-3" /> Recommended
-                </span>
-              ) : oauthCaveat && id === 'oauth' && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold uppercase tracking-wide">
-                  <AlertTriangle className="w-3 h-3" /> {oauthCaveat}
                 </span>
               )}
             </div>
@@ -1765,7 +1762,12 @@ function GenerateStep({ selectedAgent, status, onBack }) {
   // Some agents' OAuth connectors only accept https:// URLs, so on an http://
   // site OAuth can't work there at all.
   const needsHttps = !!agentMeta.httpsOnly && /^http:\/\//i.test(initial.serverUrl)
-  const oauthCaveat = needsHttps ? 'Needs HTTPS' : localCaveat ? 'May not work locally' : null
+  const oauthCaveat = needsHttps || localCaveat
+
+  // The site's address as the user would type it (scheme + host + port), for
+  // the local-site warning.
+  let siteOrigin = initial.serverUrl
+  try { siteOrigin = new URL(initial.serverUrl).origin } catch {}
 
   // An agent the OAuth flow can't serve (the .mcpb entry) goes straight to
   // the application password, with no method picker.
@@ -1789,26 +1791,29 @@ function GenerateStep({ selectedAgent, status, onBack }) {
       {!passwordOnly && !oauthOnly && (
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-gray-900">How do you want to authenticate?</h2>
-          <MethodPicker method={method} onSelect={setMethod} oauthCaveat={oauthCaveat} />
+          <MethodPicker method={method} onSelect={setMethod} recommendPassword={oauthCaveat} />
         </div>
       )}
 
       {method === 'oauth' ? (
         <div className="space-y-4">
-          {needsHttps ? (
+          {localCaveat && (
+            <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
+              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
+              <span>
+                <code>{siteOrigin}</code> is a local or private address, so {agentMeta.label} can't
+                reach it from the internet to finish signing in. To use OAuth, expose the site with a
+                tunnel such as ngrok or Cloudflare Tunnel, or connect a staging site instead. Otherwise,
+                use an application password.
+              </span>
+            </div>
+          )}
+          {needsHttps && (
             <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
               <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <span>
                 {agentMeta.label} only accepts <code>https://</code> server URLs, and this site uses{' '}
                 <code>http://</code>. Use an application password instead, or serve the site over HTTPS.
-              </span>
-            </div>
-          ) : localCaveat && (
-            <div className="flex items-start gap-2.5 p-4 bg-amber-50 border border-amber-200 rounded-xl text-base text-amber-800">
-              <AlertTriangle className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
-              <span>
-                This site is local, so the agent may not be able to reach it to sign in. If OAuth
-                fails, use an application password instead.
               </span>
             </div>
           )}
