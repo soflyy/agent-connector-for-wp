@@ -65,6 +65,11 @@ final class FileManager {
 	 * @return array{path:string,bytes_written:int,created:bool}|\WP_Error
 	 */
 	public function write( string $path, string $contents, string $encoding = 'utf8', bool $append = false ) {
+		$mods = self::check_file_mods_allowed( 'agent_connector_for_wp_file_write' );
+		if ( is_wp_error( $mods ) ) {
+			return $mods;
+		}
+
 		$resolved = Helpers::resolve_path( $path );
 		if ( '' === $resolved ) {
 			return new \WP_Error( 'agent_connector_for_wp_bad_path', 'No path provided.' );
@@ -136,6 +141,11 @@ final class FileManager {
 	 * @return array{path:string,deleted:bool}|\WP_Error
 	 */
 	public function delete( string $path, bool $recursive = false ) {
+		$mods = self::check_file_mods_allowed( 'agent_connector_for_wp_file_delete' );
+		if ( is_wp_error( $mods ) ) {
+			return $mods;
+		}
+
 		$resolved = Helpers::resolve_path( $path );
 		if ( '' === $resolved || ! file_exists( $resolved ) ) {
 			return new \WP_Error( 'agent_connector_for_wp_not_found', sprintf( 'Path not found: %s', $path ) );
@@ -202,6 +212,26 @@ final class FileManager {
 				$this->scan( $full, $recursive, $max_depth, $depth + 1, $entries );
 			}
 		}
+	}
+
+	/**
+	 * Writing and deleting files is refused under DISALLOW_FILE_MODS, the
+	 * site owner's switch for "no file changes from inside WordPress". Uses
+	 * core's wp_is_file_mod_allowed(), so the file_mod_allowed filter can
+	 * still make an exception for these contexts.
+	 *
+	 * @param string $context Context passed to the file_mod_allowed filter.
+	 * @return true|\WP_Error
+	 */
+	private static function check_file_mods_allowed( string $context ) {
+		if ( wp_is_file_mod_allowed( $context ) ) {
+			return true;
+		}
+		return new \WP_Error(
+			'agent_connector_for_wp_file_mods_disabled',
+			'Files cannot be written or deleted on this site: file changes from inside WordPress are turned off (DISALLOW_FILE_MODS). Reading and listing files still work.',
+			array( 'status' => 403 )
+		);
 	}
 
 	/**
