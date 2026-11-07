@@ -96,6 +96,16 @@ final class FileManager {
 		// The sandbox is inside the web root, so its PHP must stop when requested
 		// directly; judge the file as it will be after this write.
 		if ( Sandbox::path_requires_sandbox( $resolved ) ) {
+			// Sandbox PHP runs on every request, so writing it is editing the
+			// site's code: refused where DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS
+			// turn off the plugin editor, as WordPress does for edit_plugins.
+			if ( ! current_user_can( 'edit_plugins' ) ) {
+				return new \WP_Error(
+					'agent_connector_for_wp_php_edits_disabled',
+					'PHP files cannot be written on this site: code changes from inside WordPress are turned off (DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS).',
+					array( 'status' => 403 )
+				);
+			}
 			$existing = $append && $existed ? (string) file_get_contents( $resolved ) : ''; // phpcs:ignore WordPress.WP.AlternativeFunctions
 			$guard    = Sandbox::check_direct_access_guard( $existing . $payload );
 			if ( is_wp_error( $guard ) ) {
