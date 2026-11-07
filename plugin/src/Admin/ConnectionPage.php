@@ -59,7 +59,10 @@ final class ConnectionPage {
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' ),
-			'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22v-5"></path><path d="M9 8V2"></path><path d="M15 8V2"></path><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"></path></svg>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+			// Filled shapes only: WordPress colors SVG menu icons by rewriting their
+			// fill attributes (wp-admin svg-painter), so a stroke-drawn icon shows up
+			// filled in and in the wrong color.
+			'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="black" fill-rule="evenodd" d="M6 2a1 1 0 0 1 2 0v4h4V2a1 1 0 0 1 2 0v4h2a1 1 0 0 1 1 1v3a5 5 0 0 1-5 5h-1v3a1 1 0 0 1-2 0v-3H8a5 5 0 0 1-5-5V7a1 1 0 0 1 1-1h2V2zM5 8v2a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3V8H5z"/></svg>' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 			81
 		);
 
