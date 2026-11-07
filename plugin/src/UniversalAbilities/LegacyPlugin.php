@@ -49,7 +49,9 @@ final class LegacyPlugin {
 	 * Deactivate the old plugin and switch the built-in abilities on.
 	 */
 	public function maybe_take_over(): void {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
+		// An active old plugin always defines its constant, so this cheap check
+		// skips the plugin scan below on nearly every request.
+		if ( ! self::is_loaded() || ! current_user_can( 'activate_plugins' ) ) {
 			return;
 		}
 
