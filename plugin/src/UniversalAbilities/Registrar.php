@@ -89,6 +89,7 @@ final class Registrar {
 			$items,
 			array(
 				array( 'title' => 'Read, write, and delete files', 'detail' => "Access to the server's filesystem" ),
+				array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' ),
 				array( 'title' => 'Inspect the environment', 'detail' => 'Versions, paths, active plugins and theme' ),
 				array( 'title' => 'Search the media library', 'detail' => 'Find attachments and their URLs' ),
 				array( 'title' => 'Create one-time admin login links', 'detail' => 'Let your agent log into your wp-admin' ),

@@ -176,12 +176,10 @@ add_action(
 			return;
 		}
 
-		// @github-build-start
 		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
 		// crash recovery (safe mode) so a fatal in generated code can't take the
-		// site down. GitHub build only. See GitHub\Services\SandboxLoader.
-		( new GitHub\Services\SandboxLoader() )->run();
-		// @github-build-end
+		// site down. See Services\SandboxLoader.
+		( new Services\SandboxLoader() )->run();
 
 		// The built-in Universal Abilities, when switched on in Settings. They
 		// stand down while the old standalone plugin is still loaded, so nothing
