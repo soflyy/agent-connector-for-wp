@@ -2,7 +2,7 @@
 
 Agent Connector fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. It is declared with the `Requires Plugins: mcp-adapter` header, so WordPress will not activate this plugin without it and offers to install it for you from wordpress.org. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register, plus its own optional [Universal Abilities](#what-it-adds) (off by default). The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. It is declared with the `Requires Plugins: mcp-adapter` header, so WordPress will not activate this plugin without it and offers to install it for you from wordpress.org. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 
 ## What it adds
 
@@ -94,25 +94,24 @@ MCP Adapter is a wordpress.org plugin, so WordPress updates it like any other.
 ## Connect an agent
 
 The plugin is on as soon as you activate it. Open **Agent Connector →
-Connection** in wp-admin, pick your agent, and click **Generate connection**. The
-plugin will:
+Connection** in wp-admin, pick your agent, and follow its steps. There are two
+ways to connect:
 
-1. mint a fresh WordPress application password for your account,
-2. compute this site's MCP server URL, and
-3. give you three ready-to-paste artifacts:
-   - a **natural-language prompt** to drop into Claude (or any coding agent),
-     which tells it to configure and connect to the MCP server itself;
-   - a **`claude mcp add` CLI command** for Claude Code; and
-   - an **`mcpServers` JSON** block for client config files (e.g. `.mcp.json`).
+- **OAuth sign-in**, for agents that support it (Claude, ChatGPT, Gemini,
+  Cursor, VS Code, Codex and other remote MCP clients): add this site's MCP
+  server URL to the agent, then approve the connection on this site's consent
+  page. Needs HTTPS (or a local site). See and revoke these connections under
+  **Settings → Connections**.
+- **Application password**, for command-line and desktop agents: the plugin
+  mints a WordPress application password for your account and gives you a
+  ready-to-paste command, config snippet or prompt. These run
+  [`@automattic/mcp-wordpress-remote`](https://www.npmjs.com/package/@automattic/mcp-wordpress-remote),
+  a small stdio MCP proxy the agent starts locally via `npx` (so the client
+  needs Node.js). It authenticates with the application password, passed as
+  `WP_API_PASSWORD` alongside `WP_API_URL` and `WP_API_USERNAME`.
 
-All three drive [`@automattic/mcp-wordpress-remote`](https://www.npmjs.com/package/@automattic/mcp-wordpress-remote)
-— a small stdio MCP proxy the agent runs locally via `npx` (so the client needs
-Node.js). The proxy connects to this site's MCP endpoint and authenticates with
-the application password (passed as the `WP_API_PASSWORD` environment variable,
-alongside `WP_API_URL` and `WP_API_USERNAME`).
-
-The application password is shown only once, embedded in those artifacts — copy
-it immediately. Treat it like an SSH key; revoke it from **Users → Profile →
+The application password is shown only once, embedded in those snippets, so
+copy it right away. Treat it like an SSH key; revoke it from **Users → Profile →
 Application Passwords** when you're done.
 
 ## Settings
