@@ -11,9 +11,6 @@ namespace AgentConnectorForWp\UniversalAbilities;
 
 use AgentConnectorForWp\UniversalAbilities\Abilities\AdminLoginAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\EnvInspectAbility;
-use AgentConnectorForWp\UniversalAbilities\Abilities\FileDeleteAbility;
-use AgentConnectorForWp\UniversalAbilities\Abilities\FileListAbility;
-use AgentConnectorForWp\UniversalAbilities\Abilities\FileReadAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginActivateAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginAutoUpdatesAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginDeactivateAbility;
@@ -61,13 +58,11 @@ final class Registrar {
 		\AgentConnectorForWp\GitHub\Abilities\ProcessExecAbility::class,
 		\AgentConnectorForWp\GitHub\Abilities\WpCliAbility::class,
 		\AgentConnectorForWp\GitHub\Abilities\PhpEvalAbility::class,
-		// @github-build-end
-		FileReadAbility::class,
-		// @github-build-start
+		\AgentConnectorForWp\GitHub\Abilities\FileReadAbility::class,
 		\AgentConnectorForWp\GitHub\Abilities\FileWriteAbility::class,
+		\AgentConnectorForWp\GitHub\Abilities\FileListAbility::class,
+		\AgentConnectorForWp\GitHub\Abilities\FileDeleteAbility::class,
 		// @github-build-end
-		FileListAbility::class,
-		FileDeleteAbility::class,
 		SearchMediaAbility::class,
 		AdminLoginAbility::class,
 		PluginsListAbility::class,
@@ -89,26 +84,25 @@ final class Registrar {
 	 * @return array{description:string,items:array<int,array{title:string,detail:string}>}
 	 */
 	public static function summary(): array {
-		$parts       = array();
-		$items       = array();
-		$files_title = 'Read, list, and delete files';
+		$parts = array();
+		$items = array();
 
 		// @github-build-start
 		$parts[] = 'shell';
 		$parts[] = 'PHP eval';
 		$parts[] = 'WP-CLI';
+		$parts[] = 'filesystem';
 		$items[] = array( 'title' => 'Run arbitrary shell commands', 'detail' => 'Full command-line access to the server' );
 		$items[] = array( 'title' => 'Evaluate PHP code', 'detail' => 'Execute any PHP in the WordPress context' );
 		$items[] = array( 'title' => 'Run WP-CLI commands', 'detail' => 'Any wp-cli command on your install' );
+		$items[] = array( 'title' => 'Read, write, and delete files', 'detail' => "Access to the server's filesystem" );
 		$items[] = array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' );
-		$files_title = 'Read, write, and delete files';
 		// @github-build-end
 
-		$parts = array_merge( $parts, array( 'filesystem', 'environment', 'plugins', 'media search', 'admin login link' ) );
+		$parts = array_merge( $parts, array( 'environment', 'plugins', 'media search', 'admin login link' ) );
 		$items = array_merge(
 			$items,
 			array(
-				array( 'title' => $files_title, 'detail' => "Access to the server's filesystem" ),
 				array( 'title' => 'Inspect the environment', 'detail' => 'Versions, paths, active plugins and theme' ),
 				array( 'title' => 'Install and manage plugins', 'detail' => 'Install from wordpress.org, activate, update and delete plugins' ),
 				array( 'title' => 'Search the media library', 'detail' => 'Find attachments and their URLs' ),
@@ -145,7 +139,7 @@ final class Registrar {
 			self::CATEGORY,
 			array(
 				'label'       => 'Agent Connector',
-				'description' => 'Built-in operational abilities (filesystem, environment, plugins, media, admin login) for trusted agents.',
+				'description' => 'Built-in operational abilities for trusted agents.',
 			)
 		);
 	}

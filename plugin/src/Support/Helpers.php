@@ -13,6 +13,9 @@ defined( 'ABSPATH' ) || exit;
 
 final class Helpers {
 
+	// @github-build-start
+	// Path and output helpers for the GitHub-only shell, PHP-eval and file
+	// abilities.
 	/**
 	 * Resolve a caller-supplied path. Relative paths are resolved against
 	 * ABSPATH; absolute paths are taken as-is. No sandboxing is applied
@@ -72,6 +75,7 @@ final class Helpers {
 		}
 		return array( substr( $bytes, 0, $max ), true );
 	}
+	// @github-build-end
 
 	/**
 	 * Best-effort current client IP for the audit trail.

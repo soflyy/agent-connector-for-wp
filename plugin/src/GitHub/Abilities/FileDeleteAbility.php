@@ -7,10 +7,10 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\UniversalAbilities\Abilities;
+namespace AgentConnectorForWp\GitHub\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\UniversalAbilities\Services\FileManager;
+use AgentConnectorForWp\GitHub\Services\FileManager;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;

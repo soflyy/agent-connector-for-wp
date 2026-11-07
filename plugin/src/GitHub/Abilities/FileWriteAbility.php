@@ -10,7 +10,7 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp\GitHub\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\GitHub\Services\FileWriter;
+use AgentConnectorForWp\GitHub\Services\FileManager;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
@@ -91,7 +91,7 @@ final class FileWriteAbility {
 		$contents = isset( $input['contents'] ) ? (string) $input['contents'] : '';
 		$encoding = isset( $input['encoding'] ) ? (string) $input['encoding'] : 'utf8';
 		$append   = ! empty( $input['append'] );
-		return ( new FileWriter() )->write( $path, $contents, $encoding, $append );
+		return ( new FileManager() )->write( $path, $contents, $encoding, $append );
 	}
 
 	/**
