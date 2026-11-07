@@ -166,7 +166,6 @@ A full, copy-pasteable single-file plugin that registers one ability.
  * Plugin Name:       My Plugin Abilities
  * Description:        Adds the my-plugin/do-thing ability to Agent Connector.
  * Version:           1.0.0
- * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
  * License:           GPL-2.0-or-later
  */
@@ -239,7 +238,13 @@ That's the whole plugin. **No** permission callback, **no** domain-lock check,
    `wp_abilities_api_init`) and **guard with `function_exists()`** so your plugin
    is inert when Agent Connector is absent.
 
-3. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the Abilities
+3. **Don't declare `Requires Plugins` on Agent Connector.** Its folder differs
+   between builds (`agent-connector` from wordpress.org,
+   `agent-connector-for-wp` from GitHub), and `Requires Plugins` can name only
+   one, so the dependency would block activation on sites running the other
+   copy. The `function_exists()` guard above is enough.
+
+4. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the Abilities
    API is in core, and the MCP server comes from the canonical MCP Adapter
    plugin, which Agent Connector requires (and offers to install) for you.
 

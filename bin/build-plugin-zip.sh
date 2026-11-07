@@ -17,8 +17,14 @@
 # Usage:
 #   bin/build-plugin-zip.sh <github|org> [OUT_DIR]
 #
-# Produces OUT_DIR/<flavor>/agent-connector-for-wp/ (the staged plugin) and
-# OUT_DIR/<flavor>/agent-connector-for-wp.zip. OUT_DIR defaults to dist/.
+# Produces OUT_DIR/<flavor>/<slug>/ (the staged plugin) and
+# OUT_DIR/<flavor>/<slug>.zip. OUT_DIR defaults to dist/.
+#
+# The slug (the plugin's folder) differs by build:
+#   github — agent-connector-for-wp, so existing installs and the self-updater
+#            keep working;
+#   org    — agent-connector, the wordpress.org slug (wordpress.org doesn't
+#            allow "wp" in slugs). It matches the plugin's Text Domain.
 #
 set -euo pipefail
 
@@ -32,7 +38,11 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${2:-$REPO_ROOT/dist}"
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
-SLUG="agent-connector-for-wp"
+if [ "$FLAVOR" = "org" ]; then
+	SLUG="agent-connector"
+else
+	SLUG="agent-connector-for-wp"
+fi
 STAGE="$OUT_DIR/$FLAVOR/$SLUG"
 
 rm -rf "${OUT_DIR:?}/$FLAVOR"

@@ -81,7 +81,9 @@ The plugin is built twice from the same version (`bin/build-plugin-zip.sh`):
   allow: the update checker, the shell / process / WP-CLI / PHP-eval abilities
   (everything under `src/GitHub/`), the sandbox loader that runs agent-written
   PHP, and any code between `// @github-build-start` and `// @github-build-end`
-  markers. wordpress.org delivers its updates. Its directory listing comes from
+  markers. Its slug (folder) is `agent-connector`, since wordpress.org doesn't
+  allow "wp" in slugs; the GitHub build keeps `agent-connector-for-wp`.
+  wordpress.org delivers its updates. Its directory listing comes from
   [`readme.txt`](readme.txt).
 
 MCP Adapter is a wordpress.org plugin, so WordPress updates it like any other.

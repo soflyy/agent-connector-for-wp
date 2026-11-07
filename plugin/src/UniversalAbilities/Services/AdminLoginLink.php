@@ -155,7 +155,7 @@ final class AdminLoginLink {
 	private static function deny( string $message ): void {
 		wp_die(
 			esc_html( $message ),
-			esc_html__( 'Agent Connector', 'agent-connector-for-wp' ),
+			esc_html__( 'Agent Connector', 'agent-connector' ),
 			array( 'response' => 403 )
 		);
 	}

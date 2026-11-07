@@ -78,8 +78,8 @@ final class LegacyPlugin {
 		?>
 		<div class="notice notice-success is-dismissible">
 			<p>
-				<?php esc_html_e( 'Universal Abilities is now built into Agent Connector. The separate Universal Abilities plugin was deactivated and can be deleted.', 'agent-connector-for-wp' ); ?>
-				<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Manage Universal Abilities', 'agent-connector-for-wp' ); ?></a>
+				<?php esc_html_e( 'Universal Abilities is now built into Agent Connector. The separate Universal Abilities plugin was deactivated and can be deleted.', 'agent-connector' ); ?>
+				<a href="<?php echo esc_url( $settings_url ); ?>"><?php esc_html_e( 'Manage Universal Abilities', 'agent-connector' ); ?></a>
 			</p>
 		</div>
 		<?php

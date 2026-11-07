@@ -11,7 +11,7 @@
  * Author URI:        https://github.com/soflyy
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       agent-connector-for-wp
+ * Text Domain:       agent-connector
  *
  * Agents connected through this plugin can act with the full capability of a
  * super admin (and, with Universal Abilities switched on, work directly with
@@ -32,6 +32,42 @@ declare( strict_types=1 );
 namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
+
+/**
+ * Only one copy of Agent Connector may run.
+ *
+ * The GitHub build lives in agent-connector-for-wp/ and the wordpress.org build
+ * in agent-connector/, so WordPress treats them as two plugins and lets both be
+ * active (typically while a site moves from one to the other). Running both
+ * would register every route, menu and ability twice, so the copy that loads
+ * second stands down and asks an administrator to deactivate one of them.
+ */
+if ( defined( 'AGENT_CONNECTOR_FOR_WP_FILE' ) ) {
+	$agent_connector_for_wp_duplicate = array(
+		'running'  => plugin_basename( AGENT_CONNECTOR_FOR_WP_FILE ),
+		'inactive' => plugin_basename( __FILE__ ),
+	);
+	$agent_connector_for_wp_notice    = static function () use ( $agent_connector_for_wp_duplicate ): void {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-error"><p>%s</p></div>',
+			esc_html(
+				sprintf(
+					/* translators: 1: plugin path of the running copy, 2: plugin path of the inactive copy. */
+					__( 'Two copies of Agent Connector are active: %1$s and %2$s. Only %1$s is running. Deactivate one of them on the Plugins screen.', 'agent-connector' ),
+					$agent_connector_for_wp_duplicate['running'],
+					$agent_connector_for_wp_duplicate['inactive']
+				)
+			)
+		);
+	};
+	add_action( 'admin_notices', $agent_connector_for_wp_notice );
+	add_action( 'network_admin_notices', $agent_connector_for_wp_notice );
+	unset( $agent_connector_for_wp_duplicate, $agent_connector_for_wp_notice );
+	return;
+}
 
 define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.33.2' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );

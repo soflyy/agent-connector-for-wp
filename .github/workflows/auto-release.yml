@@ -155,8 +155,8 @@ jobs:
       - name: Upload wordpress.org build
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PLUGIN_SLUG }}-wordpress-org
-          path: dist/org/${{ env.PLUGIN_SLUG }}.zip
+          name: agent-connector-wordpress-org
+          path: dist/org/agent-connector.zip
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

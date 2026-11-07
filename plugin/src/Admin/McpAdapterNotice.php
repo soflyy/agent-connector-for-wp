@@ -52,14 +52,14 @@ final class McpAdapterNotice {
 		if ( McpAdapterPlugin::STATUS_OUTDATED === $status ) {
 			$body = sprintf(
 				/* translators: 1: installed MCP Adapter version, 2: minimum required version */
-				__( 'Agent Connector is running, but the installed MCP Adapter plugin (version %1$s) is too old. Update MCP Adapter to version %2$s or newer to bring the MCP server back.', 'agent-connector-for-wp' ),
+				__( 'Agent Connector is running, but the installed MCP Adapter plugin (version %1$s) is too old. Update MCP Adapter to version %2$s or newer to bring the MCP server back.', 'agent-connector' ),
 				(string) McpAdapterPlugin::version(),
 				McpAdapterPlugin::MIN_VERSION
 			);
 		} elseif ( $installed ) {
-			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not active. Activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector-for-wp' );
+			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not active. Activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector' );
 		} else {
-			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not installed. Install and activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector-for-wp' );
+			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not installed. Install and activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector' );
 		}
 
 		// Send the operator to the screen that resolves their case: the Plugins
@@ -67,17 +67,17 @@ final class McpAdapterNotice {
 		// wordpress.org install search when none is.
 		if ( $installed ) {
 			$action_url  = self_admin_url( 'plugins.php' );
-			$action_text = __( 'Go to Plugins', 'agent-connector-for-wp' );
+			$action_text = __( 'Go to Plugins', 'agent-connector' );
 		} else {
 			$action_url  = self_admin_url( 'plugin-install.php?tab=search&type=term&s=' . rawurlencode( 'MCP Adapter' ) );
-			$action_text = __( 'Install MCP Adapter', 'agent-connector-for-wp' );
+			$action_text = __( 'Install MCP Adapter', 'agent-connector' );
 		}
 
 		$can_install = current_user_can( 'install_plugins' ) && ! ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS );
 		?>
 		<div class="notice notice-error" id="acfw-mcp-adapter-notice">
 			<p>
-				<strong><?php esc_html_e( 'Agent Connector needs the MCP Adapter plugin.', 'agent-connector-for-wp' ); ?></strong>
+				<strong><?php esc_html_e( 'Agent Connector needs the MCP Adapter plugin.', 'agent-connector' ); ?></strong>
 				<?php echo esc_html( $body ); ?>
 			</p>
 			<?php if ( $can_install ) : ?>

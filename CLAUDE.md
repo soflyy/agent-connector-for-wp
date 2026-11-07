@@ -21,6 +21,15 @@ or updates from GitHub must be GitHub-only:
 
 The org build fails if anything GitHub-only is still referenced.
 
+## Slug and text domain
+
+The wordpress.org slug is `agent-connector` (wordpress.org doesn't allow "wp" in
+slugs), and it's the plugin's `Text Domain`: every translation call uses
+`'agent-connector'`. The GitHub build keeps the folder `agent-connector-for-wp`
+so existing installs and the self-updater keep working. Internal identifiers
+(menu slug, REST namespace `agent-connector-for-wp/v1`, ability names, option
+names) keep `agent-connector-for-wp` — don't rename them.
+
 ## PR / commit titles drive releases
 
 Merging a PR to `master` (when it touches `plugin/**`) automatically publishes a

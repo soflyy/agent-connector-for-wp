@@ -267,7 +267,7 @@ final class SettingsController extends WP_REST_Controller {
 		$user = wp_get_current_user();
 
 		if ( ! ( $user instanceof \WP_User ) || ! $user->exists() ) {
-			return new WP_Error( 'no_user', __( 'Could not determine the current user.', 'agent-connector-for-wp' ), array( 'status' => 400 ) );
+			return new WP_Error( 'no_user', __( 'Could not determine the current user.', 'agent-connector' ), array( 'status' => 400 ) );
 		}
 
 		$pw_reason = ApplicationPasswords::unavailable_reason( $user );
@@ -279,7 +279,7 @@ final class SettingsController extends WP_REST_Controller {
 		if ( '' === $name ) {
 			$name = sprintf(
 				/* translators: %s: date/time the password was created. */
-				__( 'Agent Connector (MCP) — %s', 'agent-connector-for-wp' ),
+				__( 'Agent Connector (MCP) — %s', 'agent-connector' ),
 				gmdate( 'Y-m-d H:i:s' )
 			) . ' [' . wp_generate_password( 4, false ) . ']';
 		}
@@ -292,7 +292,7 @@ final class SettingsController extends WP_REST_Controller {
 
 		$password = is_array( $created ) ? (string) ( $created[0] ?? '' ) : '';
 		if ( '' === $password ) {
-			return new WP_Error( 'pw_failed', __( 'Failed to generate an application password.', 'agent-connector-for-wp' ), array( 'status' => 500 ) );
+			return new WP_Error( 'pw_failed', __( 'Failed to generate an application password.', 'agent-connector' ), array( 'status' => 500 ) );
 		}
 
 		$result               = Connection::build_artifacts( $user->user_login, $password );
@@ -407,7 +407,7 @@ final class SettingsController extends WP_REST_Controller {
 		);
 
 		if ( ! $row ) {
-			return new WP_Error( 'not_found', __( 'Event not found.', 'agent-connector-for-wp' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Event not found.', 'agent-connector' ), array( 'status' => 404 ) );
 		}
 
 		$tags = array();

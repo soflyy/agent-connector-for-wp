@@ -388,9 +388,9 @@ final class Authorize {
 		$form_action  = rest_url( Server::REST_NAMESPACE . '/authorize' );
 
 		$scope_labels = array(
-			'mcp:tools' => __( 'Use MCP tools and abilities on your site', 'agent-connector-for-wp' ),
-			'mcp:read'  => __( 'Read content and data from your site', 'agent-connector-for-wp' ),
-			'mcp:write' => __( 'Create and modify content on your site', 'agent-connector-for-wp' ),
+			'mcp:tools' => __( 'Use MCP tools and abilities on your site', 'agent-connector' ),
+			'mcp:read'  => __( 'Read content and data from your site', 'agent-connector' ),
+			'mcp:write' => __( 'Create and modify content on your site', 'agent-connector' ),
 		);
 
 		$requested_scopes = array_map( 'trim', explode( ' ', $params['scope'] ) );
@@ -425,7 +425,7 @@ final class Authorize {
 	<title>
 		<?php
 		/* translators: %s: client application name */
-		echo esc_html( sprintf( __( 'Authorize %s', 'agent-connector-for-wp' ), (string) $client['client_name'] ) . ' — ' . $site_name );
+		echo esc_html( sprintf( __( 'Authorize %s', 'agent-connector' ), (string) $client['client_name'] ) . ' — ' . $site_name );
 		?>
 	</title>
 		<?php
@@ -449,7 +449,7 @@ final class Authorize {
 				<?php
 				printf(
 					/* translators: %s: client application name */
-					esc_html__( 'The application %s is requesting agent access to your site.', 'agent-connector-for-wp' ),
+					esc_html__( 'The application %s is requesting agent access to your site.', 'agent-connector' ),
 					'<strong>' . esc_html( (string) $client['client_name'] ) . '</strong>'
 				);
 				?>
@@ -457,11 +457,11 @@ final class Authorize {
 		</div>
 
 		<div class="acfw-oauth-warning">
-			<?php esc_html_e( 'Warning: Agent Connector gives your agent admin-equivalent capabilities to this WordPress installation. Only authorize applications you trust.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Warning: Agent Connector gives your agent admin-equivalent capabilities to this WordPress installation. Only authorize applications you trust.', 'agent-connector' ); ?>
 		</div>
 
 		<div class="acfw-oauth-scopes">
-			<h3><?php esc_html_e( 'Requested permissions', 'agent-connector-for-wp' ); ?></h3>
+			<h3><?php esc_html_e( 'Requested permissions', 'agent-connector' ); ?></h3>
 			<ul>
 				<?php foreach ( $requested_scopes as $requested_scope ) : ?>
 					<li><?php echo esc_html( $scope_labels[ $requested_scope ] ?? $requested_scope ); ?></li>
@@ -474,7 +474,7 @@ final class Authorize {
 				<?php
 				printf(
 					/* translators: %s: domain hosting the client's metadata document */
-					esc_html__( 'This application is identified by %s.', 'agent-connector-for-wp' ),
+					esc_html__( 'This application is identified by %s.', 'agent-connector' ),
 					'<strong>' . esc_html( $client_host ) . '</strong>'
 				);
 				?>
@@ -485,7 +485,7 @@ final class Authorize {
 			<?php
 			printf(
 				/* translators: %s: origin (scheme + host) of the client's redirect URI */
-				esc_html__( 'After you authorize, your browser will be sent back to %s to hand the application its access.', 'agent-connector-for-wp' ),
+				esc_html__( 'After you authorize, your browser will be sent back to %s to hand the application its access.', 'agent-connector' ),
 				'<strong>' . esc_html( self::redirect_destination_label( $params['redirect_uri'] ) ) . '</strong>'
 			);
 			?>
@@ -495,7 +495,7 @@ final class Authorize {
 			<?php
 			printf(
 				/* translators: %s: current user display name */
-				esc_html__( 'Logged in as %s', 'agent-connector-for-wp' ),
+				esc_html__( 'Logged in as %s', 'agent-connector' ),
 				'<strong>' . esc_html( $current_user->display_name ) . '</strong>'
 			);
 			?>
@@ -512,10 +512,10 @@ final class Authorize {
 
 			<div class="acfw-oauth-actions">
 				<button type="submit" name="action" value="deny" class="acfw-oauth-btn-deny">
-					<?php esc_html_e( 'Deny', 'agent-connector-for-wp' ); ?>
+					<?php esc_html_e( 'Deny', 'agent-connector' ); ?>
 				</button>
 				<button type="submit" name="action" value="authorize" class="acfw-oauth-btn-authorize">
-					<?php esc_html_e( 'Authorize', 'agent-connector-for-wp' ); ?>
+					<?php esc_html_e( 'Authorize', 'agent-connector' ); ?>
 				</button>
 			</div>
 		</form>
