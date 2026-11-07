@@ -1,6 +1,6 @@
 <?php
 /**
- * OAuth 2.1 server orchestrator: discovery, routes, DCR, CORS.
+ * OAuth 2.1 server orchestrator: discovery, routes, client registration, CORS.
  *
  * @package AgentConnectorForWp
  */
@@ -22,10 +22,15 @@ defined( 'ABSPATH' ) || exit;
  * Streamable HTTP — no mcp-wordpress-remote proxy or application password
  * required.
  *
+ * Clients identify themselves with a Client ID Metadata Document: the
+ * client_id is an HTTPS URL serving the client's metadata, fetched on demand
+ * by {@see Clients}. Dynamic Client Registration stays available as a
+ * fallback for clients that don't support metadata documents yet.
+ *
  * Registers:
  *   - /.well-known/oauth-protected-resource and
  *     /.well-known/oauth-authorization-server discovery documents,
- *   - REST routes under `acfw-auth/v1`: /register (DCR, RFC 7591),
+ *   - REST routes under `acfw-auth/v1`: /register (DCR fallback, RFC 7591),
  *     /authorize (consent), /token (RFC 6749 §4.1.3), /revoke (RFC 7009),
  *   - CORS handling for the OAuth and MCP endpoints, and
  *   - the Bearer token {@see Interceptor} on MCP requests.
@@ -169,6 +174,10 @@ final class Server {
 				'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
 				'token_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post' ),
 				'code_challenge_methods_supported'      => array( 'S256' ),
+				// Clients that support it identify themselves with a metadata
+				// document URL and skip registration_endpoint, which remains
+				// for those that don't.
+				'client_id_metadata_document_supported' => true,
 			)
 		);
 	}
@@ -179,12 +188,14 @@ final class Server {
 	 * Every route below is intentionally public (`__return_true`) per the
 	 * OAuth 2.1 specification; the security lives inside each handler:
 	 *
-	 *  - /register : DCR (RFC 7591) — validates client metadata; HTTPS-only
-	 *                redirect_uris.
+	 *  - /register : DCR (RFC 7591), the fallback for clients without a
+	 *                metadata document — validates client metadata; HTTPS,
+	 *                loopback or native-app redirect_uris.
 	 *  - /authorize: consent page — requires a logged-in administrator
 	 *                (Config::has_admin_access); verifies a nonce on POST;
-	 *                validates client + exact redirect_uri + PKCE S256; served
-	 *                with anti-framing headers.
+	 *                resolves the client (metadata document or registration),
+	 *                validates its redirect_uri + PKCE S256; served with
+	 *                anti-framing headers.
 	 *  - /token    : code exchange — validates code, PKCE verifier, client_id,
 	 *                client_secret (confidential clients only), redirect_uri;
 	 *                atomically claimed single-use codes; reuse revokes the
@@ -242,6 +253,9 @@ final class Server {
 
 	/**
 	 * Handle Dynamic Client Registration (RFC 7591).
+	 *
+	 * The fallback for clients that can't identify themselves with a Client ID
+	 * Metadata Document (see {@see Clients}); those never call this.
 	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|WP_Error
@@ -323,7 +337,8 @@ final class Server {
 	private const BLOCKED_REDIRECT_SCHEMES = array( 'javascript', 'data', 'vbscript', 'file', 'blob', 'about', 'filesystem', 'view-source', 'ftp', 'ws', 'wss' );
 
 	/**
-	 * Validate a client-supplied redirect_uri for Dynamic Client Registration.
+	 * Validate a client-supplied redirect_uri, whether registered through DCR
+	 * or listed in a Client ID Metadata Document.
 	 *
 	 * Accepts:
 	 * - HTTPS URLs (remote/web clients such as claude.ai);
@@ -372,9 +387,53 @@ final class Server {
 	}
 
 	/**
+	 * Whether a requested redirect_uri is one of the client's.
+	 *
+	 * Matches exactly, except that a loopback redirect may use any port
+	 * (RFC 8252 §7.3): native and CLI clients listen on whichever port is free,
+	 * while a metadata document can only list a fixed URI.
+	 *
+	 * @param string   $redirect_uri The redirect_uri from the request, already sanitized.
+	 * @param string[] $registered   The client's redirect_uris.
+	 */
+	public static function redirect_uri_allowed( string $redirect_uri, array $registered ): bool {
+		if ( '' === $redirect_uri ) {
+			return false;
+		}
+
+		if ( in_array( $redirect_uri, $registered, true ) ) {
+			return true;
+		}
+
+		$portless = self::without_loopback_port( $redirect_uri );
+		if ( null === $portless ) {
+			return false;
+		}
+
+		foreach ( $registered as $uri ) {
+			if ( is_string( $uri ) && self::without_loopback_port( $uri ) === $portless ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * A loopback http:// URI with its port removed, or null for any other URI.
+	 *
+	 * @param string $uri The redirect URI.
+	 */
+	private static function without_loopback_port( string $uri ): ?string {
+		$portless = preg_replace( '#^(http://(?:127\.0\.0\.1|\[::1\]|localhost))(?::\d+)?(?=[/?]|$)#i', '$1', $uri, 1, $count );
+
+		return 1 === $count && is_string( $portless ) ? $portless : null;
+	}
+
+	/**
 	 * A redirect_uri from a request, returned verbatim when it's one this
-	 * server could have registered, or '' otherwise. Callers then compare it
-	 * exactly against the client's registered list.
+	 * server could accept, or '' otherwise. Callers then check it against the
+	 * client's list with redirect_uri_allowed().
 	 *
 	 * @param mixed $uri The raw request parameter.
 	 */

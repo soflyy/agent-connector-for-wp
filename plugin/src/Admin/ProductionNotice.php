@@ -49,15 +49,15 @@ final class ProductionNotice {
 		?>
 		<div class="notice notice-error" id="acfw-production-warning">
 			<p>
-				<strong><?php esc_html_e( 'Agent Connector for WP is active on this site.', 'agent-connector-for-wp' ); ?></strong>
-				<?php esc_html_e( 'AI agents connected to it can do anything an administrator can — run code, modify files, and change content. If that is what you want, you are all set. To restrict it, enable protections in the settings.', 'agent-connector-for-wp' ); ?>
+				<strong><?php esc_html_e( 'Agent Connector is active on this site.', 'agent-connector' ); ?></strong>
+				<?php esc_html_e( 'AI agents connected to it can do anything an administrator can — run code, modify files, and change content. If that is what you want, you are all set. To restrict it, enable protections in the settings.', 'agent-connector' ); ?>
 			</p>
 			<p>
 				<button type="button" class="button button-primary" id="acfw-production-warning-dismiss">
-					<?php esc_html_e( 'I understand, hide this warning', 'agent-connector-for-wp' ); ?>
+					<?php esc_html_e( 'I understand, hide this warning', 'agent-connector' ); ?>
 				</button>
 				<a class="button" href="<?php echo esc_url( $settings_url ); ?>">
-					<?php esc_html_e( 'Protection settings', 'agent-connector-for-wp' ); ?>
+					<?php esc_html_e( 'Protection settings', 'agent-connector' ); ?>
 				</a>
 			</p>
 		</div>

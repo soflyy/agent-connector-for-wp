@@ -54,10 +54,18 @@ final class Config {
 	public const HIDE_PRODUCTION_WARNING_OPTION = 'agent_connector_for_wp_hide_production_warning';
 
 	/**
-	 * Option hiding the "install Universal Abilities" nudge notice (boolean,
-	 * default off = notice shows while the pack is missing). Site-wide.
+	 * Option switching on the built-in Universal Abilities (boolean). Default
+	 * OFF: they give a connected agent operational reach over the server, so
+	 * turning them on is a deliberate opt-in under Settings.
 	 */
-	public const HIDE_UAP_NOTICE_OPTION = 'agent_connector_for_wp_hide_uap_notice';
+	public const UNIVERSAL_ABILITIES_OPTION = 'agent_connector_for_wp_universal_abilities';
+
+	/**
+	 * Legacy option that dismissed the old "install Universal Abilities" notice.
+	 * Universal Abilities is built in now, so this is deleted on activation and
+	 * never read.
+	 */
+	public const LEGACY_HIDE_UAP_NOTICE_OPTION = 'agent_connector_for_wp_hide_uap_notice';
 
 	/**
 	 * Legacy option from the old opt-out model ("allow use on production").
@@ -192,11 +200,11 @@ final class Config {
 	}
 
 	/**
-	 * Whether the "install Universal Abilities" nudge has been dismissed
-	 * (site-wide).
+	 * Whether the operator switched on the built-in Universal Abilities.
+	 * Default OFF — see UNIVERSAL_ABILITIES_OPTION.
 	 */
-	public static function uap_notice_hidden(): bool {
-		return (bool) get_option( self::HIDE_UAP_NOTICE_OPTION, false );
+	public static function universal_abilities_enabled(): bool {
+		return (bool) get_option( self::UNIVERSAL_ABILITIES_OPTION, false );
 	}
 
 	/**
@@ -294,7 +302,7 @@ final class Config {
 		}
 
 		return sprintf(
-			'Agent Connector for WP is domain-locked. It was locked to "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector → Settings → Protection and click "Reconnect to this domain" to re-enable abilities here.',
+			'Agent Connector is domain-locked. It was locked to "%1$s" but this site now reports its home as "%2$s", so all abilities are blocked. An administrator must open wp-admin → Agent Connector → Settings → Protection and click "Reconnect to this domain" to re-enable abilities here.',
 			$locked,
 			'' === $declared ? '(unknown)' : $declared
 		);
@@ -362,5 +370,6 @@ final class Config {
 
 		delete_option( self::LEGACY_PRODUCTION_OVERRIDE_OPTION );
 		delete_option( self::LEGACY_OAUTH_ENABLED_OPTION );
+		delete_option( self::LEGACY_HIDE_UAP_NOTICE_OPTION );
 	}
 }

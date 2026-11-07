@@ -1,6 +1,6 @@
 <?php
 /**
- * Public registration API for third-party "ability pack" plugins.
+ * Public ability-registration API for other plugins.
  *
  * This is the one stable, documented entry point a companion plugin uses to
  * register a WordPress ability that is exposed over Agent Connector's MCP server
@@ -8,7 +8,9 @@
  * and audit logging. The companion plugin writes NO permission / auth /
  * domain-lock / audit code.
  *
- * See docs/registering-abilities.md for the full developer guide.
+ * See plugin/docs/registering-abilities.md in the GitHub repository for the
+ * full developer guide:
+ * https://github.com/soflyy/agent-connector-for-wp/blob/master/plugin/docs/registering-abilities.md
  *
  * The functions live in the global namespace on purpose: companion plugins call
  * them directly, with no `use` statement and no knowledge of internal classes.
@@ -113,13 +115,16 @@ if ( ! function_exists( 'acfw_register_ability' ) ) {
 	/**
 	 * Short alias for {@see agent_connector_for_wp_register_ability()}.
 	 *
+	 * `acfw_` is this plugin's short prefix (its database tables use it too).
+	 * Companion plugins already call this alias, so it stays.
+	 *
 	 * @since 1.4.0
 	 *
 	 * @param string              $name The ability name, with the caller's vendor namespace.
 	 * @param array<string,mixed> $args Ability definition. See the canonical function.
 	 * @return void
 	 */
-	function acfw_register_ability( string $name, array $args ): void {
+	function acfw_register_ability( string $name, array $args ): void { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- acfw_ is this plugin's short prefix.
 		agent_connector_for_wp_register_ability( $name, $args );
 	}
 }

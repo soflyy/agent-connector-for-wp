@@ -79,19 +79,19 @@ final class ApplicationPasswords {
 		if ( 'transport' === $reason['type'] || 'unsupported' === $reason['type'] ) {
 			return __(
 				"Application passwords require HTTPS and aren't available on this site. On a production environment WordPress only allows them over HTTPS; over plain HTTP they work only when the site's environment type is local (set WP_ENVIRONMENT_TYPE to local in wp-config.php).",
-				'agent-connector-for-wp'
+				'agent-connector'
 			);
 		}
 
 		if ( ! empty( $reason['plugin'] ) ) {
 			return sprintf(
 				/* translators: %s: plugin name. */
-				__( 'Application passwords are disabled by the "%s" plugin.', 'agent-connector-for-wp' ),
+				__( 'Application passwords are disabled by the "%s" plugin.', 'agent-connector' ),
 				$reason['plugin']
 			);
 		}
 
-		return __( 'Application passwords are disabled on this site by a plugin or theme.', 'agent-connector-for-wp' );
+		return __( 'Application passwords are disabled on this site by a plugin or theme.', 'agent-connector' );
 	}
 
 	/**
