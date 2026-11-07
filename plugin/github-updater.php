@@ -12,8 +12,7 @@
  *             update-checker dependency are removed; wordpress.org delivers
  *             its updates.
  *
- * The main plugin file requires this file only when it exists, so deleting it
- * is the whole difference between the two builds.
+ * The main plugin file requires this file only when it exists.
  *
  * IMPORTANT — release assets, not the source tarball:
  * enableReleaseAssets() makes the checker install the built ZIP attached to each
@@ -31,8 +30,10 @@
  *
  * The repo is PUBLIC — the checker needs no authentication.
  *
- * Guarded to admin context: update checks only need to run in wp-admin, never on
- * every front-end request.
+ * Built on every request, as the library expects: WordPress installs automatic
+ * updates from WP-Cron and WP-CLI runs `wp plugin update` outside wp-admin, so
+ * the checker has to be there too or neither sees new releases (issue #143).
+ * It schedules its own checks, so this costs nothing on ordinary requests.
  *
  * @package AgentConnectorForWp
  */
@@ -43,26 +44,20 @@ namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
 
-add_action(
-	'admin_init',
-	static function (): void {
-		$factory = '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
-		if ( ! class_exists( $factory ) ) {
-			// vendor/ missing (e.g. a source checkout without `composer install`).
-			return;
-		}
+// vendor/ can be missing in a source checkout without `composer install`.
+if ( class_exists( \YahnisElsts\PluginUpdateChecker\v5\PucFactory::class ) ) {
+	$agent_connector_for_wp_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		'https://github.com/soflyy/agent-connector-for-wp/',
+		AGENT_CONNECTOR_FOR_WP_FILE,
+		'agent-connector-for-wp'
+	);
 
-		$update_checker = $factory::buildUpdateChecker(
-			'https://github.com/soflyy/agent-connector-for-wp/',
-			AGENT_CONNECTOR_FOR_WP_FILE,
-			'agent-connector-for-wp'
-		);
+	// Default branch holding the stable tags/releases.
+	$agent_connector_for_wp_update_checker->setBranch( 'master' );
 
-		// Default branch holding the stable tags/releases.
-		$update_checker->setBranch( 'master' );
+	// Install the built release ZIP (with bundled vendor/) attached to each
+	// GitHub Release — NOT the source tarball, which lacks vendor/.
+	$agent_connector_for_wp_update_checker->getVcsApi()->enableReleaseAssets();
 
-		// Install the built release ZIP (with bundled vendor/) attached to each
-		// GitHub Release — NOT the source tarball, which lacks vendor/.
-		$update_checker->getVcsApi()->enableReleaseAssets();
-	}
-);
+	unset( $agent_connector_for_wp_update_checker );
+}
