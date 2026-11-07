@@ -1,5 +1,5 @@
 === Agent Connector ===
-Contributors: soflyy
+Contributors: altolord
 Tags: mcp, ai, agents, abilities, automation
 Requires at least: 7.0
 Tested up to: 7.1
