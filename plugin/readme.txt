@@ -41,8 +41,6 @@ The MCP server itself comes from the [MCP Adapter](https://wordpress.org/plugins
 
 Built-in abilities that let a connected agent work with your site directly: read, write and delete files, inspect the environment, search the media library, and create one-time admin login links. They are off by default; an administrator can turn them on under **Agent Connector → Settings**.
 
-An agent can only write PHP files into one folder: `wp-content/agent-connector-for-wp-sandbox/`. While Universal Abilities are on, Agent Connector loads the PHP files in that folder on every request, so an agent can add features to your site; turning them off stops loading those files. If one of them causes a fatal error, Agent Connector stops loading the folder (safe mode) and shows an administrator which file failed and how to recover.
-
 = Source code =
 
 The admin screens are built with React from the `admin/src` directory included in this plugin (`npm ci && npm run build` in `admin/`). The full development repository is at [github.com/soflyy/agent-connector-for-wp](https://github.com/soflyy/agent-connector-for-wp).
