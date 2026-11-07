@@ -8,7 +8,7 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Support;
+namespace AgentConnectorForWp\GitHub\Services;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -17,9 +17,8 @@ defined( 'ABSPATH' ) || exit;
  * isolation boundary for all filesystem writes.
  *
  * It gives the plugin one place to load AI-written PHP "plugins" from, disable
- * them, and recover from crashes (the GitHub build's sandbox loader).
- * The wordpress.org build has no loader, so it refuses PHP writes altogether
- * (see php_writes_allowed()).
+ * them, and recover from crashes (see SandboxLoader). GitHub build only, like
+ * file-write and the loader.
  * Authenticated administrators may still read, write, and delete *non-PHP* files anywhere on
  * the filesystem — that is part of the plugin's high-trust model. What this
  * class enforces is narrower: files that can directly affect PHP execution
@@ -60,7 +59,7 @@ final class Sandbox {
 
 	/**
 	 * Deny rules for Apache and LiteSpeed: the sandbox's PHP files are loaded by
-	 * WordPress (the GitHub build's sandbox loader), never requested over the web. Servers
+	 * WordPress (SandboxLoader), never requested over the web. Servers
 	 * that ignore .htaccess (nginx, IIS) are covered by the direct-access guard
 	 * every sandbox PHP file must start with (see check_direct_access_guard()).
 	 */
@@ -102,19 +101,6 @@ HTACCESS;
 	}
 
 	/**
-	 * Whether this build lets agents write PHP files (into the sandbox). Only
-	 * the GitHub build loads sandbox files; bin/build-plugin-zip.sh strips the
-	 * marked lines from the wordpress.org build, leaving false.
-	 */
-	public static function php_writes_allowed(): bool {
-		$allowed = false;
-		// @github-build-start
-		$allowed = true;
-		// @github-build-end
-		return $allowed;
-	}
-
-	/**
 	 * Whether a path can directly affect PHP execution and must therefore stay
 	 * inside the sandbox.
 	 *
@@ -151,14 +137,6 @@ HTACCESS;
 			return new \WP_Error(
 				'agent_connector_for_wp_execution_control_file',
 				'Files that change how the server runs PHP or serves files (.htaccess, .user.ini, php.ini, web.config) cannot be written.',
-				array( 'status' => 403 )
-			);
-		}
-
-		if ( ! self::php_writes_allowed() ) {
-			return new \WP_Error(
-				'agent_connector_for_wp_php_writes_unavailable',
-				'PHP files cannot be written with this version of Agent Connector.',
 				array( 'status' => 403 )
 			);
 		}

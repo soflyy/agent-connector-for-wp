@@ -14,7 +14,6 @@ use AgentConnectorForWp\UniversalAbilities\Abilities\EnvInspectAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileDeleteAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileListAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileReadAbility;
-use AgentConnectorForWp\UniversalAbilities\Abilities\FileWriteAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginActivateAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginAutoUpdatesAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\PluginDeactivateAbility;
@@ -64,7 +63,9 @@ final class Registrar {
 		\AgentConnectorForWp\GitHub\Abilities\PhpEvalAbility::class,
 		// @github-build-end
 		FileReadAbility::class,
-		FileWriteAbility::class,
+		// @github-build-start
+		\AgentConnectorForWp\GitHub\Abilities\FileWriteAbility::class,
+		// @github-build-end
 		FileListAbility::class,
 		FileDeleteAbility::class,
 		SearchMediaAbility::class,
@@ -88,8 +89,9 @@ final class Registrar {
 	 * @return array{description:string,items:array<int,array{title:string,detail:string}>}
 	 */
 	public static function summary(): array {
-		$parts = array();
-		$items = array();
+		$parts       = array();
+		$items       = array();
+		$files_title = 'Read, list, and delete files';
 
 		// @github-build-start
 		$parts[] = 'shell';
@@ -99,13 +101,14 @@ final class Registrar {
 		$items[] = array( 'title' => 'Evaluate PHP code', 'detail' => 'Execute any PHP in the WordPress context' );
 		$items[] = array( 'title' => 'Run WP-CLI commands', 'detail' => 'Any wp-cli command on your install' );
 		$items[] = array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' );
+		$files_title = 'Read, write, and delete files';
 		// @github-build-end
 
 		$parts = array_merge( $parts, array( 'filesystem', 'environment', 'plugins', 'media search', 'admin login link' ) );
 		$items = array_merge(
 			$items,
 			array(
-				array( 'title' => 'Read, write, and delete files', 'detail' => "Access to the server's filesystem" ),
+				array( 'title' => $files_title, 'detail' => "Access to the server's filesystem" ),
 				array( 'title' => 'Inspect the environment', 'detail' => 'Versions, paths, active plugins and theme' ),
 				array( 'title' => 'Install and manage plugins', 'detail' => 'Install from wordpress.org, activate, update and delete plugins' ),
 				array( 'title' => 'Search the media library', 'detail' => 'Find attachments and their URLs' ),

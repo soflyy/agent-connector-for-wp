@@ -39,7 +39,7 @@ The MCP server itself comes from the [MCP Adapter](https://wordpress.org/plugins
 
 = Universal Abilities (optional) =
 
-Built-in abilities that let a connected agent work with your site directly: read, write and delete files, inspect the environment, install and manage plugins from WordPress.org, search the media library, and create one-time admin login links. They are off by default; an administrator can turn them on under **Agent Connector → Settings**.
+Built-in abilities that let a connected agent work with your site directly: read, list and delete files, inspect the environment, install and manage plugins from WordPress.org, search the media library, and create one-time admin login links. They are off by default; an administrator can turn them on under **Agent Connector → Settings**.
 
 = Source code =
 

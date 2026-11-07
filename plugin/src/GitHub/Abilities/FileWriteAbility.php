@@ -7,10 +7,10 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\UniversalAbilities\Abilities;
+namespace AgentConnectorForWp\GitHub\Abilities;
 
 use AgentConnectorForWp\Services\AuditLogger;
-use AgentConnectorForWp\UniversalAbilities\Services\FileManager;
+use AgentConnectorForWp\GitHub\Services\FileWriter;
 use AgentConnectorForWp\Support\Config;
 
 defined( 'ABSPATH' ) || exit;
@@ -27,14 +27,9 @@ final class FileWriteAbility {
 	 * @return array<string,mixed>
 	 */
 	public static function definition(): array {
-		$php = ' PHP files cannot be written.';
-		// @github-build-start
-		$php = ' PHP files can only go in the sandbox directory (wp-content/agent-connector-for-wp-sandbox/), where they load on every request, and must start with "<?php" then "defined( \'ABSPATH\' ) || exit;" so they stop when requested directly.';
-		// @github-build-end
-
 		return array(
 			'label'               => 'Write File',
-			'description'         => 'Write a file to the server, creating parent directories as needed. Binary-safe when contents are base64-encoded. Can append instead of overwriting.' . $php,
+			'description'         => 'Write a file to the server, creating parent directories as needed. Binary-safe when contents are base64-encoded. Can append instead of overwriting. PHP files can only go in the sandbox directory (wp-content/agent-connector-for-wp-sandbox/), where they load on every request, and must start with "<?php" then "defined( \'ABSPATH\' ) || exit;" so they stop when requested directly.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -96,7 +91,7 @@ final class FileWriteAbility {
 		$contents = isset( $input['contents'] ) ? (string) $input['contents'] : '';
 		$encoding = isset( $input['encoding'] ) ? (string) $input['encoding'] : 'utf8';
 		$append   = ! empty( $input['append'] );
-		return ( new FileManager() )->write( $path, $contents, $encoding, $append );
+		return ( new FileWriter() )->write( $path, $contents, $encoding, $append );
 	}
 
 	/**
