@@ -15,6 +15,14 @@ use AgentConnectorForWp\UniversalAbilities\Abilities\FileDeleteAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileListAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileReadAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\FileWriteAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginActivateAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginAutoUpdatesAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginDeactivateAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginDeleteAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginInstallAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginsListAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginsSearchAbility;
+use AgentConnectorForWp\UniversalAbilities\Abilities\PluginUpdateAbility;
 use AgentConnectorForWp\UniversalAbilities\Abilities\SearchMediaAbility;
 use AgentConnectorForWp\UniversalAbilities\Services\AdminLoginLink;
 
@@ -61,6 +69,14 @@ final class Registrar {
 		FileDeleteAbility::class,
 		SearchMediaAbility::class,
 		AdminLoginAbility::class,
+		PluginsListAbility::class,
+		PluginsSearchAbility::class,
+		PluginInstallAbility::class,
+		PluginActivateAbility::class,
+		PluginDeactivateAbility::class,
+		PluginUpdateAbility::class,
+		PluginDeleteAbility::class,
+		PluginAutoUpdatesAbility::class,
 	);
 
 	/**
@@ -84,13 +100,14 @@ final class Registrar {
 		$items[] = array( 'title' => 'Run WP-CLI commands', 'detail' => 'Any wp-cli command on your install' );
 		// @github-build-end
 
-		$parts = array_merge( $parts, array( 'filesystem', 'environment', 'media search', 'admin login link' ) );
+		$parts = array_merge( $parts, array( 'filesystem', 'environment', 'plugins', 'media search', 'admin login link' ) );
 		$items = array_merge(
 			$items,
 			array(
 				array( 'title' => 'Read, write, and delete files', 'detail' => "Access to the server's filesystem" ),
 				array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' ),
 				array( 'title' => 'Inspect the environment', 'detail' => 'Versions, paths, active plugins and theme' ),
+				array( 'title' => 'Install and manage plugins', 'detail' => 'Install from wordpress.org, activate, update and delete plugins' ),
 				array( 'title' => 'Search the media library', 'detail' => 'Find attachments and their URLs' ),
 				array( 'title' => 'Create one-time admin login links', 'detail' => 'Let your agent log into your wp-admin' ),
 			)
@@ -125,7 +142,7 @@ final class Registrar {
 			self::CATEGORY,
 			array(
 				'label'       => 'Agent Connector',
-				'description' => 'Built-in operational abilities (filesystem, environment, media, admin login) for trusted agents.',
+				'description' => 'Built-in operational abilities (filesystem, environment, plugins, media, admin login) for trusted agents.',
 			)
 		);
 	}

@@ -69,10 +69,10 @@ final class CompanionPlugins {
 	}
 
 	/**
-	 * Resolve a plugin slug to its installed plugin file, or null when it isn't
-	 * installed.
+	 * Resolve a plugin slug (or "folder/file.php") to its installed plugin file,
+	 * or null when it isn't installed.
 	 */
-	private static function installed_file_for_slug( string $slug ): ?string {
+	public static function installed_file_for_slug( string $slug ): ?string {
 		return self::find_installed_key( $slug, self::installed_plugins() );
 	}
 

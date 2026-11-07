@@ -29,7 +29,17 @@ these out, see [Updates](#updates)):
 | `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, and (GitHub build) available CLI tools. |
 | `agent-connector-for-wp/process-exec` ★ | Longer-running command execution (proxies shell-exec in v1). |
 | `agent-connector-for-wp/search-media` | Search the media library. |
+| `agent-connector-for-wp/plugins-list` | Installed plugins: version, active, available update, auto-updates. |
+| `agent-connector-for-wp/plugins-search` | Search the wordpress.org plugin directory. |
+| `agent-connector-for-wp/plugin-install` | Install a plugin from wordpress.org by slug (optionally a version), optionally activating it. wordpress.org only. |
+| `agent-connector-for-wp/plugin-activate` / `plugin-deactivate` | Activate or deactivate a plugin (network-wide on multisite). |
+| `agent-connector-for-wp/plugin-update` | Update one plugin, or `all`. |
+| `agent-connector-for-wp/plugin-delete` | Deactivate, uninstall and delete a plugin. |
+| `agent-connector-for-wp/plugin-auto-updates` | Turn a plugin's auto-updates on or off. |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
+
+The plugin abilities refuse to deactivate, update or delete Agent Connector
+itself or MCP Adapter, since the agent's connection depends on them.
 
 The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — with Universal Abilities switched on — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
 
