@@ -28,8 +28,7 @@ land as patch releases.
   it and commits the bump with `[skip ci]`. Editing it yourself just creates
   conflicts.
 - **Scope:** releases fire only when `plugin/**` changes. A merge touching only
-  the tracker, abilities generator, ability packs, or root docs won't cut a
-  release.
+  the tracker or root docs won't cut a release.
 - **Need a specific bump or a re-run?** Run the **Auto release on merge**
   workflow manually (Actions → Run workflow) and pick the `bump` input, or push
   a `vX.Y.Z` tag yourself — [`release.yml`](.github/workflows/release.yml) builds
@@ -39,7 +38,7 @@ land as patch releases.
 
 See [`README.md`](README.md) for the full setup. In short: `composer install`
 in `plugin/`, symlink `plugin/` into a WordPress install with `bin/install.sh`,
-then enable it from **Agent Connector for WP → Settings** in wp-admin.
+then enable it from **Agent Connector → Settings** in wp-admin.
 
 > ⚠️ The plugin is usually symlinked into `wp-content/plugins`. Never run
 > `wp plugin install <zip> --force` over that symlink — WP deletes the link

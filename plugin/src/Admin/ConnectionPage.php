@@ -14,10 +14,11 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
+use AgentConnectorForWp\Support\McpAdapterPlugin;
+use AgentConnectorForWp\UniversalAbilities\Registrar;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -53,8 +54,8 @@ final class ConnectionPage {
 
 	public function register_menu(): void {
 		$this->hook_suffix = (string) add_menu_page(
-			__( 'Agent Connector', 'agent-connector-for-wp' ),
-			__( 'Agent Connector', 'agent-connector-for-wp' ),
+			__( 'Agent Connector', 'agent-connector' ),
+			__( 'Agent Connector', 'agent-connector' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' ),
@@ -64,8 +65,8 @@ final class ConnectionPage {
 
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Agent Connector: Connection', 'agent-connector-for-wp' ),
-			__( 'Connection', 'agent-connector-for-wp' ),
+			__( 'Agent Connector: Connection', 'agent-connector' ),
+			__( 'Connection', 'agent-connector' ),
 			Config::CAP,
 			self::MENU_SLUG,
 			array( $this, 'render_page' )
@@ -87,10 +88,12 @@ final class ConnectionPage {
 
 		$version = AGENT_CONNECTOR_FOR_WP_VERSION . '.' . filemtime( $js_file );
 
+		// React comes from WordPress core: the bundle maps react, react-dom and
+		// react/jsx-runtime to these handles' globals instead of bundling them.
 		wp_enqueue_script(
 			'agent-connector-for-wp-admin',
 			plugins_url( 'admin/build/assets/index.js', AGENT_CONNECTOR_FOR_WP_FILE ),
-			array(),
+			array( 'react', 'react-dom', 'react-jsx-runtime' ),
 			$version,
 			true
 		);
@@ -142,7 +145,9 @@ final class ConnectionPage {
 				'pwAvailable'           => null === $pw_reason,
 				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
-				'uapActive'             => $this->is_uap_active(),
+				'universalAbilities'    => Config::universal_abilities_enabled(),
+				'universalAbilitiesSummary' => Registrar::summary(),
+				'mcpAdapterStatus'      => McpAdapterPlugin::status(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 				'embed'                 => self::is_embed(),
 			)
@@ -221,9 +226,5 @@ final class ConnectionPage {
 				</style>';
 			}
 		);
-	}
-
-	private function is_uap_active(): bool {
-		return PluginDirectory::is_universal_abilities_active();
 	}
 }

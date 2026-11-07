@@ -1,19 +1,21 @@
 <?php
 /**
- * Plugin Name:       Agent Connector for WP
+ * Plugin Name:       Agent Connector
  * Plugin URI:        https://github.com/soflyy/agent-connector-for-wp
  * Description:       Connect AI agents to your WordPress site over MCP. Runs the WordPress MCP server, exposes abilities registered by your plugins to connected agents, and optionally audit-logs every call — with optional protections (production blocking, domain lock) under Settings → Protection.
  * Version:           1.33.2
  * Requires at least: 7.0
  * Requires PHP:      8.1
+ * Requires Plugins:  mcp-adapter
  * Author:            Soflyy
  * Author URI:        https://github.com/soflyy
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       agent-connector-for-wp
+ * Text Domain:       agent-connector
  *
  * Agents connected through this plugin can act with the full capability of a
- * super admin (and, with the Universal Abilities pack, run shell/PHP/WP-CLI).
+ * super admin (and, with Universal Abilities switched on, work directly with
+ * the server).
  * That is the product, not an accident — the operator installed it to give an
  * agent that access. The UI is responsible for making sure they understand:
  * a site-wide warning notice renders on production environments until
@@ -31,38 +33,72 @@ namespace AgentConnectorForWp;
 
 defined( 'ABSPATH' ) || exit;
 
+/**
+ * Only one copy of Agent Connector may run.
+ *
+ * The GitHub build lives in agent-connector-for-wp/ and the wordpress.org build
+ * in agent-connector/, so WordPress treats them as two plugins and lets both be
+ * active (typically while a site moves from one to the other). Running both
+ * would register every route, menu and ability twice, so the copy that loads
+ * second stands down and asks an administrator to deactivate one of them.
+ */
+if ( defined( 'AGENT_CONNECTOR_FOR_WP_FILE' ) ) {
+	$agent_connector_for_wp_duplicate = array(
+		'running'  => plugin_basename( AGENT_CONNECTOR_FOR_WP_FILE ),
+		'inactive' => plugin_basename( __FILE__ ),
+	);
+	$agent_connector_for_wp_notice    = static function () use ( $agent_connector_for_wp_duplicate ): void {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+		printf(
+			'<div class="notice notice-error"><p>%s</p></div>',
+			esc_html(
+				sprintf(
+					/* translators: 1: plugin path of the running copy, 2: plugin path of the inactive copy. */
+					__( 'Two copies of Agent Connector are active: %1$s and %2$s. Only %1$s is running. Deactivate one of them on the Plugins screen.', 'agent-connector' ),
+					$agent_connector_for_wp_duplicate['running'],
+					$agent_connector_for_wp_duplicate['inactive']
+				)
+			)
+		);
+	};
+	add_action( 'admin_notices', $agent_connector_for_wp_notice );
+	add_action( 'network_admin_notices', $agent_connector_for_wp_notice );
+	unset( $agent_connector_for_wp_duplicate, $agent_connector_for_wp_notice );
+	return;
+}
+
 define( 'AGENT_CONNECTOR_FOR_WP_VERSION', '1.33.2' );
 define( 'AGENT_CONNECTOR_FOR_WP_FILE', __FILE__ );
 define( 'AGENT_CONNECTOR_FOR_WP_DIR', plugin_dir_path( __FILE__ ) );
 
 /**
- * Load bundled Composer dependencies via the Jetpack Autoloader.
+ * Load Composer dependencies.
  *
- * We ship wordpress/mcp-adapter (and its php-mcp-schema dependency) inside this
- * plugin so it works standalone — the separate "MCP Adapter" plugin does not
- * need to be installed. The Jetpack Autoloader (autoload_packages.php, not the
- * plain vendor/autoload.php) deduplicates shared packages across plugins: when
- * several plugins bundle the adapter, only the newest version is loaded, which
- * prevents fatal "class already declared" / version-mismatch conflicts.
- *
- * It also registers this plugin's own AgentConnectorForWp\ namespace (PSR-4, src/),
- * so the fallback autoloader below is only used when dependencies are missing
- * (e.g. a source checkout where `composer install` has not been run yet).
+ * vendor/ holds only this plugin's own PSR-4 map and its Composer dependencies.
+ * The MCP server itself comes from the canonical "MCP Adapter" plugin, declared
+ * in the `Requires Plugins` header above: it used to be bundled here via
+ * Composer and the Jetpack Autoloader, but the adapter project has deprecated
+ * that (see https://github.com/WordPress/mcp-adapter/pull/288) because two
+ * copies of the library on one site fatal or silently shadow each other.
+ * WordPress enforces the dependency — it will not activate this plugin without
+ * MCP Adapter, and offers to install it from wordpress.org.
  */
-$agent_connector_for_wp_jetpack_autoloader = AGENT_CONNECTOR_FOR_WP_DIR . 'vendor/autoload_packages.php';
-$agent_connector_for_wp_has_vendor         = is_readable( $agent_connector_for_wp_jetpack_autoloader );
+$agent_connector_for_wp_autoloader = AGENT_CONNECTOR_FOR_WP_DIR . 'vendor/autoload.php';
+$agent_connector_for_wp_has_vendor = is_readable( $agent_connector_for_wp_autoloader );
 if ( $agent_connector_for_wp_has_vendor ) {
-	require_once $agent_connector_for_wp_jetpack_autoloader;
+	require_once $agent_connector_for_wp_autoloader;
 }
-unset( $agent_connector_for_wp_jetpack_autoloader );
+unset( $agent_connector_for_wp_autoloader );
 
 /**
  * Minimal PSR-4 fallback autoloader for the AgentConnectorForWp\ namespace, rooted at
  * src/.
  *
- * Registered only when the Jetpack autoloader is absent (e.g. a source checkout
+ * Registered only when the Composer autoloader is absent (e.g. a source checkout
  * where `composer install` has not been run). When vendor/ is present the
- * Jetpack autoloader already maps the AgentConnectorForWp\ namespace, and registering
+ * Composer autoloader already maps the AgentConnectorForWp\ namespace, and registering
  * a second loader here would re-require the class files and trigger a "Cannot
  * declare class … already in use" fatal.
  */
@@ -87,9 +123,9 @@ unset( $agent_connector_for_wp_has_vendor );
  * Load the public ability-registration API (plain functions, global namespace).
  *
  * This is a functions file, not a PSR-4 class, so it is required explicitly
- * rather than autoloaded. It is loaded unconditionally and early so a companion
- * "ability pack" plugin can call agent_connector_for_wp_register_ability() the
- * moment this plugin's file has run, regardless of the enable gates below — the
+ * rather than autoloaded. It is loaded unconditionally and early so any plugin
+ * can call agent_connector_for_wp_register_ability() the moment this plugin's
+ * file has run, regardless of the enable gates below — the
  * gates still decide whether the MCP server actually exposes anything.
  */
 require_once AGENT_CONNECTOR_FOR_WP_DIR . 'src/api.php';
@@ -115,14 +151,14 @@ add_action(
 		// protection — because it's where the operator manages those settings.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
-			// Browser of available companion "ability pack" plugins (with install).
-			( new Admin\DirectoryPage() )->register();
 			// Site-wide warning on every wp-admin page while running on a
 			// production environment, until explicitly dismissed.
 			( new Admin\ProductionNotice() )->register();
-			// Site-wide nudge while the Universal Abilities pack is missing —
-			// without it a connected agent has almost nothing to do.
-			( new Admin\UapNotice() )->register();
+			// Hand-over from the old standalone Universal Abilities plugin.
+			( new UniversalAbilities\LegacyPlugin() )->register();
+			// Site-wide error while the MCP Adapter plugin is missing, inactive
+			// or too old — without it there is no MCP server at all.
+			( new Admin\McpAdapterNotice() )->register();
 		}
 
 		// REST API: settings, reconnect, connection generation.
@@ -133,10 +169,6 @@ add_action(
 			}
 		);
 
-		// Keep installed ability packs updatable from GitHub in every context
-		// (admin + cron), independent of whether the plugin is switched "on".
-		( new Services\PackUpdater() )->register();
-
 		if ( ! Support\Config::can_boot() ) {
 			// Disabled, or held back by the opt-in production protection. The
 			// operator chose this state, so no global nag — the plugin's own
@@ -144,24 +176,46 @@ add_action(
 			return;
 		}
 
+		// @github-build-start
 		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
 		// crash recovery (safe mode) so a fatal in generated code can't take the
-		// site down. See Services\SandboxLoader.
-		( new Services\SandboxLoader() )->run();
+		// site down. GitHub build only. See GitHub\Services\SandboxLoader.
+		( new GitHub\Services\SandboxLoader() )->run();
+		// @github-build-end
+
+		// The built-in Universal Abilities, when switched on in Settings. They
+		// stand down while the old standalone plugin is still loaded, so nothing
+		// registers twice.
+		if ( Support\Config::universal_abilities_enabled() && ! UniversalAbilities\LegacyPlugin::is_loaded() ) {
+			( new UniversalAbilities\Registrar() )->register();
+		}
 
 		/**
-		 * Ensure the MCP Adapter is running.
+		 * Wire into the MCP Adapter plugin.
 		 *
-		 * This is the plugin's first job: run the MCP server so the abilities
-		 * other plugins registered (third-party abilities) are exposed. It's
-		 * always on while the plugin is enabled.
+		 * This plugin's first job is to expose the abilities other plugins
+		 * registered over MCP. The server that does that belongs to the
+		 * canonical "MCP Adapter" plugin, which boots itself while its own
+		 * main file loads; by `plugins_loaded` its classes are either there or
+		 * they are not.
 		 *
-		 * If the standalone "MCP Adapter" plugin is active it will already have
-		 * booted the adapter; McpAdapter::instance() is an idempotent singleton,
-		 * so calling it again is safe. If that plugin is *not* installed, this is
-		 * what brings the bundled adapter (and its default MCP server) to life.
+		 * The `Requires Plugins` header keeps this plugin from being activated
+		 * without the adapter, but a site that updated from a release which
+		 * still bundled the adapter can end up active with it missing. So make
+		 * the availability check the adapter's installation guide asks
+		 * dependents to make (class + WP_MCP_VERSION floor, see
+		 * Support\McpAdapterPlugin): when it fails, everything that touches
+		 * adapter classes is skipped so the site keeps working, and
+		 * Admin\McpAdapterNotice tells the operator how to fix it.
 		 */
-		if ( class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
+		if ( Support\McpAdapterPlugin::is_ready() ) {
+			// The MCP Adapter plugin boots itself, so this is a no-op there
+			// (instance() is an idempotent singleton). It matters when the
+			// classes came from another plugin that bundles the adapter as a
+			// library without booting it: without this call nothing would
+			// start the server, and /mcp would 404 with no notice. When that
+			// library copy is 0.7+ it logs its own "loaded as a bundled
+			// dependency" deprecation, which is accurate and left alone.
 			\WP\MCP\Core\McpAdapter::instance();
 
 			// Log MCP traffic to a dedicated table and expose the "MCP
@@ -205,61 +259,22 @@ add_action(
 			OAuth\Server::init();
 		}
 
-		// This plugin ships NO abilities of its own. The powerful built-in
-		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in
-		// the separate "Universal Abilities for Agent Connector" plugin, which can be
-		// installed in one click from the Connection screen. Third-party ability
-		// packs register through src/api.php and are governed above.
+		// Other plugins register abilities through src/api.php and are governed
+		// above, like the built-in Universal Abilities.
 	}
 );
 
+// @github-build-start
 /**
- * Self-update from GitHub Releases via yahnis-elsts/plugin-update-checker.
+ * GitHub self-updater.
  *
- * We pull updates straight from this plugin's GitHub repo instead of the
- * wordpress.org directory (the plugin is intentionally dev-only and is not, and
- * will not be, hosted there). The library is bundled through the same Jetpack
- * Autoloader as the rest of vendor/: its loader (load-v5p7.php) is registered in
- * the autoloader's filemap, so YahnisElsts\PluginUpdateChecker\v5\PucFactory is
- * available once vendor/ is present — no separate require needed here.
- *
- * IMPORTANT — release assets, not the source tarball:
- * enableReleaseAssets() makes the checker install the built ZIP attached to each
- * GitHub Release (which bundles vendor/) rather than GitHub's auto-generated
- * source tarball. The source tarball would be BROKEN as an update because
- * vendor/ is gitignored, so it ships without the Jetpack autoloader or the MCP
- * adapter and the plugin would fatal on load. The release ZIP is produced by
- * .github/workflows/auto-release.yml / release.yml.
- *
- * Maintainer action required for updates to flow: cut a GitHub Release on a
- * vX.Y.Z tag with the built `agent-connector-for-wp.zip` attached as a release
- * asset. The auto-release workflow does this automatically on merge to master.
- *
- * The repo is PUBLIC — the checker needs no authentication.
- *
- * Guarded to admin context: update checks only need to run in wp-admin, never on
- * every front-end request.
+ * Present only in the GitHub build (the GitHub Release asset); the wordpress.org
+ * build leaves this file out and gets its updates from wordpress.org. It is the
+ * only difference between the two builds — see bin/build-plugin-zip.sh, which
+ * also strips this block (between the @github-build markers) from the
+ * wordpress.org build.
  */
-add_action(
-	'admin_init',
-	static function (): void {
-		$factory = '\\YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory';
-		if ( ! class_exists( $factory ) ) {
-			// vendor/ missing (e.g. a source checkout without `composer install`).
-			return;
-		}
-
-		$update_checker = $factory::buildUpdateChecker(
-			'https://github.com/soflyy/agent-connector-for-wp/',
-			AGENT_CONNECTOR_FOR_WP_FILE,
-			'agent-connector-for-wp'
-		);
-
-		// Default branch holding the stable tags/releases.
-		$update_checker->setBranch( 'master' );
-
-		// Install the built release ZIP (with bundled vendor/) attached to each
-		// GitHub Release — NOT the source tarball, which lacks vendor/.
-		$update_checker->getVcsApi()->enableReleaseAssets();
-	}
-);
+if ( is_readable( AGENT_CONNECTOR_FOR_WP_DIR . 'github-updater.php' ) ) {
+	require_once AGENT_CONNECTOR_FOR_WP_DIR . 'github-updater.php';
+}
+// @github-build-end

@@ -1,38 +1,37 @@
-# Agent Connector for WP
+# Agent Connector
 
-Agent Connector for WP fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
+Agent Connector fills the execution gap in the WordPress MCP ecosystem. The existing stack — the WordPress **Abilities API** (in core as of 7.0) and [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) — provides structured tools and abilities, but agents still lack unrestricted operational access.
 
-This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. It **bundles** [`wordpress/mcp-adapter`](https://github.com/WordPress/mcp-adapter) via Composer (loaded with the [Jetpack Autoloader](https://github.com/Automattic/jetpack-autoloader)), so it works standalone — the separate "MCP Adapter" plugin does **not** need to be installed. If that plugin *is* also active, the Jetpack Autoloader deduplicates the shared library to a single, newest version to avoid conflicts. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
+This plugin runs an MCP **server** for the site and exposes the WordPress **Abilities** that *other* plugins register — it ships **no abilities of its own**. The server itself comes from the canonical [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin, which must be installed alongside this one: it used to be bundled here, but the adapter project has [deprecated bundling](https://github.com/WordPress/mcp-adapter/pull/288) because two copies of the library on one site conflict. It is declared with the `Requires Plugins: mcp-adapter` header, so WordPress will not activate this plugin without it and offers to install it for you from wordpress.org. Every ability it exposes runs through one chokepoint — a super-admin permission check, the audit log, and (when you turn it on) the domain lock — no matter which plugin registered it.
 
 ## What it adds
 
-Nothing, on its own — and that is the point. The plugin is the secured MCP
-gateway; abilities come from companion plugins:
+Nothing, on its own, until you choose to. The plugin is the secured MCP
+gateway; abilities come from:
 
-- **[Universal Abilities](../universal-abilities-plugin/README.md)** — a separate,
-  optional companion plugin (installable in one click from the Settings screen)
-  that contributes the powerful built-in abilities below. Not installed by
-  default; installing it is the opt-in.
-- **Ability packs** — generated plugins that expose a specific plugin's
-  functionality (WooCommerce, Contact Form 7, …) to agents.
-- **Your own** abilities, via the [public registration API](#register-your-own-abilities).
+- **Universal Abilities** — built-in abilities, **off by default**. Turn them on
+  with the **Universal Abilities** switch under Settings.
+- **Other plugins** — anything registered through the Abilities API, including
+  your own via the [public registration API](#register-your-own-abilities).
 
-The abilities the **Universal Abilities** pack contributes:
+The Universal Abilities (★ = GitHub build only; the wordpress.org build leaves
+these out, see [Updates](#updates)):
 
 | Ability | Purpose |
 | --- | --- |
-| `agent-connector-for-wp/shell-exec` | Run arbitrary shell commands (`proc_open`), capturing stdout/stderr/exit code, with cwd + timeout. |
-| `agent-connector-for-wp/wp-cli` | Run a WP-CLI command against this install (everything after `wp`); auto-adds `--allow-root` when running as root. |
-| `agent-connector-for-wp/php-eval` | Evaluate arbitrary PHP in the loaded WordPress runtime; returns output, return value, and errors. |
+| `agent-connector-for-wp/shell-exec` ★ | Run arbitrary shell commands (`proc_open`), capturing stdout/stderr/exit code, with cwd + timeout. |
+| `agent-connector-for-wp/wp-cli` ★ | Run a WP-CLI command against this install (everything after `wp`); auto-adds `--allow-root` when running as root. |
+| `agent-connector-for-wp/php-eval` ★ | Evaluate arbitrary PHP in the loaded WordPress runtime; returns output, return value, and errors. |
 | `agent-connector-for-wp/file-read` | Read any file (binary-safe via base64). |
-| `agent-connector-for-wp/file-write` | Write any file, creating dirs; binary-safe; append mode. |
+| `agent-connector-for-wp/file-write` | Write any file, creating dirs; binary-safe; append mode. PHP files only inside the sandbox folder. |
 | `agent-connector-for-wp/file-delete` | Delete a file or directory (recursive optional). |
 | `agent-connector-for-wp/file-list` | List a directory, optionally recursively. |
-| `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, available CLI tools. |
-| `agent-connector-for-wp/process-exec` | Longer-running command execution (proxies shell-exec in v1). |
+| `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, and (GitHub build) available CLI tools. |
+| `agent-connector-for-wp/process-exec` ★ | Longer-running command execution (proxies shell-exec in v1). |
+| `agent-connector-for-wp/search-media` | Search the media library. |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time, short-lived URL that logs a browser into wp-admin as the requesting super admin (for browser-driving agents that hold only an application password). |
 
-The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — and the Universal Abilities pack once installed — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
+The goal: give agents effectively **SSH-equivalent** operational access through the existing WordPress MCP stack. A connected agent — with Universal Abilities switched on — can do anything a super admin can, so treat access to the MCP server (the application password) like an SSH key. See [Protection](#protection) for the safeguards.
 
 ## Requirements
 
@@ -40,13 +39,18 @@ The goal: give agents effectively **SSH-equivalent** operational access through 
 - PHP 8.1+
 - WP-CLI available on the server (recommended)
 
-> `wordpress/mcp-adapter` is bundled — you do not need to install it separately.
+- The [MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) plugin (0.6.0 or
+  newer), installed and active. It is declared as a plugin dependency, so
+  WordPress prompts you to install it when you activate this plugin.
 
 ## Install
 
-Clone into your plugins directory, install dependencies, and activate:
+Install the MCP Adapter plugin first, then this plugin:
 
 ```bash
+# The MCP server this plugin exposes abilities through.
+wp plugin install mcp-adapter --activate
+
 cd wp-content/plugins
 git clone https://github.com/soflyy/agent-connector-for-wp.git
 cd agent-connector-for-wp
@@ -54,21 +58,35 @@ composer install --no-dev
 wp plugin activate agent-connector-for-wp
 ```
 
+WordPress enforces the dependency both ways: it will not activate this plugin
+while MCP Adapter is missing or inactive, and it will not let you deactivate
+MCP Adapter while this plugin is running.
+
 Dependencies (`vendor/`) are not committed to the repository — `composer install`
-fetches them. If you download a packaged release `.zip` (built by CI, with
-`vendor/` already bundled), skip the `composer install` step and just activate.
+fetches them (only this plugin's autoloader and its GitHub update checker; the
+adapter is no longer part of `vendor/`). If you download a packaged release
+`.zip` (built by CI, with `vendor/` already bundled), skip the `composer install`
+step and just activate.
 
 ## Updates
 
-The plugin updates itself from **GitHub Releases** (it is intentionally not on
-wordpress.org), through a bundled update checker — new versions appear on the
-normal Plugins screen and via auto-updates. The optional
-[Universal Abilities](../universal-abilities-plugin/README.md) pack and any
-installed ability packs are updated by **this** plugin too, from a published
-manifest, through the same Plugins-screen flow — so every update is managed in
-one place, and companion plugins ship no update code of their own. Update checks
-are best-effort and never block WordPress: a slow or unreachable GitHub simply
-means "no update offered" that cycle.
+The plugin is built twice from the same version (`bin/build-plugin-zip.sh`):
+
+- **GitHub build** — the zip attached to each GitHub Release. It updates itself
+  from GitHub Releases through a bundled update checker, so new versions appear
+  on the normal Plugins screen and via auto-updates. Update checks are
+  best-effort and never block WordPress: a slow or unreachable GitHub simply
+  means "no update offered" that cycle.
+- **wordpress.org build** — the same plugin without what wordpress.org doesn't
+  allow: the update checker, the shell / process / WP-CLI / PHP-eval abilities
+  (everything under `src/GitHub/`), the sandbox loader that runs agent-written
+  PHP, and any code between `// @github-build-start` and `// @github-build-end`
+  markers. Its slug (folder) is `agent-connector`, since wordpress.org doesn't
+  allow "wp" in slugs; the GitHub build keeps `agent-connector-for-wp`.
+  wordpress.org delivers its updates. Its directory listing comes from
+  [`readme.txt`](readme.txt).
+
+MCP Adapter is a wordpress.org plugin, so WordPress updates it like any other.
 
 ## Connect an agent
 
@@ -103,12 +121,11 @@ wp-admin. There is no enabling constant.
   plugin runs an MCP server for this site and exposes the abilities other plugins
   registered ("third-party abilities"). Activating the plugin turns this on and
   pins the domain lock to the current host automatically.
-- **Universal Abilities** — the powerful abilities (shell, PHP eval, filesystem,
-  WP-CLI, env-inspect, admin-login) live in the separate
-  **[Universal Abilities](../universal-abilities-plugin/README.md)** plugin, **off
-  by default**. If it isn't installed, the Settings screen offers a one-click
-  **Install** button. Leave it off — or uninstalled — to expose only abilities
-  from other plugins.
+- **Universal Abilities** — the built-in abilities listed
+  [above](#what-it-adds), **off by default**. Turning the switch on asks for
+  confirmation first. Leave it off to expose only abilities from other plugins.
+  Sites that had the old standalone Universal Abilities plugin active get it
+  deactivated automatically, with this switch turned on in its place.
 
 ## Protection
 
@@ -205,9 +222,8 @@ add_action( 'wp_abilities_api_init', function () {
 } );
 ```
 
-Full guide, schema conventions, audit-redaction contract, and the companion
-"ability pack" plugin convention: **[`docs/registering-abilities.md`](docs/registering-abilities.md)**.
-A runnable reference pack lives in [`examples/acfw-ability-pack-hello/`](examples/acfw-ability-pack-hello/).
+Full guide, schema conventions, audit-redaction contract, and companion plugin
+conventions: **[`docs/registering-abilities.md`](docs/registering-abilities.md)**.
 
 ## Philosophy
 

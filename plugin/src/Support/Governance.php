@@ -133,10 +133,10 @@ final class Governance {
 	 * absent, exposure is inherited from the high-level `meta.public` flag; a
 	 * malformed `meta.mcp` fails closed.
 	 *
-	 * Defers to the bundled adapter's McpAbilityExposure so the two can never
-	 * drift. The mirror below only runs when an older adapter (< 0.6, class
-	 * absent) was loaded by another plugin — there, applying the 0.6 semantics
-	 * can only over-govern, which is the safe direction.
+	 * Defers to the MCP Adapter plugin's McpAbilityExposure so the two can
+	 * never drift. The mirror below only runs when the adapter is missing or
+	 * older than 0.6 (class absent) — there, applying the 0.6 semantics can
+	 * only over-govern, which is the safe direction.
 	 *
 	 * @param array<string,mixed> $meta The ability meta.
 	 */

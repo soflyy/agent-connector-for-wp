@@ -27,11 +27,6 @@ export const api = {
   saveSettings: (body) => request('/settings', { method: 'POST', body: JSON.stringify(body) }),
   reconnect: () => request('/reconnect', { method: 'POST' }),
   generate: (params = {}) => request('/generate', { method: 'POST', body: JSON.stringify(params) }),
-  getDirectory: () => request('/directory'),
-  refreshDirectory: () => request('/directory/refresh', { method: 'POST' }),
-  installPack: (pack_slug) => request('/directory/install', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  activatePack: (pack_slug) => request('/directory/activate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
-  deactivatePack: (pack_slug) => request('/directory/deactivate', { method: 'POST', body: JSON.stringify({ pack_slug }) }),
   getRegisteredAbilities: () => request('/registered-abilities'),
   getLogs: (params = {}) => {
     const qs = new URLSearchParams(
@@ -45,7 +40,6 @@ export const api = {
   revokeOauthClient: (client_id) =>
     request('/oauth/clients/revoke', { method: 'POST', body: JSON.stringify({ client_id }) }),
   cleanupOauthClients: () => request('/oauth/clients/cleanup', { method: 'POST' }),
-  installUap: () => request('/uap/install', { method: 'POST' }),
   dismissGsBanner: () => request('/dismiss-gs-banner', { method: 'POST' }),
 }
 
@@ -73,7 +67,8 @@ export const normalizeStatus = (s = {}) => ({
   pwAvailable: bool(s.pw_available),
   pwUnavailableReason: s.pw_unavailable_reason ?? null,
   pwUnavailablePlugin: s.pw_unavailable_plugin ?? null,
-  uapActive: bool(s.uap_active),
+  universalAbilities: bool(s.universal_abilities),
+  universalAbilitiesSummary: s.universal_abilities_summary ?? { description: '', items: [] },
 })
 
 export const initial = {
@@ -98,6 +93,7 @@ export const initial = {
   pwAvailable: bool(cfg.pwAvailable),
   pwUnavailableReason: cfg.pwUnavailableReason ?? null,
   pwUnavailablePlugin: cfg.pwUnavailablePlugin ?? null,
-  uapActive: bool(cfg.uapActive),
+  universalAbilities: bool(cfg.universalAbilities),
+  universalAbilitiesSummary: cfg.universalAbilitiesSummary ?? { description: '', items: [] },
   showGsBanner: bool(cfg.showGsBanner),
 }

@@ -42,7 +42,7 @@ export function chatgptPluginFiles({ serverName, serverUrl, siteName, username, 
   let host = serverUrl
   try { host = new URL(serverUrl).host } catch {}
   const label = siteName || host
-  const description = `Gives the agent access to the WordPress site ${host} through Agent Connector for WP.`
+  const description = `Gives the agent access to the WordPress site ${host} through Agent Connector.`
 
   const identity = {
     name: pluginName(serverName),

@@ -1,6 +1,6 @@
 <?php
 /**
- * Public registration API for third-party "ability pack" plugins.
+ * Public ability-registration API for other plugins.
  *
  * This is the one stable, documented entry point a companion plugin uses to
  * register a WordPress ability that is exposed over Agent Connector's MCP server
