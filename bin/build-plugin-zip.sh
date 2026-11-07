@@ -26,6 +26,9 @@
 #   org    — agent-connector, the wordpress.org slug (wordpress.org doesn't
 #            allow "wp" in slugs). It matches the plugin's Text Domain.
 #
+# Neither build ships plugin/README.md: it's developer documentation for the
+# repository. Sites get readme.txt instead.
+#
 set -euo pipefail
 
 FLAVOR="${1:-}"
@@ -47,7 +50,7 @@ STAGE="$OUT_DIR/$FLAVOR/$SLUG"
 
 rm -rf "${OUT_DIR:?}/$FLAVOR"
 mkdir -p "$STAGE"
-( cd "$REPO_ROOT/plugin" && tar cf - --exclude='./dist' --exclude='./vendor' --exclude='node_modules' . ) | ( cd "$STAGE" && tar xf - )
+( cd "$REPO_ROOT/plugin" && tar cf - --exclude='./dist' --exclude='./vendor' --exclude='./README.md' --exclude='node_modules' . ) | ( cd "$STAGE" && tar xf - )
 
 cd "$STAGE"
 if [ "$FLAVOR" = "org" ]; then
