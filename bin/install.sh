@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #
-# Symlink the plugins into a WordPress install for local development.
+# Symlink the plugin into a WordPress install for local development.
 #
-# This repo is a monorepo: the main plugin lives in plugin/ and its Default
-# Abilities companion in universal-abilities-plugin/. WordPress expects each plugin
-# under wp-content/plugins/, so for local development we symlink them there
-# instead of copying. Edit files in the repo; WordPress sees them live.
+# The plugin lives in plugin/. WordPress expects it under wp-content/plugins/,
+# so for local development we symlink it there instead of copying. Edit files
+# in the repo; WordPress sees them live.
 #
 # Usage:
 #   bin/install.sh <WP_CONTENT_DIR>
@@ -23,7 +22,6 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # <source-subdir>/<plugin-slug>.php.
 PLUGINS=(
 	"plugin:agent-connector-for-wp"
-	"universal-abilities-plugin:universal-abilities-plugin"
 )
 
 usage() {
@@ -83,6 +81,6 @@ fi
 
 echo
 echo "Next: install the MCP Adapter plugin (the MCP server this plugin requires),"
-echo "then activate the plugins, e.g."
+echo "then activate the plugin, e.g."
 echo "  wp plugin install mcp-adapter --activate"
-echo "  wp plugin activate agent-connector-for-wp universal-abilities-plugin"
+echo "  wp plugin activate agent-connector-for-wp"

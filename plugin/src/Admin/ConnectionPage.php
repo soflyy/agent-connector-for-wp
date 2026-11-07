@@ -14,11 +14,11 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
 use AgentConnectorForWp\Support\ApplicationPasswords;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Connection;
 use AgentConnectorForWp\Support\McpAdapterPlugin;
+use AgentConnectorForWp\UniversalAbilities\Registrar;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -145,7 +145,8 @@ final class ConnectionPage {
 				'pwAvailable'           => null === $pw_reason,
 				'pwUnavailableReason'   => $pw_reason['type'] ?? null,
 				'pwUnavailablePlugin'   => $pw_reason['plugin'] ?? null,
-				'uapActive'             => $this->is_uap_active(),
+				'universalAbilities'    => Config::universal_abilities_enabled(),
+				'universalAbilitiesSummary' => Registrar::summary(),
 				'mcpAdapterStatus'      => McpAdapterPlugin::status(),
 				'showGsBanner'          => ! get_user_meta( get_current_user_id(), 'ac4wp_gs_banner_dismissed', true ),
 				'embed'                 => self::is_embed(),
@@ -225,9 +226,5 @@ final class ConnectionPage {
 				</style>';
 			}
 		);
-	}
-
-	private function is_uap_active(): bool {
-		return PluginDirectory::is_universal_abilities_active();
 	}
 }

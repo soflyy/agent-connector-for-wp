@@ -14,7 +14,8 @@
  * Text Domain:       agent-connector-for-wp
  *
  * Agents connected through this plugin can act with the full capability of a
- * super admin (and, with the Universal Abilities pack, run shell/PHP/WP-CLI).
+ * super admin (and, with Universal Abilities switched on, work directly with
+ * the server).
  * That is the product, not an accident — the operator installed it to give an
  * agent that access. The UI is responsible for making sure they understand:
  * a site-wide warning notice renders on production environments until
@@ -86,9 +87,9 @@ unset( $agent_connector_for_wp_has_vendor );
  * Load the public ability-registration API (plain functions, global namespace).
  *
  * This is a functions file, not a PSR-4 class, so it is required explicitly
- * rather than autoloaded. It is loaded unconditionally and early so a companion
- * "ability pack" plugin can call agent_connector_for_wp_register_ability() the
- * moment this plugin's file has run, regardless of the enable gates below — the
+ * rather than autoloaded. It is loaded unconditionally and early so any plugin
+ * can call agent_connector_for_wp_register_ability() the moment this plugin's
+ * file has run, regardless of the enable gates below — the
  * gates still decide whether the MCP server actually exposes anything.
  */
 require_once AGENT_CONNECTOR_FOR_WP_DIR . 'src/api.php';
@@ -114,14 +115,11 @@ add_action(
 		// protection — because it's where the operator manages those settings.
 		if ( is_admin() ) {
 			( new Admin\ConnectionPage() )->register();
-			// Browser of available companion "ability pack" plugins (with install).
-			( new Admin\DirectoryPage() )->register();
 			// Site-wide warning on every wp-admin page while running on a
 			// production environment, until explicitly dismissed.
 			( new Admin\ProductionNotice() )->register();
-			// Site-wide nudge while the Universal Abilities pack is missing —
-			// without it a connected agent has almost nothing to do.
-			( new Admin\UapNotice() )->register();
+			// Hand-over from the old standalone Universal Abilities plugin.
+			( new UniversalAbilities\LegacyPlugin() )->register();
 			// Site-wide error while the MCP Adapter plugin is missing, inactive
 			// or too old — without it there is no MCP server at all.
 			( new Admin\McpAdapterNotice() )->register();
@@ -135,10 +133,6 @@ add_action(
 			}
 		);
 
-		// Keep installed ability packs updatable from GitHub in every context
-		// (admin + cron), independent of whether the plugin is switched "on".
-		( new Services\PackUpdater() )->register();
-
 		if ( ! Support\Config::can_boot() ) {
 			// Disabled, or held back by the opt-in production protection. The
 			// operator chose this state, so no global nag — the plugin's own
@@ -146,10 +140,19 @@ add_action(
 			return;
 		}
 
+		// @github-build-start
 		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
 		// crash recovery (safe mode) so a fatal in generated code can't take the
-		// site down. See Services\SandboxLoader.
-		( new Services\SandboxLoader() )->run();
+		// site down. GitHub build only. See GitHub\Services\SandboxLoader.
+		( new GitHub\Services\SandboxLoader() )->run();
+		// @github-build-end
+
+		// The built-in Universal Abilities, when switched on in Settings. They
+		// stand down while the old standalone plugin is still loaded, so nothing
+		// registers twice.
+		if ( Support\Config::universal_abilities_enabled() && ! UniversalAbilities\LegacyPlugin::is_loaded() ) {
+			( new UniversalAbilities\Registrar() )->register();
+		}
 
 		/**
 		 * Wire into the MCP Adapter plugin.
@@ -220,11 +223,8 @@ add_action(
 			OAuth\Server::init();
 		}
 
-		// This plugin ships NO abilities of its own. The powerful built-in
-		// abilities (shell, PHP eval, filesystem, WP-CLI, admin login) now live in
-		// the separate "Universal Abilities for Agent Connector" plugin, which can be
-		// installed in one click from the Connection screen. Third-party ability
-		// packs register through src/api.php and are governed above.
+		// Other plugins register abilities through src/api.php and are governed
+		// above, like the built-in Universal Abilities.
 	}
 );
 

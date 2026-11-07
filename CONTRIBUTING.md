@@ -28,8 +28,7 @@ land as patch releases.
   it and commits the bump with `[skip ci]`. Editing it yourself just creates
   conflicts.
 - **Scope:** releases fire only when `plugin/**` changes. A merge touching only
-  the tracker, abilities generator, ability packs, or root docs won't cut a
-  release.
+  the tracker or root docs won't cut a release.
 - **Need a specific bump or a re-run?** Run the **Auto release on merge**
   workflow manually (Actions → Run workflow) and pick the `bump` input, or push
   a `vX.Y.Z` tag yourself — [`release.yml`](.github/workflows/release.yml) builds

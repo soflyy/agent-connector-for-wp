@@ -2,13 +2,17 @@
 #
 # Build the Agent Connector plugin zip. Two builds, one version:
 #
-#   github — the GitHub Release asset. The full plugin, including
-#            github-updater.php and the yahnis-elsts/plugin-update-checker
-#            dependency, so GitHub installs keep updating from GitHub Releases.
-#   org    — the wordpress.org build. Identical, except github-updater.php, the
-#            block in the main file that loads it (between the @github-build
-#            markers), and the update-checker dependency are removed. That is the ONLY
-#            difference between the two.
+#   github — the GitHub Release asset: the full plugin, including the GitHub
+#            self-updater (github-updater.php + yahnis-elsts/plugin-update-checker)
+#            and the GitHub-only abilities under src/GitHub/.
+#   org    — the wordpress.org build. The same plugin without what wordpress.org
+#            doesn't allow:
+#              - github-updater.php and the update-checker dependency;
+#              - src/GitHub/: the shell, process, WP-CLI and PHP-eval abilities
+#                and the sandbox loader;
+#              - every PHP block between "// @github-build-start" and
+#                "// @github-build-end" markers (the code that wires those in).
+#            The build fails if anything GitHub-only is still referenced.
 #
 # Usage:
 #   bin/build-plugin-zip.sh <github|org> [OUT_DIR]
@@ -37,18 +41,45 @@ mkdir -p "$STAGE"
 
 cd "$STAGE"
 if [ "$FLAVOR" = "org" ]; then
+	# 1. GitHub-only files: the self-updater and everything under src/GitHub/
+	#    (the shell, process, WP-CLI and PHP-eval abilities, and the sandbox
+	#    loader).
 	rm -f github-updater.php
-	# Cut the block that loads it (between the @github-build markers) so the
-	# wordpress.org copy carries no trace of the GitHub updater.
-	MAIN="$SLUG.php"
-	if [ "$(grep -c '^// @github-build-start$' "$MAIN")" != 1 ] || [ "$(grep -c '^// @github-build-end$' "$MAIN")" != 1 ]; then
-		echo "Expected exactly one @github-build-start/@github-build-end pair in $MAIN" >&2
-		exit 1
-	fi
-	awk '/^\/\/ @github-build-start$/{skip=1; next} /^\/\/ @github-build-end$/{skip=0; next} !skip' "$MAIN" > "$MAIN.tmp"
-	mv "$MAIN.tmp" "$MAIN"
+	rm -rf src/GitHub
+
+	# 2. GitHub-only blocks: every "// @github-build-start" … "// @github-build-end"
+	#    span in a PHP file (markers may be indented). Each file must have
+	#    balanced, non-nested markers.
+	while IFS= read -r -d '' file; do
+		grep -q '@github-build-' "$file" || continue
+		if ! awk '
+			/^[[:space:]]*\/\/ @github-build-start[[:space:]]*$/ { if (open) exit 1; open = 1; next }
+			/^[[:space:]]*\/\/ @github-build-end[[:space:]]*$/   { if (!open) exit 1; open = 0; next }
+			/@github-build-/ { exit 1 }
+			END { if (open) exit 1 }
+		' "$file"; then
+			echo "Unbalanced or malformed @github-build markers in ${file#./}" >&2
+			exit 1
+		fi
+		awk '
+			/^[[:space:]]*\/\/ @github-build-start[[:space:]]*$/ { skip = 1; next }
+			/^[[:space:]]*\/\/ @github-build-end[[:space:]]*$/   { skip = 0; next }
+			!skip
+		' "$file" > "$file.tmp"
+		mv "$file.tmp" "$file"
+	done < <(find . -name '*.php' -not -path './vendor/*' -not -path './admin/node_modules/*' -print0)
+
+	# 3. The update checker dependency.
 	composer remove yahnis-elsts/plugin-update-checker --update-no-dev --no-interaction --no-progress --quiet
 	composer dump-autoload --optimize --no-dev --no-interaction --quiet
+
+	# 4. Fail the build if anything GitHub-only is still referenced.
+	leftovers="$(grep -rnE 'GitHub\\|github-updater|YahnisElsts|\b(shell_exec|proc_open|popen|passthru|eval)[[:space:]]*\(' --include='*.php' --exclude-dir=vendor --exclude-dir=node_modules . || true)"
+	if [ -n "$leftovers" ]; then
+		echo "GitHub-only code left in the wordpress.org build:" >&2
+		echo "$leftovers" >&2
+		exit 1
+	fi
 else
 	composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress --quiet
 fi

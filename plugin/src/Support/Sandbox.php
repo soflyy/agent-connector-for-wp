@@ -17,8 +17,8 @@ defined( 'ABSPATH' ) || exit;
  * isolation boundary for all filesystem writes.
  *
  * It gives the plugin one place to load AI-written PHP "plugins" from, disable
- * them, and recover from crashes (see Services\SandboxLoader). Authenticated
- * administrators may still read, write, and delete *non-PHP* files anywhere on
+ * them, and recover from crashes (the GitHub build's sandbox loader).
+ * Authenticated administrators may still read, write, and delete *non-PHP* files anywhere on
  * the filesystem — that is part of the plugin's high-trust model. What this
  * class enforces is narrower: files that can directly affect PHP execution
  * (.php, plus a short list of execution-control files) may only be written

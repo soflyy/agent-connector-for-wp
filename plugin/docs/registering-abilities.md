@@ -158,21 +158,17 @@ verbatim:
 
 ## Complete minimal companion plugin
 
-A full, copy-pasteable single-file plugin that registers one ability. The same
-file ships as a reference under
-[`examples/acfw-ability-pack-hello/`](../examples/acfw-ability-pack-hello/acfw-ability-pack-hello.php).
+A full, copy-pasteable single-file plugin that registers one ability.
 
 ```php
 <?php
 /**
- * Plugin Name:       My Ability Pack
+ * Plugin Name:       My Plugin Abilities
  * Description:        Adds the my-plugin/do-thing ability to Agent Connector.
  * Version:           1.0.0
  * Requires Plugins:  agent-connector-for-wp
  * Requires PHP:      8.1
  * License:           GPL-2.0-or-later
- *
- * Agent Connector: Ability Pack
  */
 
 declare( strict_types=1 );
@@ -234,57 +230,21 @@ That's the whole plugin. **No** permission callback, **no** domain-lock check,
 
 ---
 
-## Companion "ability pack" plugin convention
+## Companion plugin conventions
 
-A companion plugin that exists to add abilities to a specific host MCP plugin is
-an **ability pack**. A remote directory feature discovers ability packs by their
-plugin header, so follow this convention exactly:
-
-1. **Slug / folder.** Name the plugin `unofficial-abilities-for-<target>`, e.g.
-   `unofficial-abilities-for-woocommerce`. The folder, main file, and `Plugin Name`
-   (`Unofficial Abilities for WooCommerce`) should agree.
-
-2. **Declare dependency, identity, and target.** Three header lines:
-
-   - `Requires Plugins: agent-connector-for-wp` — core WordPress dependency
-     header, so WordPress won't activate your pack without Agent Connector. (This
-     is also how a pack declares it plugs into Agent Connector — there is no
-     separate "host" header.)
-   - `Agent Connector: Ability Pack` — the marker that identifies the file as an
-     ability pack at all.
-   - `Agent Connector Target: woocommerce/woocommerce.php` — **the WP plugin this
-     pack extends.** This is the canonical join key: the published ability-pack
-     directory keys each entry on the same value (its `target_plugin` field), so
-     the two must match for the site to surface your pack against an installed
-     plugin. Use the plugin file (`woocommerce/woocommerce.php`) or a bare folder
-     slug (`woocommerce`) — both are matched. Omit it only for a pack that
-     doesn't extend a specific plugin (it just won't appear in the directory).
-
-   ```php
-   /**
-    * Plugin Name:       Unofficial Abilities for WooCommerce
-    * Requires Plugins:  agent-connector-for-wp
-    *
-    * Agent Connector: Ability Pack
-    * Agent Connector Target: woocommerce/woocommerce.php
-    */
-   ```
-
-3. **Namespace your abilities** under your pack's own vendor prefix
+1. **Namespace your abilities** under your plugin's own vendor prefix
    (`woo/...`, `my-plugin/...`) — never `agent-connector-for-wp/...`.
 
-4. **Register on the standard hooks** (`wp_abilities_api_categories_init` then
-   `wp_abilities_api_init`) and **guard with `function_exists()`** so the pack is
-   inert when the host is absent.
+2. **Register on the standard hooks** (`wp_abilities_api_categories_init` then
+   `wp_abilities_api_init`) and **guard with `function_exists()`** so your plugin
+   is inert when Agent Connector is absent.
 
-5. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the Abilities
+3. **Don't bundle** wordpress/mcp-adapter or the Abilities API — the Abilities
    API is in core, and the MCP server comes from the canonical MCP Adapter
-   plugin, which the host plugin requires (and offers to install) for you.
+   plugin, which Agent Connector requires (and offers to install) for you.
 
-Following this convention means: your pack activates only alongside Agent
-Connector, the directory can list it under the right target plugin, and every
-ability you register is automatically governed by Agent Connector's auth, domain
-lock, and audit log.
+Every ability you register this way is automatically governed by Agent
+Connector's auth, domain lock, and audit log.
 
 ---
 

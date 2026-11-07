@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace AgentConnectorForWp\Admin;
 
-use AgentConnectorForWp\Services\PluginDirectory;
+use AgentConnectorForWp\Services\CompanionPlugins;
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\McpAdapterPlugin;
 
@@ -47,7 +47,7 @@ final class McpAdapterNotice {
 			return;
 		}
 
-		$installed = null !== PluginDirectory::mcp_adapter_file();
+		$installed = null !== CompanionPlugins::mcp_adapter_file();
 
 		if ( McpAdapterPlugin::STATUS_OUTDATED === $status ) {
 			$body = sprintf(
