@@ -28,8 +28,10 @@ defined( 'ABSPATH' ) || exit;
 final class Sandbox {
 
 	/**
-	 * Filenames (lowercased) that aren't .php but can still alter how PHP runs,
-	 * so they are confined to the sandbox like .php files.
+	 * Filenames (lowercased) that aren't .php but can still alter how PHP runs
+	 * or what the web server serves. Agents can't write them anywhere: in the
+	 * sandbox they could undo the deny rules below, and elsewhere they could
+	 * change how the site runs PHP.
 	 *
 	 * @var array<int,string>
 	 */
@@ -55,15 +57,46 @@ final class Sandbox {
 	}
 
 	/**
-	 * Ensure the sandbox directory exists. Best-effort: returns whether it's a
-	 * directory afterwards.
+	 * Deny rules for Apache and LiteSpeed: the sandbox's PHP files are loaded by
+	 * WordPress (Services\SandboxLoader), never requested over the web. Servers
+	 * that ignore .htaccess (nginx, IIS) are covered by the direct-access guard
+	 * every sandbox PHP file must start with (see check_direct_access_guard()).
+	 */
+	private const HTACCESS = <<<'HTACCESS'
+# Agent Connector: files in this folder are loaded by WordPress, never served directly.
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order deny,allow
+	Deny from all
+</IfModule>
+
+HTACCESS;
+
+	/**
+	 * The guard every sandbox PHP file must open with, so it stops when
+	 * requested directly over the web instead of being loaded by WordPress.
+	 */
+	public const DIRECT_ACCESS_GUARD = "defined( 'ABSPATH' ) || exit;";
+
+	/**
+	 * Ensure the sandbox directory exists, with its deny rules. Best-effort:
+	 * returns whether it's a directory afterwards.
 	 */
 	public static function ensure_dir(): bool {
 		$dir = self::dir();
-		if ( is_dir( $dir ) ) {
-			return true;
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return false;
 		}
-		return (bool) wp_mkdir_p( $dir );
+
+		$htaccess = $dir . '.htaccess';
+		if ( ! file_exists( $htaccess ) ) {
+			// FS_CHMOD_FILE is only defined once wp-admin's filesystem API has loaded.
+			self::filesystem()->put_contents( $htaccess, self::HTACCESS, defined( 'FS_CHMOD_FILE' ) ? FS_CHMOD_FILE : 0644 );
+		}
+
+		return true;
 	}
 
 	/**
@@ -99,6 +132,14 @@ final class Sandbox {
 			return true;
 		}
 
+		if ( in_array( strtolower( basename( $resolved ) ), self::PHP_EXECUTION_CONTROL_FILES, true ) ) {
+			return new \WP_Error(
+				'agent_connector_for_wp_execution_control_file',
+				'Files that change how the server runs PHP or serves files (.htaccess, .user.ini, php.ini, web.config) cannot be written.',
+				array( 'status' => 403 )
+			);
+		}
+
 		$sandbox = self::normalize_boundary( self::real_or_self( self::dir() ) );
 		// Compare the *parent* directory so a brand-new file (which doesn't
 		// resolve yet) is still judged by where it would land.
@@ -108,7 +149,7 @@ final class Sandbox {
 			return new \WP_Error(
 				'agent_connector_for_wp_php_sandbox_required',
 				sprintf(
-					'PHP files and PHP-execution control files (.php, .htaccess, .user.ini, php.ini, web.config) can only be written inside the sandbox directory: %1$s. Write generated PHP there instead — e.g. a path like "%2$smy-feature.php".',
+					'PHP files can only be written inside the sandbox directory: %1$s. Write generated PHP there instead — e.g. a path like "%2$smy-feature.php".',
 					self::dir(),
 					self::dir()
 				),
@@ -117,6 +158,81 @@ final class Sandbox {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Require a sandbox PHP file to stop when it's requested directly over the
+	 * web: its first statement (after any declare(), namespace or use lines)
+	 * must be an ABSPATH check that exits, such as
+	 * `defined( 'ABSPATH' ) || exit;`.
+	 *
+	 * @param string $code The file's full contents after the write.
+	 * @return true|\WP_Error
+	 */
+	public static function check_direct_access_guard( string $code ) {
+		if ( self::starts_with_guard( $code ) ) {
+			return true;
+		}
+
+		return new \WP_Error(
+			'agent_connector_for_wp_php_guard_required',
+			sprintf(
+				'PHP files in the sandbox directory must stop when requested directly over the web. Make the first statement %1$s, after the opening <?php tag and any declare(), namespace or use lines, e.g. "<?php\n%1$s\n…".',
+				self::DIRECT_ACCESS_GUARD
+			),
+			array( 'status' => 400 )
+		);
+	}
+
+	/**
+	 * Whether PHP code opens with an ABSPATH exit guard. Code with no PHP tags
+	 * (plain text or HTML) passes: requesting it runs nothing.
+	 */
+	private static function starts_with_guard( string $code ): bool {
+		$guard = '(?:defined\s*\(\s*[\'"]ABSPATH[\'"]\s*\)\s*(?:\|\||or)\s*(?:exit|die)\b'
+			. '|if\s*\(\s*!\s*defined\s*\(\s*[\'"]ABSPATH[\'"]\s*\)\s*\)\s*\{?\s*(?:exit|die|return)\b)';
+
+		if ( ! function_exists( 'token_get_all' ) ) {
+			return 1 === preg_match( '/' . $guard . '/i', $code );
+		}
+
+		// Reduce the file to its statements: drop comments, whitespace, inline
+		// HTML and the opening tags (an echo tag stays, since it runs code).
+		$statements = '';
+		$has_php    = false;
+		foreach ( token_get_all( $code ) as $token ) {
+			if ( is_array( $token ) ) {
+				if ( T_OPEN_TAG === $token[0] || T_OPEN_TAG_WITH_ECHO === $token[0] ) {
+					$has_php = true;
+				}
+				if ( in_array( $token[0], array( T_OPEN_TAG, T_WHITESPACE, T_COMMENT, T_DOC_COMMENT, T_INLINE_HTML ), true ) ) {
+					continue;
+				}
+				$statements .= ( T_CLOSE_TAG === $token[0] ? ';' : $token[1] ) . ' ';
+			} else {
+				$statements .= $token . ' ';
+			}
+		}
+
+		if ( ! $has_php ) {
+			return true;
+		}
+
+		$preamble = '(?:(?:declare|namespace|use)\b[^;{]*;\s*)*';
+		return 1 === preg_match( '/^\s*' . $preamble . $guard . '/i', $statements );
+	}
+
+	/**
+	 * Direct filesystem access, for writing the sandbox's deny rules.
+	 */
+	private static function filesystem(): \WP_Filesystem_Direct {
+		static $filesystem = null;
+		if ( null === $filesystem ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+			$filesystem = new \WP_Filesystem_Direct( null );
+		}
+		return $filesystem;
 	}
 
 	/**

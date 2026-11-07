@@ -29,7 +29,7 @@ final class FileWriteAbility {
 	public static function definition(): array {
 		return array(
 			'label'               => 'Write File',
-			'description'         => 'Write a file to the server, creating parent directories as needed. Binary-safe when contents are base64-encoded. Can append instead of overwriting.',
+			'description'         => 'Write a file to the server, creating parent directories as needed. Binary-safe when contents are base64-encoded. Can append instead of overwriting. PHP files can only go in the sandbox directory (wp-content/agent-connector-for-wp-sandbox/), where they load on every request, and must start with "<?php" then "defined( \'ABSPATH\' ) || exit;" so they stop when requested directly.',
 			'category'            => 'agent-connector-for-wp',
 			'input_schema'        => array(
 				'type'                 => 'object',
