@@ -88,10 +88,12 @@ final class ConnectionPage {
 
 		$version = AGENT_CONNECTOR_FOR_WP_VERSION . '.' . filemtime( $js_file );
 
+		// React comes from WordPress core: the bundle maps react, react-dom and
+		// react/jsx-runtime to these handles' globals instead of bundling them.
 		wp_enqueue_script(
 			'agent-connector-for-wp-admin',
 			plugins_url( 'admin/build/assets/index.js', AGENT_CONNECTOR_FOR_WP_FILE ),
-			array(),
+			array( 'react', 'react-dom', 'react-jsx-runtime' ),
 			$version,
 			true
 		);
