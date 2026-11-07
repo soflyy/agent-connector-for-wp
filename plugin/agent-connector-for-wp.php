@@ -176,15 +176,17 @@ add_action(
 			return;
 		}
 
+		// @github-build-start
 		// Auto-load AI-written PHP "plugins" from the sandbox directory, with
 		// crash recovery (safe mode) so a fatal in generated code can't take the
-		// site down. See Services\SandboxLoader. Only while Universal Abilities
-		// are on (they're what write those files), so switching them off also
-		// stops agent-written code; the old standalone plugin counts as on until
-		// LegacyPlugin hands over.
+		// site down. GitHub build only. See GitHub\Services\SandboxLoader. Only
+		// while Universal Abilities are on (they're what write those files), so
+		// switching them off also stops agent-written code; the old standalone
+		// plugin counts as on until LegacyPlugin hands over.
 		if ( Support\Config::universal_abilities_enabled() || UniversalAbilities\LegacyPlugin::is_loaded() ) {
-			( new Services\SandboxLoader() )->run();
+			( new GitHub\Services\SandboxLoader() )->run();
 		}
+		// @github-build-end
 
 		// The built-in Universal Abilities, when switched on in Settings. They
 		// stand down while the old standalone plugin is still loaded, so nothing

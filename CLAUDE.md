@@ -12,8 +12,8 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 ## GitHub-only code
 
 The wordpress.org build (`bin/build-plugin-zip.sh org`) strips what wordpress.org
-doesn't allow. Anything that shells out, evaluates PHP, or updates from GitHub
-must be GitHub-only:
+doesn't allow. Anything that shells out, evaluates PHP, runs agent-written PHP,
+or updates from GitHub must be GitHub-only:
 
 - put whole classes under `plugin/src/GitHub/` (namespace `AgentConnectorForWp\GitHub\`);
 - wrap the code that wires them in (or any other GitHub-only lines) in

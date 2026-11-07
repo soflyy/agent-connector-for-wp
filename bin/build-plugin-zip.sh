@@ -9,7 +9,7 @@
 #            doesn't allow:
 #              - github-updater.php and the update-checker dependency;
 #              - src/GitHub/: the shell, process, WP-CLI and PHP-eval
-#                abilities;
+#                abilities and the sandbox loader;
 #              - every PHP block between "// @github-build-start" and
 #                "// @github-build-end" markers (the code that wires those in).
 #            The build fails if anything GitHub-only is still referenced.
@@ -56,7 +56,8 @@ mkdir -p "$STAGE"
 cd "$STAGE"
 if [ "$FLAVOR" = "org" ]; then
 	# 1. GitHub-only files: the self-updater and everything under src/GitHub/
-	#    (the shell, process, WP-CLI and PHP-eval abilities).
+	#    (the shell, process, WP-CLI and PHP-eval abilities, and the sandbox
+	#    loader).
 	rm -f github-updater.php
 	rm -rf src/GitHub
 

@@ -23,7 +23,7 @@ these out, see [Updates](#updates)):
 | `agent-connector-for-wp/wp-cli` ★ | Run a WP-CLI command against this install (everything after `wp`); auto-adds `--allow-root` when running as root. |
 | `agent-connector-for-wp/php-eval` ★ | Evaluate arbitrary PHP in the loaded WordPress runtime; returns output, return value, and errors. |
 | `agent-connector-for-wp/file-read` | Read any file (binary-safe via base64). |
-| `agent-connector-for-wp/file-write` | Write any file, creating dirs; binary-safe; append mode. PHP files only inside the sandbox folder (`wp-content/agent-connector-for-wp-sandbox/`), where they load on every request, with crash recovery. |
+| `agent-connector-for-wp/file-write` | Write any file, creating dirs; binary-safe; append mode. ★ PHP files only inside the sandbox folder (`wp-content/agent-connector-for-wp-sandbox/`), where they load on every request, with crash recovery; the wordpress.org build refuses PHP files. |
 | `agent-connector-for-wp/file-delete` | Delete a file or directory (recursive optional). |
 | `agent-connector-for-wp/file-list` | List a directory, optionally recursively. |
 | `agent-connector-for-wp/env-inspect` | WP/PHP versions, paths, active plugins/theme, debug state, writable-ness, and (GitHub build) available CLI tools. |
@@ -89,7 +89,7 @@ The plugin is built twice from the same version (`bin/build-plugin-zip.sh`):
   means "no update offered" that cycle.
 - **wordpress.org build** — the same plugin without what wordpress.org doesn't
   allow: the update checker, the shell / process / WP-CLI / PHP-eval abilities
-  (everything under `src/GitHub/`), and any code between `// @github-build-start` and `// @github-build-end`
+  (everything under `src/GitHub/`), the sandbox loader and PHP writes, and any code between `// @github-build-start` and `// @github-build-end`
   markers. Its slug (folder) is `agent-connector`, since wordpress.org doesn't
   allow "wp" in slugs; the GitHub build keeps `agent-connector-for-wp`.
   wordpress.org delivers its updates. Its directory listing comes from

@@ -8,7 +8,7 @@
 
 declare( strict_types=1 );
 
-namespace AgentConnectorForWp\Services;
+namespace AgentConnectorForWp\GitHub\Services;
 
 use AgentConnectorForWp\Support\Config;
 use AgentConnectorForWp\Support\Sandbox;

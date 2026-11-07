@@ -98,6 +98,7 @@ final class Registrar {
 		$items[] = array( 'title' => 'Run arbitrary shell commands', 'detail' => 'Full command-line access to the server' );
 		$items[] = array( 'title' => 'Evaluate PHP code', 'detail' => 'Execute any PHP in the WordPress context' );
 		$items[] = array( 'title' => 'Run WP-CLI commands', 'detail' => 'Any wp-cli command on your install' );
+		$items[] = array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' );
 		// @github-build-end
 
 		$parts = array_merge( $parts, array( 'filesystem', 'environment', 'plugins', 'media search', 'admin login link' ) );
@@ -105,7 +106,6 @@ final class Registrar {
 			$items,
 			array(
 				array( 'title' => 'Read, write, and delete files', 'detail' => "Access to the server's filesystem" ),
-				array( 'title' => 'Add PHP code to your site', 'detail' => 'PHP files written to the sandbox folder run on every page load' ),
 				array( 'title' => 'Inspect the environment', 'detail' => 'Versions, paths, active plugins and theme' ),
 				array( 'title' => 'Install and manage plugins', 'detail' => 'Install from wordpress.org, activate, update and delete plugins' ),
 				array( 'title' => 'Search the media library', 'detail' => 'Find attachments and their URLs' ),
