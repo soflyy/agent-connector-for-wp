@@ -113,13 +113,16 @@ if ( ! function_exists( 'acfw_register_ability' ) ) {
 	/**
 	 * Short alias for {@see agent_connector_for_wp_register_ability()}.
 	 *
+	 * `acfw_` is this plugin's short prefix (its database tables use it too).
+	 * Companion plugins already call this alias, so it stays.
+	 *
 	 * @since 1.4.0
 	 *
 	 * @param string              $name The ability name, with the caller's vendor namespace.
 	 * @param array<string,mixed> $args Ability definition. See the canonical function.
 	 * @return void
 	 */
-	function acfw_register_ability( string $name, array $args ): void {
+	function acfw_register_ability( string $name, array $args ): void { // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound -- acfw_ is this plugin's short prefix.
 		agent_connector_for_wp_register_ability( $name, $args );
 	}
 }
