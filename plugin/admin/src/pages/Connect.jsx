@@ -498,6 +498,9 @@ function shot(key, html, alt, extra = {}) {
   return { html, screenshot: { src: `${initial.assetsUrl}images/connect/${path}`, alt, browserUrl }, ...extra }
 }
 
+// Escape text for the step strings, which are rendered as HTML.
+const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+
 // The final step most clients share: this site's own consent page.
 // The consent step every OAuth walkthrough shares. `before` is anything the
 // agent needs first, e.g. a button that starts the sign-in.
@@ -510,6 +513,9 @@ const authorizeStep = (agent, before = '') => shot(
 // Instructions as of September 2026. Clients move these menus often; when one
 // changes, update its entry here (and its screenshots).
 function buildOAuth(serverName, serverUrl) {
+  // The step text below is rendered as HTML, so the name goes in escaped.
+  const serverNameHtml = escapeHtml(serverName)
+
   // Blocks for clients configured by pasting the URL: it's shown at the top
   // and again inside the step that says to paste it (`copy`).
   const guide = { kind: 'url', title: 'MCP Server URL', value: serverUrl }
@@ -541,7 +547,7 @@ function buildOAuth(serverName, serverUrl) {
         shot('claude-desktop/customize', 'In Claude, click <strong>Customize</strong> in the sidebar', 'Customize in the Claude sidebar'),
         shot('claude-desktop/connectors', 'Open the <strong>Connectors</strong> tab', 'Connectors tab'),
         shot('claude-desktop/add', 'Click <strong>Add</strong>, then <strong>Add custom connector</strong>', 'Add custom connector menu'),
-        shot('claude-desktop/name-url', `Name it <code>${serverName}</code>, paste the MCP Server URL, and click <strong>Continue</strong>`, 'Name and MCP server URL fields', withUrl),
+        shot('claude-desktop/name-url', `Name it <code>${serverNameHtml}</code>, paste the MCP Server URL, and click <strong>Continue</strong>`, 'Name and MCP server URL fields', withUrl),
         shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
         shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
         shot('claude-desktop/continue', 'Your browser will show a confirmation page. Click <strong>Continue connecting</strong>', 'Finish connecting a connector?'),
@@ -573,7 +579,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         shot('chatgpt/customize', 'In ChatGPT, click <strong>Customize</strong> in the sidebar', 'Customize in the ChatGPT sidebar'),
         shot('chatgpt/create-mcp-app', 'In <strong>Plugins</strong>, click <strong>Add</strong>, then <strong>Create MCP App</strong>', 'Add → Create MCP App'),
-        shot('chatgpt/form', `Name it <code>${serverName}</code>, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>`, 'Create MCP App form', withUrl),
+        shot('chatgpt/form', `Name it <code>${serverNameHtml}</code>, paste the MCP Server URL, set <strong>Authentication</strong> to <strong>OAuth</strong>, tick <strong>I understand and want to continue</strong>, and click <strong>Create</strong>`, 'Create MCP App form', withUrl),
         shot('chatgpt/continue', 'Click <strong>Continue to</strong> your site', 'Continue to your site'),
         authorizeStep('chatgpt'),
       ],
@@ -606,7 +612,7 @@ function buildOAuth(serverName, serverUrl) {
       steps: [
         'Copy the command above',
         'Open your terminal and paste it',
-        shot('codex-cli/authorize', `Codex opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>. If nothing opens, run <code>codex mcp login ${serverName}</code>`, 'This site\'s Authorize page'),
+        shot('codex-cli/authorize', `Codex opens your WordPress site in your browser. Log in if needed and click <strong>Authorize</strong>. If nothing opens, run <code>codex mcp login ${serverNameHtml}</code>`, 'This site\'s Authorize page'),
       ],
     }],
     'gemini': [{
@@ -634,7 +640,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide, manual: true,
       steps: [
         shot('vscode/add-server', 'Open the Command Palette and run <strong>MCP: Add Server</strong>', 'MCP: Add Server'),
-        shot('vscode/http', `Choose <strong>HTTP</strong>, paste the MCP Server URL, and name it <code>${serverName}</code>`, 'Server URL prompt', withUrl),
+        shot('vscode/http', `Choose <strong>HTTP</strong>, paste the MCP Server URL, and name it <code>${serverNameHtml}</code>`, 'Server URL prompt', withUrl),
         'Choose <strong>Global</strong> to use it in every workspace, then allow the sign-in as above',
       ],
     }],
@@ -642,7 +648,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide,
       steps: [
         shot('cline/customize', 'In the Cline panel, click <strong>Customize</strong> (the wrench), then the <strong>MCP</strong> tab', 'Customize → MCP'),
-        shot('cline/add', `Click <strong>Add Remote Server</strong>, name it <code>${serverName}</code>, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>`, 'Add Remote Server form', withUrl),
+        shot('cline/add', `Click <strong>Add Remote Server</strong>, name it <code>${serverNameHtml}</code>, paste the MCP Server URL, and choose <strong>Streamable HTTP</strong>`, 'Add Remote Server form', withUrl),
         shot('cline/authenticate', 'Click <strong>Add Server</strong>, then <strong>Authenticate</strong> on the server', 'Authenticate button'),
         authorizeStep('cline'),
       ],
@@ -673,7 +679,7 @@ function buildOAuth(serverName, serverUrl) {
       value: json({ $schema: 'https://opencode.ai/config.json', mcp: { [serverName]: { type: 'remote', url: serverUrl, enabled: true } } }),
       steps: [
         'Copy the JSON above into <code>opencode.json</code>, merging it with anything already there',
-        `Run <code>opencode mcp auth ${serverName}</code> in your terminal`,
+        `Run <code>opencode mcp auth ${serverNameHtml}</code> in your terminal`,
         authorizeStep('opencode'),
       ],
     }],
@@ -681,7 +687,7 @@ function buildOAuth(serverName, serverUrl) {
       ...guide,
       steps: [
         shot('goose/extensions', 'In Goose, open the sidebar and click <strong>Extensions</strong> → <strong>Add custom extension</strong>', 'Extensions → Add custom extension'),
-        shot('goose/form', `Name it <code>${serverName}</code>, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>`, 'Custom extension form', withUrl),
+        shot('goose/form', `Name it <code>${serverNameHtml}</code>, set <strong>Type</strong> to <strong>Streamable HTTP</strong>, and paste the MCP Server URL as the <strong>Endpoint</strong>`, 'Custom extension form', withUrl),
         authorizeStep('goose', 'Click <strong>Add Extension</strong>.'),
       ],
     }],
@@ -712,7 +718,7 @@ function buildOAuth(serverName, serverUrl) {
       value: json({ mcpServers: { [serverName]: { url: serverUrl, auth: 'oauth' } } }),
       steps: [
         'Copy the JSON above into <code>~/.config/mcp/mcp.json</code> and save',
-        `In Pi, run <code>/mcp-auth ${serverName}</code>`,
+        `In Pi, run <code>/mcp-auth ${serverNameHtml}</code>`,
         authorizeStep('pi'),
       ],
     }],
