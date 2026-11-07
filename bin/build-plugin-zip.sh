@@ -26,8 +26,9 @@
 #   org    — agent-connector, the wordpress.org slug (wordpress.org doesn't
 #            allow "wp" in slugs). It matches the plugin's Text Domain.
 #
-# Neither build ships plugin/README.md: it's developer documentation for the
-# repository. Sites get readme.txt instead.
+# Neither build ships what's only for developers: plugin/README.md and
+# plugin/docs/ (sites get readme.txt instead), or composer.json and
+# composer.lock, which are removed once vendor/ is built.
 #
 set -euo pipefail
 
@@ -50,7 +51,7 @@ STAGE="$OUT_DIR/$FLAVOR/$SLUG"
 
 rm -rf "${OUT_DIR:?}/$FLAVOR"
 mkdir -p "$STAGE"
-( cd "$REPO_ROOT/plugin" && tar cf - --exclude='./dist' --exclude='./vendor' --exclude='./README.md' --exclude='node_modules' . ) | ( cd "$STAGE" && tar xf - )
+( cd "$REPO_ROOT/plugin" && tar cf - --exclude='./dist' --exclude='./vendor' --exclude='./README.md' --exclude='./docs' --exclude='node_modules' . ) | ( cd "$STAGE" && tar xf - )
 
 cd "$STAGE"
 if [ "$FLAVOR" = "org" ]; then
@@ -96,6 +97,9 @@ if [ "$FLAVOR" = "org" ]; then
 else
 	composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress --quiet
 fi
+
+# vendor/ is built, so the Composer files have done their job.
+rm -f composer.json composer.lock
 
 cd "$OUT_DIR/$FLAVOR"
 rm -f "$SLUG.zip"

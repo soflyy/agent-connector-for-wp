@@ -8,7 +8,9 @@
  * and audit logging. The companion plugin writes NO permission / auth /
  * domain-lock / audit code.
  *
- * See docs/registering-abilities.md for the full developer guide.
+ * See plugin/docs/registering-abilities.md in the GitHub repository for the
+ * full developer guide:
+ * https://github.com/soflyy/agent-connector-for-wp/blob/master/plugin/docs/registering-abilities.md
  *
  * The functions live in the global namespace on purpose: companion plugins call
  * them directly, with no `use` statement and no knowledge of internal classes.
