@@ -42,16 +42,72 @@ final class Sandbox {
 	);
 
 	/**
+	 * Name of the sandbox folder inside the uploads directory.
+	 */
+	private const FOLDER = 'agent-connector-for-wp-sandbox';
+
+	/**
 	 * Absolute path to the sandbox directory, with a trailing slash.
 	 *
 	 * Override with the AGENT_CONNECTOR_FOR_WP_SANDBOX_DIR constant; otherwise it
-	 * lives under wp-content so it survives core/plugin updates.
+	 * lives in the uploads directory (wp_upload_dir()), so it survives core and
+	 * plugin updates. On multisite it is the main site's uploads directory, so
+	 * the whole network shares one sandbox, as it always has.
 	 */
 	public static function dir(): string {
 		if ( defined( 'AGENT_CONNECTOR_FOR_WP_SANDBOX_DIR' ) && is_string( AGENT_CONNECTOR_FOR_WP_SANDBOX_DIR ) ) {
 			return trailingslashit( AGENT_CONNECTOR_FOR_WP_SANDBOX_DIR );
 		}
-		return rtrim( WP_CONTENT_DIR, '/\\' ) . '/agent-connector-for-wp-sandbox/';
+
+		static $dir = null;
+		if ( null === $dir ) {
+			$dir = self::default_dir();
+		}
+		return $dir;
+	}
+
+	/**
+	 * The sandbox inside the uploads directory, moving a sandbox left at the
+	 * old location (wp-content/agent-connector-for-wp-sandbox/) there first.
+	 * If that move fails, the old folder keeps being used, so nothing an agent
+	 * wrote goes missing.
+	 */
+	private static function default_dir(): string {
+		$switched = is_multisite() && ! is_main_site();
+		if ( $switched ) {
+			switch_to_blog( get_main_site_id() );
+		}
+		$uploads = wp_upload_dir( null, false );
+		if ( $switched ) {
+			restore_current_blog();
+		}
+
+		$basedir = empty( $uploads['basedir'] ) ? WP_CONTENT_DIR . '/uploads' : (string) $uploads['basedir'];
+		$new     = trailingslashit( $basedir ) . self::FOLDER . '/';
+		$old     = trailingslashit( WP_CONTENT_DIR ) . self::FOLDER . '/';
+
+		if ( $old === $new || ! is_dir( $old ) || file_exists( $new ) ) {
+			return $new;
+		}
+
+		$filesystem = self::filesystem();
+		if ( ! wp_mkdir_p( $basedir ) || ! $filesystem->move( untrailingslashit( $old ), untrailingslashit( $new ) ) ) {
+			return $old;
+		}
+		return $new;
+	}
+
+	/**
+	 * Direct filesystem access, for moving the old sandbox folder.
+	 */
+	private static function filesystem(): \WP_Filesystem_Direct {
+		static $filesystem = null;
+		if ( null === $filesystem ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+			$filesystem = new \WP_Filesystem_Direct( null );
+		}
+		return $filesystem;
 	}
 
 	/**
