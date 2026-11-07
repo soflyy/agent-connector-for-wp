@@ -2,8 +2,9 @@ name: Auto release on merge
 
 # On every merge to master that touches the plugin, work out the next version
 # from the merged PR's title (Conventional Commits), bump the version in source,
-# tag it, build the vendored zips (GitHub + wordpress.org), and publish a
-# GitHub Release with the GitHub build attached.
+# tag it, build the vendored zips (GitHub + wordpress.org), publish a GitHub
+# Release with the GitHub build attached, and (once the wordpress.org SVN
+# credentials are configured) deploy the wordpress.org build to wordpress.org.
 #
 # Bump rules (highest wins):
 #   * a breaking change  -> major   (PR title like "feat!: …", or "BREAKING CHANGE" in the body)
@@ -145,9 +146,9 @@ jobs:
           coverage: none
 
       - name: Build plugin zips (GitHub + wordpress.org)
-        # Two builds, one version. The only difference: the GitHub build ships
-        # the GitHub self-updater (github-updater.php + plugin-update-checker);
-        # the wordpress.org build leaves both out. See bin/build-plugin-zip.sh.
+        # Two builds, one version. The wordpress.org build leaves out the
+        # GitHub self-updater and the GitHub-only code (src/GitHub/ and the
+        # @github-build blocks). See bin/build-plugin-zip.sh.
         run: |
           bin/build-plugin-zip.sh github dist
           bin/build-plugin-zip.sh org dist
@@ -165,3 +166,26 @@ jobs:
           name: ${{ steps.ver.outputs.tag }}
           generate_release_notes: true
           files: dist/github/${{ env.PLUGIN_SLUG }}.zip
+
+      # Skipped until the wordpress.org listing exists and the
+      # WPORG_SVN_USERNAME / WPORG_SVN_PASSWORD secrets are added.
+      - name: Check for wordpress.org credentials
+        id: wporg
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+        run: echo "enabled=$( [ -n "$SVN_USERNAME" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+
+      - name: Install Subversion
+        if: steps.wporg.outputs.enabled == 'true'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq subversion
+
+      - name: Deploy to wordpress.org
+        if: steps.wporg.outputs.enabled == 'true'
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.WPORG_SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.WPORG_SVN_PASSWORD }}
+          SLUG: agent-connector
+          VERSION: ${{ steps.ver.outputs.version }}
+          BUILD_DIR: dist/org/agent-connector
+          ASSETS_DIR: .wordpress-org

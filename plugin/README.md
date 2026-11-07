@@ -84,7 +84,11 @@ The plugin is built twice from the same version (`bin/build-plugin-zip.sh`):
   markers. Its slug (folder) is `agent-connector`, since wordpress.org doesn't
   allow "wp" in slugs; the GitHub build keeps `agent-connector-for-wp`.
   wordpress.org delivers its updates. Its directory listing comes from
-  [`readme.txt`](readme.txt).
+  [`readme.txt`](readme.txt), and the directory's banner, icon and
+  screenshots from `.wordpress-org/` at the repository root. The release
+  workflow commits each release to wordpress.org SVN once the
+  `WPORG_SVN_USERNAME` and `WPORG_SVN_PASSWORD` repository secrets are set;
+  until then it skips that step.
 
 MCP Adapter is a wordpress.org plugin, so WordPress updates it like any other.
 
