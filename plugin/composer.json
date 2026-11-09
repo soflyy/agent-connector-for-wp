@@ -16,6 +16,16 @@
 			"AgentConnectorForWp\\": "src/"
 		}
 	},
+	"scripts": {
+		"test": [
+			"@php tests/directory.php",
+			"bash tests/manifest.sh"
+		],
+		"lint": [
+			"@php -l agent-connector-for-wp.php",
+			"find src tests examples -name '*.php' -print0 | xargs -0 -n1 php -l"
+		]
+	},
 	"config": {
 		"allow-plugins": {
 			"automattic/jetpack-autoloader": true

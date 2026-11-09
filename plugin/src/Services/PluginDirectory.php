@@ -396,6 +396,8 @@ final class PluginDirectory {
 	 * defaulted to an empty string. `target_plugin` is the WP plugin the pack
 	 * extends — the same value a pack declares in its `Agent Connector Target:`
 	 * header.
+	 * A missing version stays empty: installable external plugins may manage
+	 * their own updates rather than opting into PackUpdater.
 	 *
 	 * @param mixed $item Raw entry.
 	 *
@@ -471,7 +473,7 @@ final class PluginDirectory {
 
 	/**
 	 * Every active installed plugin (minus the host and ability packs themselves),
-	 * joined with its available ability pack when one exists. Drives the admin
+	 * joined with each available ability pack when any exist. Drives the admin
 	 * screen so plugins without a pack are still listed.
 	 *
 	 * Each row: plugin_file, plugin_name, plugin_active, has_pack, and — when
@@ -490,7 +492,7 @@ final class PluginDirectory {
 
 		$by_file = array();
 		foreach ( self::match_installed( $result['entries'] ) as $match ) {
-			$by_file[ $match['target_plugin_file'] ] = $match;
+			$by_file[ $match['target_plugin_file'] ][] = $match;
 		}
 
 		$rows = array();
@@ -503,22 +505,24 @@ final class PluginDirectory {
 			}
 
 			if ( isset( $by_file[ $file ] ) ) {
-				$row             = $by_file[ $file ];
-				$row['has_pack'] = true;
+				$plugin_rows = $by_file[ $file ];
 			} else {
-				$row = array(
-					'has_pack'       => false,
-					'entry'          => array(),
-					'pack_installed' => false,
-					'pack_active'    => false,
+				$plugin_rows = array(
+					array(
+						'entry'          => array(),
+						'pack_installed' => false,
+						'pack_active'    => false,
+					),
 				);
 			}
 
-			$row['plugin_file']   = $file;
-			$row['plugin_name']   = (string) ( $data['Name'] ?? $file );
-			$row['plugin_active'] = true;
-
-			$rows[] = $row;
+			foreach ( $plugin_rows as $row ) {
+				$row['has_pack']      = isset( $by_file[ $file ] );
+				$row['plugin_file']   = $file;
+				$row['plugin_name']   = (string) ( $data['Name'] ?? $file );
+				$row['plugin_active'] = true;
+				$rows[] = $row;
+			}
 		}
 
 		// Rank: plugins with an available pack first, then the rest; alphabetical

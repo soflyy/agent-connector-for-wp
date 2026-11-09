@@ -530,7 +530,7 @@ final class SettingsController extends WP_REST_Controller {
 		$host    = strtolower( (string) $parts['host'] );
 		$allowed = (array) apply_filters(
 			'agent_connector_for_wp_pack_download_hosts',
-			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com' )
+			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com', 'elevatedextensions.com' )
 		);
 		foreach ( $allowed as $h ) {
 			$h = strtolower( (string) $h );

@@ -132,6 +132,8 @@ final class PackUpdater {
 			$latest  = (string) ( $entry['version'] ?? '' );
 			$package = (string) ( $entry['download_url'] ?? '' );
 			if ( '' === $latest ) {
+				// Versionless directory listings are install-only; their own updater
+				// retains control even if the plugin carries our marker header.
 				continue;
 			}
 
