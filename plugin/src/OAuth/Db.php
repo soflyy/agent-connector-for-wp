@@ -453,21 +453,26 @@ final class Db {
 	}
 
 	/**
-	 * Get a live (non-revoked, non-expired) token row by refresh token hash.
+	 * Get a token row by refresh token hash in ANY state — revoked included.
+	 *
+	 * The refresh grant needs this to tell "revoked but known" apart from
+	 * "unknown": a revoked row is evidence of rotation reuse (the caller revokes
+	 * the whole client family), while an unknown hash is just an invalid grant.
+	 * Revoked rows are only retained for a day ({@see cleanup_expired_tokens}),
+	 * so that retention window is also the reuse-detection window.
 	 *
 	 * @param string $refresh_hash The hashed refresh token.
 	 * @return array<string,mixed>|null
 	 */
-	public static function get_token_by_refresh_hash( string $refresh_hash ): array|null {
+	public static function find_token_by_refresh_hash( string $refresh_hash ): array|null {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				'SELECT * FROM %i WHERE refresh_token_hash = %s AND revoked = 0 AND refresh_expires_at > %s',
+				'SELECT * FROM %i WHERE refresh_token_hash = %s',
 				self::table_tokens(),
-				$refresh_hash,
-				gmdate( 'Y-m-d H:i:s' )
+				$refresh_hash
 			),
 			ARRAY_A
 		);
@@ -497,24 +502,31 @@ final class Db {
 	}
 
 	/**
-	 * Revoke a token pair by refresh token hash.
+	 * Revoke a token pair by refresh token hash — an atomic claim.
+	 *
+	 * Conditional on `revoked = 0`, mirroring {@see mark_code_used()}: rotation
+	 * treats a refresh token as single-use, and the conditional UPDATE means
+	 * exactly one of N concurrent refreshes of the same token can win. A false
+	 * return therefore distinguishes "already revoked" from "revoked just now",
+	 * which the refresh grant uses as its reuse signal.
 	 *
 	 * @param string $refresh_hash The hashed refresh token.
-	 * @return bool True if a token was revoked.
+	 * @return bool True if this caller revoked it; false if it was already
+	 *              revoked (or unknown).
 	 */
 	public static function revoke_token_by_refresh_hash( string $refresh_hash ): bool {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
-		$updated = $wpdb->update(
-			self::table_tokens(),
-			array( 'revoked' => 1 ),
-			array( 'refresh_token_hash' => $refresh_hash ),
-			array( '%d' ),
-			array( '%s' )
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET revoked = 1 WHERE refresh_token_hash = %s AND revoked = 0',
+				self::table_tokens(),
+				$refresh_hash
+			)
 		);
 
-		return $updated > 0;
+		return 1 === (int) $updated;
 	}
 
 	/**
