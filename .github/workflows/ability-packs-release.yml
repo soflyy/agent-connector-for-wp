@@ -176,7 +176,8 @@ jobs:
                 download_url:$dl, source_url:$src}' >> /tmp/entries.ndjson
           done
 
-          jq -s --arg gen "$(date -u +%FT%TZ)" '{generated_at:$gen, entries:.}' \
+          jq -s --slurpfile external ability-packs/external.json \
+            --arg gen "$(date -u +%FT%TZ)" '{generated_at:$gen, entries:(. + $external[0])}' \
             /tmp/entries.ndjson > index.json
           echo "---- index.json ----"; cat index.json
 

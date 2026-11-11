@@ -1,0 +1,20 @@
+[
+  {
+    "ability_pack_slug": "elevated-product-search",
+    "target_plugin": "woocommerce",
+    "target_plugin_name": "WooCommerce",
+    "ability_pack_name": "Elevated Product Search",
+    "description": "Live, typo-tolerant WooCommerce product search with its own agent abilities.",
+    "download_url": "https://elevatedextensions.com/latest/elevated-product-search.zip",
+    "source_url": "https://elevatedextensions.com/extensions/elevated-product-search/"
+  },
+  {
+    "ability_pack_slug": "elevated-discount-rules",
+    "target_plugin": "woocommerce",
+    "target_plugin_name": "WooCommerce",
+    "ability_pack_name": "Elevated Discount Rules",
+    "description": "WooCommerce discount rules — bulk/tiered pricing, buy X get Y, cart discounts — with its own agent abilities.",
+    "download_url": "https://elevatedextensions.com/latest/elevated-discount-rules.zip",
+    "source_url": "https://elevatedextensions.com/extensions/elevated-discount-rules/"
+  }
+]

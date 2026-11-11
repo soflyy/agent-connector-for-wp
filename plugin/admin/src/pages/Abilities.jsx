@@ -121,7 +121,7 @@ function PacksTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500 max-w-prose">
-          Your active plugins and, for each, the optional ability pack we generate. Installing a pack is always optional.
+          Your active plugins and their available ability packs, including third-party plugins with their own agent abilities. Installing a pack is always optional.
         </p>
         <button
           onClick={() => fetchDirectory(true)}
@@ -158,7 +158,7 @@ function PacksTab() {
               {rows.map((row) => {
                 const entry = row.entry || {}
                 return (
-                  <tr key={row.plugin_file} className="hover:bg-gray-50 transition-colors">
+                  <tr key={`${row.plugin_file}:${entry.ability_pack_slug || entry.ability_pack_name || ''}`} className="hover:bg-gray-50 transition-colors">
                     <td className="px-5 py-3">
                       <div className="font-medium text-gray-800">{row.plugin_name}</div>
                       <div className="text-xs text-gray-400 font-mono mt-0.5">{row.plugin_file}</div>

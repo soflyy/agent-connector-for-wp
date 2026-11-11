@@ -101,7 +101,7 @@ final class DirectoryPage {
 		$result = PluginDirectory::installed_overview();
 		?>
 		<p style="max-width:52em;">
-			<?php esc_html_e( 'Your active plugins and, for each, the optional unofficial ability pack we generate. Installing a pack is always optional.', 'agent-connector-for-wp' ); ?>
+			<?php esc_html_e( 'Your active plugins and their available ability packs, including third-party plugins with their own agent abilities. Installing a pack is always optional.', 'agent-connector-for-wp' ); ?>
 		</p>
 
 		<?php $this->render_toolbar( $result ); ?>
@@ -157,7 +157,7 @@ final class DirectoryPage {
 			<thead>
 				<tr>
 					<th scope="col"><?php esc_html_e( 'Active plugin', 'agent-connector-for-wp' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Unofficial ability pack', 'agent-connector-for-wp' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Ability pack', 'agent-connector-for-wp' ); ?></th>
 				</tr>
 			</thead>
 			<tbody>
@@ -398,7 +398,7 @@ final class DirectoryPage {
 
 	/**
 	 * Only allow downloading pack zips over https from an allowlisted host
-	 * (the GitHub release hosts by default). Filterable.
+	 * (GitHub release hosts and Elevated Extensions by default). Filterable.
 	 */
 	private static function is_allowed_download( string $url ): bool {
 		$parts = wp_parse_url( $url );
@@ -414,7 +414,7 @@ final class DirectoryPage {
 		 */
 		$allowed = (array) apply_filters(
 			'agent_connector_for_wp_pack_download_hosts',
-			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com' )
+			array( 'github.com', 'objects.githubusercontent.com', 'codeload.github.com', 'elevatedextensions.com' )
 		);
 
 		foreach ( $allowed as $h ) {
