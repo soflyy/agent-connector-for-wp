@@ -17,6 +17,7 @@ use AgentConnectorForWp\DefaultAbilities\Abilities\FileReadAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\FileWriteAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\PhpEvalAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\ProcessExecAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\PurgeCacheAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\SearchMediaAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\ShellAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\WpCliAbility;
@@ -48,6 +49,7 @@ final class Plugin {
 		FileListAbility::class,
 		FileDeleteAbility::class,
 		SearchMediaAbility::class,
+		PurgeCacheAbility::class,
 		AdminLoginAbility::class,
 	);
 
