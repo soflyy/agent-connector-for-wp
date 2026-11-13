@@ -1,6 +1,6 @@
 <?php
 /**
- * Read-only access to the WordPress media library.
+ * Read access to the WordPress media library.
  *
  * @package AgentConnectorForWp
  */
@@ -49,29 +49,45 @@ final class MediaLibrary {
 
 		$query = new \WP_Query( $query_args );
 
-		$items = array_map(
-			static function ( $post ): array {
-				$meta   = wp_get_attachment_metadata( (int) $post->ID );
-				$width  = is_array( $meta ) && isset( $meta['width'] ) ? (int) $meta['width'] : 0;
-				$height = is_array( $meta ) && isset( $meta['height'] ) ? (int) $meta['height'] : 0;
-
-				return array(
-					'id'       => (int) $post->ID,
-					'url'      => (string) wp_get_attachment_url( $post->ID ),
-					'alt'      => (string) get_post_meta( $post->ID, '_wp_attachment_image_alt', true ),
-					'caption'  => (string) $post->post_excerpt,
-					'filename' => (string) wp_basename( (string) get_attached_file( $post->ID ) ),
-					'mime'     => (string) $post->post_mime_type,
-					'width'    => $width,
-					'height'   => $height,
-				);
-			},
-			$query->posts
+		$items = array_values(
+			array_filter(
+				array_map(
+					static fn ( $post ): ?array => self::describe( (int) $post->ID ),
+					$query->posts
+				)
+			)
 		);
 
 		return array(
 			'total' => (int) $query->found_posts,
 			'items' => $items,
+		);
+	}
+
+	/**
+	 * One attachment in the lean shape an image control consumes.
+	 *
+	 * @return array{id: int, url: string, alt: string, caption: string, filename: string, mime: string, width: int, height: int}|null
+	 */
+	public static function describe( int $id ): ?array {
+		$post = get_post( $id );
+		if ( ! $post || 'attachment' !== $post->post_type ) {
+			return null;
+		}
+
+		$meta   = wp_get_attachment_metadata( $id );
+		$width  = is_array( $meta ) && isset( $meta['width'] ) ? (int) $meta['width'] : 0;
+		$height = is_array( $meta ) && isset( $meta['height'] ) ? (int) $meta['height'] : 0;
+
+		return array(
+			'id'       => $id,
+			'url'      => (string) wp_get_attachment_url( $id ),
+			'alt'      => (string) get_post_meta( $id, '_wp_attachment_image_alt', true ),
+			'caption'  => (string) $post->post_excerpt,
+			'filename' => (string) wp_basename( (string) get_attached_file( $id ) ),
+			'mime'     => (string) $post->post_mime_type,
+			'width'    => $width,
+			'height'   => $height,
 		);
 	}
 }

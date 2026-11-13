@@ -14,6 +14,7 @@ low-level operational reach a super admin has over the server, over MCP:
 | `agent-connector-for-wp/file-read` · `-write` · `-list` · `-delete` | Filesystem operations. |
 | `agent-connector-for-wp/env-inspect` | Inspect server / environment details. |
 | `agent-connector-for-wp/search-media` | Search the WordPress media library (read-only). |
+| `agent-connector-for-wp/upload-media` | Add a file to the media library from a URL, base64 contents, or a server path. |
 | `agent-connector-for-wp/create-admin-login-link` | Mint a one-time admin login link. |
 
 Anyone who can authenticate to this site's MCP server (i.e. holds an application

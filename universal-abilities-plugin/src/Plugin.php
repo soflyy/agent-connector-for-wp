@@ -19,6 +19,7 @@ use AgentConnectorForWp\DefaultAbilities\Abilities\PhpEvalAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\ProcessExecAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\SearchMediaAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\ShellAbility;
+use AgentConnectorForWp\DefaultAbilities\Abilities\UploadMediaAbility;
 use AgentConnectorForWp\DefaultAbilities\Abilities\WpCliAbility;
 use AgentConnectorForWp\DefaultAbilities\Services\AdminLoginLink;
 
@@ -48,6 +49,7 @@ final class Plugin {
 		FileListAbility::class,
 		FileDeleteAbility::class,
 		SearchMediaAbility::class,
+		UploadMediaAbility::class,
 		AdminLoginAbility::class,
 	);
 
