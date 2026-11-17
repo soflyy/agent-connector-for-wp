@@ -56,6 +56,12 @@ final class Db {
 	public const CODE_TTL = 60;
 
 	/**
+	 * How long a dynamically registered client may go without receiving a
+	 * token before it is pruned, in seconds (see prune_pending_clients()).
+	 */
+	public const PENDING_CLIENT_TTL = DAY_IN_SECONDS;
+
+	/**
 	 * Fully-prefixed clients table name.
 	 */
 	public static function table_clients(): string {
@@ -733,7 +739,8 @@ final class Db {
 	 * consent screen turns one into access. (Metadata-document clients are only
 	 * stored on approval, so these are registered clients.) These rows are
 	 * inert, but showing the count gives an operator a way to notice — and
-	 * clear — registration spam.
+	 * clear — registration spam. Registration also prunes them on its own
+	 * ({@see self::prune_pending_clients()}), so the count stays bounded.
 	 */
 	public static function count_clients_without_tokens(): int {
 		global $wpdb;
@@ -768,6 +775,78 @@ final class Db {
 		);
 
 		return (int) $deleted;
+	}
+
+	/**
+	 * Keep the dynamically registered clients that hold no token bounded.
+	 *
+	 * Registration is public (RFC 7591), so without this anyone can grow the
+	 * clients table without limit. Runs before every registration, which is
+	 * the only way these rows are created, so no scheduled job is needed:
+	 *
+	 *   1. registrations older than PENDING_CLIENT_TTL that hold no token are
+	 *      deleted. An administrator approves a real client within minutes;
+	 *      the long grace keeps a consent screen left open from failing;
+	 *   2. if more than $max - 1 remain, the oldest are deleted, leaving room
+	 *      for the registration about to be inserted.
+	 *
+	 * Evicting the oldest rather than refusing new registrations keeps a burst
+	 * of spam from locking legitimate clients out of DCR until the TTL passes.
+	 *
+	 * Only registered (DCR) clients are touched: a metadata-document client is
+	 * stored only when an administrator approves it. A DCR client whose tokens
+	 * have all expired or been revoked is cleared too; its access already
+	 * lapsed, and MCP clients answer `invalid_client` by registering again.
+	 *
+	 * Ages are compared on the database clock because created_at is filled by
+	 * its CURRENT_TIMESTAMP default, which follows the database time zone.
+	 *
+	 * @param int $max Most token-less registrations to keep, including the next one.
+	 * @return int Number of registrations removed.
+	 */
+	public static function prune_pending_clients( int $max ): int {
+		global $wpdb;
+
+		$max = max( 1, $max );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = (int) $wpdb->query(
+			$wpdb->prepare(
+				'DELETE c FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL AND c.client_id NOT LIKE %s AND c.created_at < DATE_SUB( NOW(), INTERVAL %d SECOND )',
+				self::table_clients(),
+				self::table_tokens(),
+				'https://%',
+				self::PENDING_CLIENT_TTL
+			)
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$pending = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT c.id FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL AND c.client_id NOT LIKE %s ORDER BY c.id ASC',
+				self::table_clients(),
+				self::table_tokens(),
+				'https://%'
+			)
+		);
+
+		$excess = count( $pending ) - ( $max - 1 );
+		if ( $excess <= 0 ) {
+			return $deleted;
+		}
+
+		$ids = array_map( 'intval', array_slice( $pending, 0, $excess ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$evicted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM %i WHERE id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- One %d per id.
+				self::table_clients(),
+				...$ids
+			)
+		);
+
+		return $deleted + (int) $evicted;
 	}
 
 	/**

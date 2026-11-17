@@ -54,6 +54,28 @@ final class Server {
 	private const SCOPES = array( 'mcp:tools', 'mcp:read', 'mcp:write' );
 
 	/**
+	 * Grant types the token endpoint implements.
+	 *
+	 * @var string[]
+	 */
+	private const GRANT_TYPES = array( 'authorization_code', 'refresh_token' );
+
+	/**
+	 * Default cap on dynamically registered clients that hold no token (see
+	 * Db::prune_pending_clients()). Real clients get a token within minutes
+	 * of registering, so only a handful are ever pending at once. Filterable
+	 * with `agent_connector_for_wp_oauth_max_pending_clients`.
+	 */
+	private const MAX_PENDING_CLIENTS = 100;
+
+	/**
+	 * Limits on the redirect_uris a client may register. Real clients list
+	 * one or two short URIs.
+	 */
+	private const MAX_REDIRECT_URIS       = 10;
+	private const MAX_REDIRECT_URI_LENGTH = 2048;
+
+	/**
 	 * Bootstrap all OAuth hooks and filters. Call once from the plugin
 	 * bootstrap, after the enable/environment gates have passed.
 	 */
@@ -171,7 +193,7 @@ final class Server {
 				'revocation_endpoint'                   => rest_url( self::REST_NAMESPACE . '/revoke' ),
 				'scopes_supported'                      => self::SCOPES,
 				'response_types_supported'              => array( 'code' ),
-				'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
+				'grant_types_supported'                 => self::GRANT_TYPES,
 				'token_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post' ),
 				'code_challenge_methods_supported'      => array( 'S256' ),
 				// Clients that support it identify themselves with a metadata
@@ -189,8 +211,10 @@ final class Server {
 	 * OAuth 2.1 specification; the security lives inside each handler:
 	 *
 	 *  - /register : DCR (RFC 7591), the fallback for clients without a
-	 *                metadata document — validates client metadata; HTTPS,
-	 *                loopback or native-app redirect_uris.
+	 *                metadata document — validates client metadata (HTTPS,
+	 *                loopback or native-app redirect_uris; supported
+	 *                grant_types only) and caps the registrations that never
+	 *                received a token (Db::prune_pending_clients).
 	 *  - /authorize: consent page — requires a logged-in administrator
 	 *                (Config::has_admin_access); verifies a nonce on POST;
 	 *                resolves the client (metadata document or registration),
@@ -264,9 +288,9 @@ final class Server {
 		$body = $request->get_json_params();
 		$body = is_array( $body ) ? $body : array();
 
-		$client_name    = sanitize_text_field( (string) ( $body['client_name'] ?? '' ) );
+		$client_name    = is_string( $body['client_name'] ?? null ) ? sanitize_text_field( $body['client_name'] ) : '';
 		$redirect_uris  = $body['redirect_uris'] ?? array();
-		$grant_types    = $body['grant_types'] ?? array( 'authorization_code', 'refresh_token' );
+		$grant_types    = $body['grant_types'] ?? self::GRANT_TYPES;
 		$response_types = $body['response_types'] ?? array( 'code' );
 		$auth_method    = sanitize_text_field( (string) ( $body['token_endpoint_auth_method'] ?? 'none' ) );
 
@@ -278,8 +302,36 @@ final class Server {
 			);
 		}
 
+		if ( count( $redirect_uris ) > self::MAX_REDIRECT_URIS ) {
+			return new WP_Error(
+				'invalid_redirect_uri',
+				sprintf( 'At most %d redirect_uris may be registered.', self::MAX_REDIRECT_URIS ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Only the grants this server implements, and authorization_code must
+		// be one of them: it is the only way a client gets its first token.
+		if ( ! self::is_string_subset( $grant_types, self::GRANT_TYPES ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
+			return new WP_Error(
+				'invalid_client_metadata',
+				'grant_types must include "authorization_code" and may otherwise only contain "refresh_token".',
+				array( 'status' => 400 )
+			);
+		}
+		$grant_types = array_values( array_unique( $grant_types ) );
+
+		if ( ! self::is_string_subset( $response_types, array( 'code' ) ) || array() === $response_types ) {
+			return new WP_Error(
+				'invalid_client_metadata',
+				'response_types may only contain "code".',
+				array( 'status' => 400 )
+			);
+		}
+		$response_types = array( 'code' );
+
 		foreach ( $redirect_uris as $uri ) {
-			if ( ! self::is_valid_redirect_uri( (string) $uri ) ) {
+			if ( ! is_string( $uri ) || strlen( $uri ) > self::MAX_REDIRECT_URI_LENGTH || ! self::is_valid_redirect_uri( $uri ) ) {
 				return new WP_Error(
 					'invalid_redirect_uri',
 					'Each redirect_uri must be an HTTPS URL, an http:// loopback address (localhost, 127.0.0.1, [::1]), or a native app URI scheme such as cursor://.',
@@ -301,9 +353,13 @@ final class Server {
 			);
 		}
 
+		// Public endpoint: keep the never-authorized registrations bounded
+		// before adding one more.
+		Db::prune_pending_clients( self::max_pending_clients() );
+
 		$client = Db::insert_client(
 			array(
-				'client_name'                => $client_name,
+				'client_name'                => mb_substr( $client_name, 0, 255 ),
 				'redirect_uris'              => $redirect_uris,
 				'grant_types'                => $grant_types,
 				'token_endpoint_auth_method' => $auth_method,
@@ -328,6 +384,33 @@ final class Server {
 		}
 
 		return new WP_REST_Response( $response_data, 201 );
+	}
+
+	/**
+	 * Most dynamically registered clients without a token to keep.
+	 */
+	private static function max_pending_clients(): int {
+		return max( 1, (int) apply_filters( 'agent_connector_for_wp_oauth_max_pending_clients', self::MAX_PENDING_CLIENTS ) );
+	}
+
+	/**
+	 * Whether $values is a list of strings drawn from $allowed.
+	 *
+	 * @param mixed    $values  Client-supplied metadata value.
+	 * @param string[] $allowed Accepted values.
+	 */
+	private static function is_string_subset( $values, array $allowed ): bool {
+		if ( ! is_array( $values ) || ! array_is_list( $values ) ) {
+			return false;
+		}
+
+		foreach ( $values as $value ) {
+			if ( ! is_string( $value ) || ! in_array( $value, $allowed, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
