@@ -6,21 +6,29 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
 
 | Path | What it is | Docs |
 | --- | --- | --- |
-| `plugin/` | The main WordPress plugin (PHP, Composer). Runs the MCP server; ships no abilities of its own. | [`plugin/README.md`](plugin/README.md) |
-| `universal-abilities-plugin/` | The Default Abilities companion plugin: the powerful built-in abilities (shell, PHP eval, filesystem, WP-CLI, admin login). Installed in one click from the main plugin's Connection screen. | [`universal-abilities-plugin/README.md`](universal-abilities-plugin/README.md) |
-| `abilities-generator/` | The `wp-mcp-generator` skill + scripts. | [`abilities-generator/README.md`](abilities-generator/README.md) |
-| `ability-packs/` | Generated ability-pack plugins (the generator's output). | — |
-| `bin/` | Dev scripts (`install.sh` symlinks `plugin/` + `universal-abilities-plugin/` into a WP install). | — |
+| `plugin/` | The WordPress plugin (PHP, Composer). Runs the MCP server, plus the built-in Universal Abilities (off by default). | [`plugin/README.md`](plugin/README.md) |
+| `bin/` | Dev scripts (`install.sh` symlinks `plugin/` into a WP install; `build-plugin-zip.sh` builds the GitHub and wordpress.org zips). | — |
 
-Each subproject has its own README/CONTRIBUTING. The PR-title release automation
-below applies to both `plugin/` and `universal-abilities-plugin/` — the latter via
-its own workflow (`.github/workflows/default-abilities-release.yml`), which uses
-the same commit-back versioning (PR title → bump → tag `universal-abilities-plugin-vX.Y.Z`
-→ versioned release, never clobbered) and refreshes a stable
-`universal-abilities-index` manifest that the main plugin reads for one-click
-install and updates. Ability packs (`ability-packs/`) use stamp-only versioning
-instead (see `ability-packs-release.yml`). All three are consumed at runtime by
-the main plugin's updater — nothing self-updates.
+## GitHub-only code
+
+The wordpress.org build (`bin/build-plugin-zip.sh org`) strips what wordpress.org
+doesn't allow. Anything that shells out, evaluates PHP, runs agent-written PHP,
+or updates from GitHub must be GitHub-only:
+
+- put whole classes under `plugin/src/GitHub/` (namespace `AgentConnectorForWp\GitHub\`);
+- wrap the code that wires them in (or any other GitHub-only lines) in
+  `// @github-build-start` … `// @github-build-end` markers.
+
+The org build fails if anything GitHub-only is still referenced.
+
+## Slug and text domain
+
+The wordpress.org slug is `agent-connector` (wordpress.org doesn't allow "wp" in
+slugs), and it's the plugin's `Text Domain`: every translation call uses
+`'agent-connector'`. The GitHub build keeps the folder `agent-connector-for-wp`
+so existing installs and the self-updater keep working. Internal identifiers
+(menu slug, REST namespace `agent-connector-for-wp/v1`, ability names, option
+names) keep `agent-connector-for-wp` — don't rename them.
 
 ## PR / commit titles drive releases
 

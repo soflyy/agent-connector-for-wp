@@ -42,7 +42,7 @@ export function buildManifest({ serverName, serverUrl, siteName, username, passw
     name: serverName,
     display_name: `${label} (WordPress)`,
     version: '1.0.0',
-    description: `Gives the agent access to the WordPress site ${host} through Agent Connector for WP.`,
+    description: `Gives the agent access to the WordPress site ${host} through Agent Connector.`,
     author: { name: 'Soflyy', url: WEBSITE },
     homepage: WEBSITE,
     server: {

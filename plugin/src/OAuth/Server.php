@@ -1,6 +1,6 @@
 <?php
 /**
- * OAuth 2.1 server orchestrator: discovery, routes, DCR, CORS.
+ * OAuth 2.1 server orchestrator: discovery, routes, client registration, CORS.
  *
  * @package AgentConnectorForWp
  */
@@ -22,10 +22,15 @@ defined( 'ABSPATH' ) || exit;
  * Streamable HTTP — no mcp-wordpress-remote proxy or application password
  * required.
  *
+ * Clients identify themselves with a Client ID Metadata Document: the
+ * client_id is an HTTPS URL serving the client's metadata, fetched on demand
+ * by {@see Clients}. Dynamic Client Registration stays available as a
+ * fallback for clients that don't support metadata documents yet.
+ *
  * Registers:
  *   - /.well-known/oauth-protected-resource and
  *     /.well-known/oauth-authorization-server discovery documents,
- *   - REST routes under `acfw-auth/v1`: /register (DCR, RFC 7591),
+ *   - REST routes under `acfw-auth/v1`: /register (DCR fallback, RFC 7591),
  *     /authorize (consent), /token (RFC 6749 §4.1.3), /revoke (RFC 7009),
  *   - CORS handling for the OAuth and MCP endpoints, and
  *   - the Bearer token {@see Interceptor} on MCP requests.
@@ -47,6 +52,28 @@ final class Server {
 	 * @var string[]
 	 */
 	private const SCOPES = array( 'mcp:tools', 'mcp:read', 'mcp:write' );
+
+	/**
+	 * Grant types the token endpoint implements.
+	 *
+	 * @var string[]
+	 */
+	private const GRANT_TYPES = array( 'authorization_code', 'refresh_token' );
+
+	/**
+	 * Default cap on dynamically registered clients that hold no token (see
+	 * Db::prune_pending_clients()). Real clients get a token within minutes
+	 * of registering, so only a handful are ever pending at once. Filterable
+	 * with `agent_connector_for_wp_oauth_max_pending_clients`.
+	 */
+	private const MAX_PENDING_CLIENTS = 100;
+
+	/**
+	 * Limits on the redirect_uris a client may register. Real clients list
+	 * one or two short URIs.
+	 */
+	private const MAX_REDIRECT_URIS       = 10;
+	private const MAX_REDIRECT_URI_LENGTH = 2048;
 
 	/**
 	 * Bootstrap all OAuth hooks and filters. Call once from the plugin
@@ -166,9 +193,13 @@ final class Server {
 				'revocation_endpoint'                   => rest_url( self::REST_NAMESPACE . '/revoke' ),
 				'scopes_supported'                      => self::SCOPES,
 				'response_types_supported'              => array( 'code' ),
-				'grant_types_supported'                 => array( 'authorization_code', 'refresh_token' ),
+				'grant_types_supported'                 => self::GRANT_TYPES,
 				'token_endpoint_auth_methods_supported' => array( 'none', 'client_secret_post' ),
 				'code_challenge_methods_supported'      => array( 'S256' ),
+				// Clients that support it identify themselves with a metadata
+				// document URL and skip registration_endpoint, which remains
+				// for those that don't.
+				'client_id_metadata_document_supported' => true,
 			)
 		);
 	}
@@ -179,12 +210,16 @@ final class Server {
 	 * Every route below is intentionally public (`__return_true`) per the
 	 * OAuth 2.1 specification; the security lives inside each handler:
 	 *
-	 *  - /register : DCR (RFC 7591) — validates client metadata; HTTPS-only
-	 *                redirect_uris.
+	 *  - /register : DCR (RFC 7591), the fallback for clients without a
+	 *                metadata document — validates client metadata (HTTPS,
+	 *                loopback or native-app redirect_uris; supported
+	 *                grant_types only) and caps the registrations that never
+	 *                received a token (Db::prune_pending_clients).
 	 *  - /authorize: consent page — requires a logged-in administrator
 	 *                (Config::has_admin_access); verifies a nonce on POST;
-	 *                validates client + exact redirect_uri + PKCE S256; served
-	 *                with anti-framing headers.
+	 *                resolves the client (metadata document or registration),
+	 *                validates its redirect_uri + PKCE S256; served with
+	 *                anti-framing headers.
 	 *  - /token    : code exchange — validates code, PKCE verifier, client_id,
 	 *                client_secret (confidential clients only), redirect_uri;
 	 *                atomically claimed single-use codes; reuse revokes the
@@ -243,6 +278,9 @@ final class Server {
 	/**
 	 * Handle Dynamic Client Registration (RFC 7591).
 	 *
+	 * The fallback for clients that can't identify themselves with a Client ID
+	 * Metadata Document (see {@see Clients}); those never call this.
+	 *
 	 * @param WP_REST_Request $request The incoming REST request.
 	 * @return WP_REST_Response|WP_Error
 	 */
@@ -250,9 +288,9 @@ final class Server {
 		$body = $request->get_json_params();
 		$body = is_array( $body ) ? $body : array();
 
-		$client_name    = sanitize_text_field( (string) ( $body['client_name'] ?? '' ) );
+		$client_name    = is_string( $body['client_name'] ?? null ) ? sanitize_text_field( $body['client_name'] ) : '';
 		$redirect_uris  = $body['redirect_uris'] ?? array();
-		$grant_types    = $body['grant_types'] ?? array( 'authorization_code', 'refresh_token' );
+		$grant_types    = $body['grant_types'] ?? self::GRANT_TYPES;
 		$response_types = $body['response_types'] ?? array( 'code' );
 		$auth_method    = sanitize_text_field( (string) ( $body['token_endpoint_auth_method'] ?? 'none' ) );
 
@@ -264,8 +302,36 @@ final class Server {
 			);
 		}
 
+		if ( count( $redirect_uris ) > self::MAX_REDIRECT_URIS ) {
+			return new WP_Error(
+				'invalid_redirect_uri',
+				sprintf( 'At most %d redirect_uris may be registered.', self::MAX_REDIRECT_URIS ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Only the grants this server implements, and authorization_code must
+		// be one of them: it is the only way a client gets its first token.
+		if ( ! self::is_string_subset( $grant_types, self::GRANT_TYPES ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
+			return new WP_Error(
+				'invalid_client_metadata',
+				'grant_types must include "authorization_code" and may otherwise only contain "refresh_token".',
+				array( 'status' => 400 )
+			);
+		}
+		$grant_types = array_values( array_unique( $grant_types ) );
+
+		if ( ! self::is_string_subset( $response_types, array( 'code' ) ) || array() === $response_types ) {
+			return new WP_Error(
+				'invalid_client_metadata',
+				'response_types may only contain "code".',
+				array( 'status' => 400 )
+			);
+		}
+		$response_types = array( 'code' );
+
 		foreach ( $redirect_uris as $uri ) {
-			if ( ! self::is_valid_redirect_uri( (string) $uri ) ) {
+			if ( ! is_string( $uri ) || strlen( $uri ) > self::MAX_REDIRECT_URI_LENGTH || ! self::is_valid_redirect_uri( $uri ) ) {
 				return new WP_Error(
 					'invalid_redirect_uri',
 					'Each redirect_uri must be an HTTPS URL, an http:// loopback address (localhost, 127.0.0.1, [::1]), or a native app URI scheme such as cursor://.',
@@ -287,9 +353,13 @@ final class Server {
 			);
 		}
 
+		// Public endpoint: keep the never-authorized registrations bounded
+		// before adding one more.
+		Db::prune_pending_clients( self::max_pending_clients() );
+
 		$client = Db::insert_client(
 			array(
-				'client_name'                => $client_name,
+				'client_name'                => mb_substr( $client_name, 0, 255 ),
 				'redirect_uris'              => $redirect_uris,
 				'grant_types'                => $grant_types,
 				'token_endpoint_auth_method' => $auth_method,
@@ -317,13 +387,41 @@ final class Server {
 	}
 
 	/**
+	 * Most dynamically registered clients without a token to keep.
+	 */
+	private static function max_pending_clients(): int {
+		return max( 1, (int) apply_filters( 'agent_connector_for_wp_oauth_max_pending_clients', self::MAX_PENDING_CLIENTS ) );
+	}
+
+	/**
+	 * Whether $values is a list of strings drawn from $allowed.
+	 *
+	 * @param mixed    $values  Client-supplied metadata value.
+	 * @param string[] $allowed Accepted values.
+	 */
+	private static function is_string_subset( $values, array $allowed ): bool {
+		if ( ! is_array( $values ) || ! array_is_list( $values ) ) {
+			return false;
+		}
+
+		foreach ( $values as $value ) {
+			if ( ! is_string( $value ) || ! in_array( $value, $allowed, true ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Schemes a redirect_uri may never use, even as a native-app scheme: ones a
 	 * browser would execute or resolve locally instead of handing to an app.
 	 */
 	private const BLOCKED_REDIRECT_SCHEMES = array( 'javascript', 'data', 'vbscript', 'file', 'blob', 'about', 'filesystem', 'view-source', 'ftp', 'ws', 'wss' );
 
 	/**
-	 * Validate a client-supplied redirect_uri for Dynamic Client Registration.
+	 * Validate a client-supplied redirect_uri, whether registered through DCR
+	 * or listed in a Client ID Metadata Document.
 	 *
 	 * Accepts:
 	 * - HTTPS URLs (remote/web clients such as claude.ai);
@@ -372,9 +470,53 @@ final class Server {
 	}
 
 	/**
+	 * Whether a requested redirect_uri is one of the client's.
+	 *
+	 * Matches exactly, except that a loopback redirect may use any port
+	 * (RFC 8252 §7.3): native and CLI clients listen on whichever port is free,
+	 * while a metadata document can only list a fixed URI.
+	 *
+	 * @param string   $redirect_uri The redirect_uri from the request, already sanitized.
+	 * @param string[] $registered   The client's redirect_uris.
+	 */
+	public static function redirect_uri_allowed( string $redirect_uri, array $registered ): bool {
+		if ( '' === $redirect_uri ) {
+			return false;
+		}
+
+		if ( in_array( $redirect_uri, $registered, true ) ) {
+			return true;
+		}
+
+		$portless = self::without_loopback_port( $redirect_uri );
+		if ( null === $portless ) {
+			return false;
+		}
+
+		foreach ( $registered as $uri ) {
+			if ( is_string( $uri ) && self::without_loopback_port( $uri ) === $portless ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * A loopback http:// URI with its port removed, or null for any other URI.
+	 *
+	 * @param string $uri The redirect URI.
+	 */
+	private static function without_loopback_port( string $uri ): ?string {
+		$portless = preg_replace( '#^(http://(?:127\.0\.0\.1|\[::1\]|localhost))(?::\d+)?(?=[/?]|$)#i', '$1', $uri, 1, $count );
+
+		return 1 === $count && is_string( $portless ) ? $portless : null;
+	}
+
+	/**
 	 * A redirect_uri from a request, returned verbatim when it's one this
-	 * server could have registered, or '' otherwise. Callers then compare it
-	 * exactly against the client's registered list.
+	 * server could accept, or '' otherwise. Callers then check it against the
+	 * client's list with redirect_uri_allowed().
 	 *
 	 * @param mixed $uri The raw request parameter.
 	 */

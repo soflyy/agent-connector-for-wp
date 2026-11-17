@@ -15,10 +15,13 @@ defined( 'ABSPATH' ) || exit;
  * Owns the three OAuth tables and all CRUD against them.
  *
  * Tables (all `{$wpdb->prefix}` + base):
- *   - acfw_oauth_clients : dynamically registered OAuth clients (RFC 7591).
- *                          A confidential client's secret is stored as a
- *                          SHA-256 hash; the raw value is returned once at
- *                          registration.
+ *   - acfw_oauth_clients : known OAuth clients: those identified by a Client
+ *                          ID Metadata Document, stored once an administrator
+ *                          approves them (the client_id is the document's
+ *                          URL), and those registered dynamically (RFC 7591).
+ *                          A confidential registered client's secret is
+ *                          stored as a SHA-256 hash; the raw value is
+ *                          returned once at registration.
  *   - acfw_oauth_codes   : single-use, 60-second authorization codes.
  *   - acfw_oauth_tokens  : access/refresh token pairs, stored ONLY as
  *                          SHA-256 hashes — the raw values are returned to the
@@ -33,7 +36,7 @@ final class Db {
 	 * Schema version stored in wp_options. Bump when the columns change so
 	 * existing installs run dbDelta again on next load.
 	 */
-	private const SCHEMA_VERSION = 2;
+	private const SCHEMA_VERSION = 3;
 
 	private const SCHEMA_VERSION_OPTION = 'agent_connector_for_wp_oauth_schema_version';
 
@@ -51,6 +54,12 @@ final class Db {
 	 * Authorization code lifetime in seconds.
 	 */
 	public const CODE_TTL = 60;
+
+	/**
+	 * How long a dynamically registered client may go without receiving a
+	 * token before it is pruned, in seconds (see prune_pending_clients()).
+	 */
+	public const PENDING_CLIENT_TTL = DAY_IN_SECONDS;
 
 	/**
 	 * Fully-prefixed clients table name.
@@ -108,7 +117,7 @@ final class Db {
 
 		$sql_clients = "CREATE TABLE {$t_clients} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			client_id varchar(64) NOT NULL,
+			client_id varchar(191) NOT NULL,
 			client_secret varchar(255) DEFAULT NULL,
 			client_name varchar(255) NOT NULL,
 			redirect_uris text NOT NULL,
@@ -122,7 +131,7 @@ final class Db {
 		$sql_codes = "CREATE TABLE {$t_codes} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			code varchar(128) NOT NULL,
-			client_id varchar(64) NOT NULL,
+			client_id varchar(191) NOT NULL,
 			user_id bigint(20) unsigned NOT NULL,
 			redirect_uri text NOT NULL,
 			scope varchar(255) NOT NULL DEFAULT 'mcp:tools',
@@ -139,7 +148,7 @@ final class Db {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			access_token_hash varchar(64) NOT NULL,
 			refresh_token_hash varchar(64) NOT NULL,
-			client_id varchar(64) NOT NULL,
+			client_id varchar(191) NOT NULL,
 			user_id bigint(20) unsigned NOT NULL,
 			scope varchar(255) NOT NULL DEFAULT 'mcp:tools',
 			access_expires_at datetime NOT NULL,
@@ -181,7 +190,8 @@ final class Db {
 	// -------------------------------------------------------------------
 
 	/**
-	 * Insert a new OAuth client (Dynamic Client Registration).
+	 * Insert a new OAuth client (Dynamic Client Registration, the fallback for
+	 * clients without a Client ID Metadata Document).
 	 *
 	 * @param array<string,mixed> $data Client registration data.
 	 * @return array<string,mixed>|false Client data on success, false on failure.
@@ -226,6 +236,49 @@ final class Db {
 			'grant_types'                => $data['grant_types'] ?? array( 'authorization_code', 'refresh_token' ),
 			'token_endpoint_auth_method' => $auth_method,
 		);
+	}
+
+	/**
+	 * Insert or refresh a client identified by a Client ID Metadata Document,
+	 * once an administrator has approved it. Its client_id is the document
+	 * URL; the name and redirect URIs are copied from the document so the
+	 * Connections screen can show them.
+	 *
+	 * @param array<string,mixed> $client The client, as resolved by {@see Clients::get()}.
+	 * @return bool False on a database error.
+	 */
+	public static function save_metadata_client( array $client ): bool {
+		global $wpdb;
+
+		$fields = array(
+			'client_secret'              => null,
+			'client_name'                => sanitize_text_field( (string) $client['client_name'] ),
+			'redirect_uris'              => wp_json_encode( array_values( (array) $client['redirect_uris'] ) ),
+			'grant_types'                => wp_json_encode( array_values( (array) $client['grant_types'] ) ),
+			'token_endpoint_auth_method' => 'none',
+		);
+
+		if ( null !== self::get_client_by_id( (string) $client['client_id'] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+			$updated = $wpdb->update(
+				self::table_clients(),
+				$fields,
+				array( 'client_id' => (string) $client['client_id'] ),
+				array( '%s', '%s', '%s', '%s', '%s' ),
+				array( '%s' )
+			);
+
+			return false !== $updated;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$inserted = $wpdb->insert(
+			self::table_clients(),
+			array( 'client_id' => (string) $client['client_id'] ) + $fields,
+			array( '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		return (bool) $inserted;
 	}
 
 	/**
@@ -654,6 +707,7 @@ final class Db {
 				'client_name'   => (string) $client['client_name'],
 				'redirect_uris' => is_array( $uris ) ? $uris : array(),
 				'confidential'  => 'none' !== (string) $client['token_endpoint_auth_method'],
+				'metadata_url'  => Clients::is_metadata_url( $cid ),
 				'registered_at' => (string) $client['created_at'],
 				'connection'    => $connections[ $cid ] ?? null,
 			);
@@ -680,10 +734,13 @@ final class Db {
 	/**
 	 * Count client registrations that never received a token.
 	 *
-	 * Registration is unauthenticated by design (RFC 7591), so anyone can put a
-	 * row in the clients table; only an administrator approving the consent
-	 * screen turns one into access. These rows are inert, but showing the count
-	 * gives an operator a way to notice — and clear — registration spam.
+	 * Dynamic registration is unauthenticated by design (RFC 7591), so anyone
+	 * can put a row in the clients table; only an administrator approving the
+	 * consent screen turns one into access. (Metadata-document clients are only
+	 * stored on approval, so these are registered clients.) These rows are
+	 * inert, but showing the count gives an operator a way to notice — and
+	 * clear — registration spam. Registration also prunes them on its own
+	 * ({@see self::prune_pending_clients()}), so the count stays bounded.
 	 */
 	public static function count_clients_without_tokens(): int {
 		global $wpdb;
@@ -718,6 +775,78 @@ final class Db {
 		);
 
 		return (int) $deleted;
+	}
+
+	/**
+	 * Keep the dynamically registered clients that hold no token bounded.
+	 *
+	 * Registration is public (RFC 7591), so without this anyone can grow the
+	 * clients table without limit. Runs before every registration, which is
+	 * the only way these rows are created, so no scheduled job is needed:
+	 *
+	 *   1. registrations older than PENDING_CLIENT_TTL that hold no token are
+	 *      deleted. An administrator approves a real client within minutes;
+	 *      the long grace keeps a consent screen left open from failing;
+	 *   2. if more than $max - 1 remain, the oldest are deleted, leaving room
+	 *      for the registration about to be inserted.
+	 *
+	 * Evicting the oldest rather than refusing new registrations keeps a burst
+	 * of spam from locking legitimate clients out of DCR until the TTL passes.
+	 *
+	 * Only registered (DCR) clients are touched: a metadata-document client is
+	 * stored only when an administrator approves it. A DCR client whose tokens
+	 * have all expired or been revoked is cleared too; its access already
+	 * lapsed, and MCP clients answer `invalid_client` by registering again.
+	 *
+	 * Ages are compared on the database clock because created_at is filled by
+	 * its CURRENT_TIMESTAMP default, which follows the database time zone.
+	 *
+	 * @param int $max Most token-less registrations to keep, including the next one.
+	 * @return int Number of registrations removed.
+	 */
+	public static function prune_pending_clients( int $max ): int {
+		global $wpdb;
+
+		$max = max( 1, $max );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$deleted = (int) $wpdb->query(
+			$wpdb->prepare(
+				'DELETE c FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL AND c.client_id NOT LIKE %s AND c.created_at < DATE_SUB( NOW(), INTERVAL %d SECOND )',
+				self::table_clients(),
+				self::table_tokens(),
+				'https://%',
+				self::PENDING_CLIENT_TTL
+			)
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$pending = $wpdb->get_col(
+			$wpdb->prepare(
+				'SELECT c.id FROM %i c LEFT JOIN %i t ON t.client_id = c.client_id WHERE t.id IS NULL AND c.client_id NOT LIKE %s ORDER BY c.id ASC',
+				self::table_clients(),
+				self::table_tokens(),
+				'https://%'
+			)
+		);
+
+		$excess = count( $pending ) - ( $max - 1 );
+		if ( $excess <= 0 ) {
+			return $deleted;
+		}
+
+		$ids = array_map( 'intval', array_slice( $pending, 0, $excess ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom OAuth tables, no WP cache API applicable.
+		$evicted = $wpdb->query(
+			$wpdb->prepare(
+				'DELETE FROM %i WHERE id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- One %d per id.
+				self::table_clients(),
+				...$ids
+			)
+		);
+
+		return $deleted + (int) $evicted;
 	}
 
 	/**
