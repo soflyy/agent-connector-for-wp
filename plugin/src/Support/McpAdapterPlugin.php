@@ -21,7 +21,7 @@ defined( 'ABSPATH' ) || exit;
  * The header does the heavy lifting: WordPress refuses to activate this plugin
  * until MCP Adapter is installed and active, offers to install it from
  * wordpress.org, and refuses to deactivate it while this plugin is running.
- * Nothing here needs to install or update the adapter.
+ * Nothing here installs or updates the adapter.
  *
  * What the header does not cover is a site that updated from a release which
  * still bundled the adapter: it stays active with the dependency suddenly

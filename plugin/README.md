@@ -86,7 +86,11 @@ The plugin is built twice from the same version (`bin/build-plugin-zip.sh`):
   from GitHub Releases through a bundled update checker, so new versions appear
   on the normal Plugins screen and via auto-updates. Update checks are
   best-effort and never block WordPress: a slow or unreachable GitHub simply
-  means "no update offered" that cycle.
+  means "no update offered" that cycle. Releases up to 1.33 bundled the MCP
+  Adapter library; when a site updates from one of those and has no MCP
+  Adapter plugin, the GitHub build installs it from wordpress.org and
+  activates it in the background (once per version, and not when
+  `DISALLOW_FILE_MODS` is set). Otherwise wp-admin shows a notice.
 - **wordpress.org build** — the same plugin without what wordpress.org doesn't
   allow: the update checker, the shell / process / WP-CLI / PHP-eval abilities
   (everything under `src/GitHub/`), the file abilities and the sandbox loader, and any code between `// @github-build-start` and `// @github-build-end`

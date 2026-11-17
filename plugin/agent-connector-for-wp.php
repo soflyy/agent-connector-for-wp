@@ -166,6 +166,13 @@ add_action(
 			( new Admin\McpAdapterNotice() )->register();
 		}
 
+		// @github-build-start
+		// Sites that updated from a release which bundled the MCP Adapter
+		// library have no adapter now: install and activate the plugin.
+		// GitHub build only. See GitHub\Services\McpAdapterInstaller.
+		( new GitHub\Services\McpAdapterInstaller() )->register();
+		// @github-build-end
+
 		// REST API: settings, reconnect, connection generation.
 		add_action(
 			'rest_api_init',

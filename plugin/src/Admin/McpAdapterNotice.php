@@ -24,8 +24,9 @@ defined( 'ABSPATH' ) || exit;
  * blocks activation without it and points at the wordpress.org listing. This
  * notice exists for the one case the header cannot cover — a site that updated
  * from a release which still bundled the adapter, and so is running with the
- * dependency missing — plus an adapter too old to work with. It explains the
- * problem and links to the screen that fixes it.
+ * dependency missing (the GitHub build tries to install it on its own first) —
+ * plus an adapter too old to work with. It explains the problem and links to
+ * the screen that fixes it.
  *
  * Not dismissible: it describes a hard requirement, and it disappears on its
  * own once a supported adapter is active.
