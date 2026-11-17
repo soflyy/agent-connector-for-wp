@@ -69,12 +69,20 @@ final class McpAdapterInstaller {
 		require_once ABSPATH . 'wp-admin/includes/plugin-install.php';
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
+		// Record the attempt before making it, so a fatal partway through can't
+		// turn into a retry on every cron run.
+		self::record( 'started' );
+
 		$result = self::install_and_activate();
+		self::record( is_wp_error( $result ) ? $result->get_error_message() : 'activated' );
+	}
+
+	private static function record( string $result ): void {
 		update_site_option(
 			self::ATTEMPT_OPTION,
 			array(
 				'version' => AGENT_CONNECTOR_FOR_WP_VERSION,
-				'result'  => is_wp_error( $result ) ? $result->get_error_message() : 'activated',
+				'result'  => $result,
 			)
 		);
 	}
@@ -114,14 +122,27 @@ final class McpAdapterInstaller {
 				return $api;
 			}
 
-			$upgrader  = new \Plugin_Upgrader( new \Automatic_Upgrader_Skin() );
+			// The Ajax skin collects errors instead of printing them, and returns
+			// false instead of printing a credentials form when the filesystem
+			// isn't directly writable. Plugin_Upgrader::install() returns null
+			// for most failures, so the skin is where the reason is.
+			$skin     = new \WP_Ajax_Upgrader_Skin();
+			$upgrader = new \Plugin_Upgrader( $skin );
+			ob_start();
 			$installed = $upgrader->install( $api->download_link );
+			ob_end_clean();
+
 			if ( is_wp_error( $installed ) ) {
 				return $installed;
 			}
+			if ( is_wp_error( $skin->result ) ) {
+				return $skin->result;
+			}
+			if ( $skin->get_errors()->has_errors() ) {
+				return $skin->get_errors();
+			}
 			if ( true !== $installed ) {
-				$errors = $upgrader->skin->get_errors();
-				return $errors->has_errors() ? $errors : new \WP_Error( 'install_failed', 'MCP Adapter could not be installed.' );
+				return new \WP_Error( 'install_failed', 'MCP Adapter could not be installed. The plugins folder may not be writable without FTP credentials.' );
 			}
 
 			$file = $upgrader->plugin_info();
