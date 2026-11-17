@@ -47,9 +47,10 @@ The admin screens are built with React from the `admin/src` directory included i
 
 == External services ==
 
-Agent Connector contacts an external service only in this case, started by an administrator:
+Agent Connector contacts an external service only in these cases:
 
 * **Connecting an agent over OAuth.** Some agents identify themselves with a URL (an OAuth Client ID Metadata Document). While an administrator approves such a connection, Agent Connector fetches that URL to read the agent's name and allowed redirect addresses. Only the request for the document is sent; no site data is included. The URL belongs to the agent's provider, whose terms and privacy policy apply (see below).
+* **Managing plugins from WordPress.org.** When Universal Abilities are switched on and a connected agent searches for, installs or updates plugins, Agent Connector uses the WordPress.org Plugin Directory, the same way the Plugins screen does. It sends the search terms or plugin names, plus the information WordPress itself sends with these requests. See the [WordPress.org privacy policy](https://wordpress.org/about/privacy/).
 
 The AI agents you connect are third-party services that you choose and configure yourself. Once connected, an agent sends requests to your site's MCP endpoint and receives the results of the abilities it runs. Please review your agent provider's terms and privacy policy, for example:
 
