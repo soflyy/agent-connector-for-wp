@@ -58,9 +58,9 @@ final class McpAdapterNotice {
 				McpAdapterPlugin::MIN_VERSION
 			);
 		} elseif ( $installed ) {
-			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not active. Activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector' );
+			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not active. Activate it to bring the MCP server back, until then agents have nothing to connect to.', 'agent-connector' );
 		} else {
-			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not installed. Install and activate it to bring the MCP server back; until then agents have nothing to connect to.', 'agent-connector' );
+			$body = __( 'Agent Connector is running, but the MCP Adapter plugin it requires is not installed. Install and activate it to bring the MCP server back, until then agents have nothing to connect to.', 'agent-connector' );
 		}
 
 		// Send the operator to the screen that resolves their case: the Plugins
