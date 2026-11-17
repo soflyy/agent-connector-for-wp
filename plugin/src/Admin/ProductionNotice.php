@@ -46,11 +46,18 @@ final class ProductionNotice {
 
 		$settings_url = admin_url( 'admin.php?page=' . ConnectionPage::MENU_SLUG . '#/settings' );
 		$dismiss_url  = rest_url( 'agent-connector-for-wp/v1/dismiss-production-warning' );
+
+		// What a connected agent can do depends on the build: only the GitHub
+		// build ships abilities that run code and write files.
+		$warning = __( 'AI agents connected to it act with an administrator\'s access and can use every ability your plugins expose to them. If that is what you want, you are all set. To restrict it, enable protections in the settings.', 'agent-connector' );
+		// @github-build-start
+		$warning = __( 'AI agents connected to it can do anything an administrator can — run code, modify files, and change content. If that is what you want, you are all set. To restrict it, enable protections in the settings.', 'agent-connector' );
+		// @github-build-end
 		?>
 		<div class="notice notice-error" id="acfw-production-warning">
 			<p>
 				<strong><?php esc_html_e( 'Agent Connector is active on this site.', 'agent-connector' ); ?></strong>
-				<?php esc_html_e( 'AI agents connected to it can do anything an administrator can — run code, modify files, and change content. If that is what you want, you are all set. To restrict it, enable protections in the settings.', 'agent-connector' ); ?>
+				<?php echo esc_html( $warning ); ?>
 			</p>
 			<p>
 				<button type="button" class="button button-primary" id="acfw-production-warning-dismiss">
