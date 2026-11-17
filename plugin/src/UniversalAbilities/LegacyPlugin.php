@@ -16,14 +16,15 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Universal Abilities used to be a separate plugin ("Universal Abilities for
- * Agent Connector"). It is built in now, so a site that still has the old
- * plugin active would register every ability twice.
+ * Agent Connector"). It is built in now, and the old plugin's code expects
+ * classes that have moved or that the wordpress.org build leaves out.
  *
- * While the old plugin is loaded, the built-in copy stands down
- * (is_loaded()). The next time an administrator opens wp-admin, the old plugin
- * is deactivated, the built-in Universal Abilities switch is turned on (the
- * site had opted in by activating the old plugin), and a one-time notice says
- * the old plugin can be deleted.
+ * So the first request that finds the old plugin active hands over: the old
+ * plugin is deactivated, the built-in Universal Abilities switch is turned on
+ * (the site had opted in by activating the old plugin), and a one-time notice
+ * in wp-admin says the old plugin can be deleted. On that one request the old
+ * plugin is still loaded, but the built-in abilities register first, so
+ * WordPress rejects the old plugin's copies of them.
  */
 final class LegacyPlugin {
 
@@ -41,17 +42,17 @@ final class LegacyPlugin {
 	}
 
 	public function register(): void {
-		add_action( 'admin_init', array( $this, 'maybe_take_over' ) );
 		add_action( 'admin_notices', array( $this, 'render_notice' ) );
 	}
 
 	/**
-	 * Deactivate the old plugin and switch the built-in abilities on.
+	 * Deactivate the old plugin and switch the built-in abilities on. Call from
+	 * plugins_loaded, before the built-in abilities are wired up.
 	 */
-	public function maybe_take_over(): void {
+	public static function maybe_take_over(): void {
 		// An active old plugin always defines its constant, so this cheap check
 		// skips the plugin scan below on nearly every request.
-		if ( ! self::is_loaded() || ! current_user_can( 'activate_plugins' ) ) {
+		if ( ! self::is_loaded() ) {
 			return;
 		}
 
@@ -60,6 +61,7 @@ final class LegacyPlugin {
 			return;
 		}
 
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		$network_wide = is_multisite() && is_plugin_active_for_network( $file );
 		deactivate_plugins( $file, true, $network_wide );
 

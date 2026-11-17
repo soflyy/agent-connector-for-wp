@@ -147,6 +147,10 @@ register_activation_hook( __FILE__, array( Support\Config::class, 'activate' ) )
 add_action(
 	'plugins_loaded',
 	static function (): void {
+		// Hand over from the old standalone Universal Abilities plugin, if it's
+		// still active: deactivate it and switch the built-in abilities on.
+		UniversalAbilities\LegacyPlugin::maybe_take_over();
+
 		// The Connection screen is always available — even while held back by a
 		// protection — because it's where the operator manages those settings.
 		if ( is_admin() ) {
@@ -154,7 +158,8 @@ add_action(
 			// Site-wide warning on every wp-admin page while running on a
 			// production environment, until explicitly dismissed.
 			( new Admin\ProductionNotice() )->register();
-			// Hand-over from the old standalone Universal Abilities plugin.
+			// One-time notice after the hand-over from the old standalone
+			// Universal Abilities plugin.
 			( new UniversalAbilities\LegacyPlugin() )->register();
 			// Site-wide error while the MCP Adapter plugin is missing, inactive
 			// or too old — without it there is no MCP server at all.
@@ -181,17 +186,14 @@ add_action(
 		// crash recovery (safe mode) so a fatal in generated code can't take the
 		// site down. GitHub build only. See GitHub\Services\SandboxLoader. Only
 		// while Universal Abilities are on (they're what write those files), so
-		// switching them off also stops agent-written code; the old standalone
-		// plugin counts as on until LegacyPlugin hands over.
-		if ( Support\Config::universal_abilities_enabled() || UniversalAbilities\LegacyPlugin::is_loaded() ) {
+		// switching them off also stops agent-written code.
+		if ( Support\Config::universal_abilities_enabled() ) {
 			( new GitHub\Services\SandboxLoader() )->run();
 		}
 		// @github-build-end
 
-		// The built-in Universal Abilities, when switched on in Settings. They
-		// stand down while the old standalone plugin is still loaded, so nothing
-		// registers twice.
-		if ( Support\Config::universal_abilities_enabled() && ! UniversalAbilities\LegacyPlugin::is_loaded() ) {
+		// The built-in Universal Abilities, when switched on in Settings.
+		if ( Support\Config::universal_abilities_enabled() ) {
 			( new UniversalAbilities\Registrar() )->register();
 		}
 
