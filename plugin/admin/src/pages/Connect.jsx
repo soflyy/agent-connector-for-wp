@@ -531,11 +531,29 @@ function buildOAuth(serverName, serverUrl) {
   const vscodeDeeplink = 'vscode:mcp/install?' + encodeURIComponent(JSON.stringify({ name: serverName, type: 'http', url: serverUrl }))
   const cursorDeeplink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${encodeURIComponent(btoa(JSON.stringify({ url: serverUrl })))}`
 
+  // claude.ai opens its Add custom connector dialog with the name and URL
+  // already filled in. The desktop app handles claude.ai links too.
+  const claudeDeeplink = 'https://claude.ai/customize/connectors?modal=add-custom-connector'
+    + `&connectorName=${encodeURIComponent(serverName)}&connectorUrl=${encodeURIComponent(serverUrl)}`
+
   const json = (value) => JSON.stringify(value, null, 2)
 
   const perAgent = {
-    'claude-desktop': [{
-      ...guide,
+    // The URL comes first, as for ChatGPT, for anyone who'd rather see or
+    // copy it than trust the button.
+    'claude-desktop': [guide, {
+      kind: 'deeplink', title: 'One-click install', button: 'Add to Claude',
+      value: claudeDeeplink,
+      steps: [
+        shot('claude-desktop/name-url', `Click <strong>Add to Claude</strong> above. Claude opens <strong>Add custom connector</strong> with the name and MCP Server URL already filled in. Click <strong>Continue</strong>`, 'Name and MCP server URL fields'),
+        shot('claude-desktop/options', 'Keep the detected options (<strong>Sign in now</strong> and <strong>Register automatically</strong>) and click <strong>Add</strong>', 'Authentication options and the Add button'),
+        shot('claude-desktop/connect', 'Click <strong>Connect</strong>', 'Connect button'),
+        shot('claude-desktop/continue', 'Your browser will show a confirmation page. Click <strong>Continue connecting</strong>', 'Finish connecting a connector?'),
+        authorizeStep('claude-desktop'),
+        shot('claude-desktop/connected', 'Back in Claude, check that your site\'s tools are listed under the connector', 'Connected site with tool permissions'),
+      ],
+    }, {
+      ...guide, manual: true,
       steps: [
         shot('claude-desktop/customize', 'In Claude, click <strong>Customize</strong> in the sidebar', 'Customize in the Claude sidebar'),
         shot('claude-desktop/connectors', 'Open the <strong>Connectors</strong> tab', 'Connectors tab'),
@@ -1127,6 +1145,7 @@ function Block({ block }) {
         ) : block.kind === 'deeplink' ? (
           <a
             href={block.value}
+            {...(/^https?:/.test(block.value) ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-base font-semibold rounded-lg transition-colors"
           >
             <ExternalLink className="w-5 h-5" />
