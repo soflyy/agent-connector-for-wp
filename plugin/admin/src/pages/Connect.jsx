@@ -539,7 +539,9 @@ function buildOAuth(serverName, serverUrl) {
   const json = (value) => JSON.stringify(value, null, 2)
 
   const perAgent = {
-    'claude-desktop': [{
+    // The URL comes first, as for ChatGPT, for anyone who'd rather see or
+    // copy it than trust the button.
+    'claude-desktop': [guide, {
       kind: 'deeplink', title: 'One-click install', button: 'Add to Claude',
       value: claudeDeeplink,
       steps: [
